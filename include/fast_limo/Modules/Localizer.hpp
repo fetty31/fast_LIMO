@@ -8,18 +8,27 @@ using namespace fast_limo;
 
 class fast_limo::Localizer {
 
-    // Variables
+    // VARIABLES
 
     private:
+        // Iterated Kalman Filter on Manifolds (FASTLIOv2)
         esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
 
         State state;
         Extrinsics extr;
         SensorType sensor;
 
+        // PCL Filters
         pcl::CropBox<PointType> crop_filter;
         pcl::VoxelGrid<PointType> voxel_filter;
 
+        // Point Clouds
+        pcl::PointCloud<PointType>::ConstPtr original_scan;
+        pcl::PointCloud<PointType>::ConstPtr deskewed_scan;
+        pcl::PointCloud<PointType>::ConstPtr final_scan;
+        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match
+
+        // Time related var.
         double scan_stamp;
         double prev_scan_stamp;
         double scan_dt;
@@ -30,26 +39,41 @@ class fast_limo::Localizer {
         double first_imu_stamp;
         double imu_calib_time_;
 
+        // Gravity
         double gravity_;
 
+        // Flags
         bool imu_calibrated_;
         bool gravity_align_;
         bool calibrate_accel_;
         bool calibrate_gyro_;
+        bool debug_;
+        bool voxel_flag_;
 
+        // Transformation matrices
         Eigen::Matrix4f T, T_prior;
 
+        // IMU axis matrix 
         Eigen::Matrix3f imu_accel_sm_;
+        /*(if your IMU doesn't comply with axis system ISO8855 
+        this matrix is meant to map its current orientation with respect to the standard axis system)
+            Y-pitch
+            ^   
+            |  
+            | 
+            |
+      Z-yaw o-----------> X-roll
+        */
 
+        // OpenMP max threads
         int num_threads_;
 
-        pcl::PointCloud<PointType>::Ptr pc2match; // pointcloud to match
-
+        // IMU buffer
         boost::circular_buffer<IMUmeas> imu_buffer;
-        std::mutex mtx_imu;
+        std::mutex mtx_imu; // mutex for avoiding multiple thread access to the buffer
         std::condition_variable cv_imu_stamp;
 
-    // Methods
+    // FUNCTIONS
 
     public:
         Localizer();
@@ -80,7 +104,7 @@ class fast_limo::Localizer {
 
         void propagateImu(const IMUmeas& imu);
 
-    // Singleton
+    // SINGLETON 
 
     public:
         static Localizer& getInstance(){

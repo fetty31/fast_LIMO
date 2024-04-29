@@ -3,8 +3,12 @@
 Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), 
                         imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
                         imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
-                        calibrate_accel_(true), calibrate_gyro_(true) { 
+                        calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true) { 
 
+    this->original_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<const pcl::PointCloud<PointType>>());
+    this->deskewed_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<const pcl::PointCloud<PointType>>());
+    this->final_scan    = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<const pcl::PointCloud<PointType>>());
+    this->pc2match      = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<const pcl::PointCloud<PointType>>());
 }
 
 void Localizer::init(double t){
@@ -24,6 +28,65 @@ void Localizer::init(double t){
 /////////////////////////////////           Principal callbacks/threads        /////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double& time_stamp){
+
+    // TO DO: check IMU callibration is finished
+
+    // Crop Box Filter (1 m^2)
+    this->crop_filter.setInputCloud(raw_pc);
+    this->crop_filter.filter(*raw_pc);
+
+    if(this->debug_) // debug only
+        this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // should be in base_link/body frame
+
+    // Motion compensation
+    pcl::PointCloud<PointType>::Ptr deskewed_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+    deskewed_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
+    /*NOTE: deskewed_pc_ should be in global/world frame*/
+
+    if(this->debug) // debug only
+        this->deskewed_scan = deskewed_pc_;
+
+    // Voxel Grid Filter
+    if (this->voxel_flag_) { 
+        pcl::PointCloud<PointType>::Ptr current_scan_
+            (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_pc_));
+        this->voxel_filter.setInputCloud(current_scan_);
+        this->voxel_filter.filter(*current_scan_);
+        this->pc2match = current_scan_;
+    } else {
+        this->pc2match = deskewed_pc_;
+    }
+
+    /*TO DO: pc2match should be in lidar frame --> will be transported into world by the IMU predicted final state before landmark detection*/
+
+    // Update iKFoM measurements (after prediction)
+    double solve_time = 0.0;
+    this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
+                                                    solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
+
+    /*NOTE: update_iterated_dyn_share_modified() will trigger a matching procedure ( see "use-ikfom.cpp" )
+    in order to update the measurement stage of the KF with point-to-plane distances as new measurements*/
+
+    // Get output state from iKFoM
+    fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
+
+    // Transform deskewed pc 
+    pcl::transformPointCloud (*this->pc2match, *this->final_scan, corrected_state.get_RT());
+    // TO DO: pc2match must be in lidar frame for this transform to work properly
+
+    /* To DO:
+        - transform deskewed pc with output state
+        - publish output pc
+        - add output pc to map
+        - save & publish output state
+        - start thread for debugging info (print out)
+    */
+
+   this->prev_scan_stamp = this->scan_stamp;
+
+}
 
 void Localizer::updateIMU(IMUmeas& raw_imu){
 
@@ -145,51 +208,6 @@ void Localizer::updateIMU(IMUmeas& raw_imu){
         this->propagateImu(imu);
 
     }
-
-}
-
-void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double& time_stamp){
-
-    // TO DO: check IMU callibration is finished
-
-    // Crop Box Filter (1 m^2)
-    this->crop_filter.setInputCloud(raw_pc);
-    this->crop_filter.filter(*raw_pc);
-
-    // Motion compensation
-    pcl::PointCloud<PointType>::Ptr deskewed_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
-    deskewed_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
-
-    // Voxel Grid Filter
-    if (true) { // TO DO: add flag
-        pcl::PointCloud<PointType>::Ptr current_scan_
-            (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_pc_));
-        this->voxel_filter.setInputCloud(current_scan_);
-        this->voxel_filter.filter(*current_scan_);
-        this->pc2match = current_scan_;
-    } else {
-        this->pc2match = deskewed_pc_;
-    }
-
-    // Update iKFoM measurements (after prediction)
-    double solve_time = 0.0;
-    this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
-                                                    solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
-
-
-    state_ikfom corrected_state = this->_iKFoM.get_x(); 
-    // TO DO: get corrected state in a fast_limo::State class object
-
-    /* To DO:
-        - get corrected state in a fast_limo::State class object
-        - transform deskewed pc with output state
-        - publish output pc
-        - add output pc to map
-        - save & publish output state
-        - start thread for debugging info (print out)
-    */
-
-   this->prev_scan_stamp = this->scan_stamp;
 
 }
 
@@ -371,6 +389,7 @@ pcl::PointCloud<PointType>::Ptr
         Eigen::Matrix4f T = frames[i] * this->extr.baselink2lidar_T;
 
         // transform point to world frame
+        // TO DO: deskewed scan must be in lidar frame --> taking into account last frame (maybe pick frames from iKFoM)
         for (int k = unique_time_indices[i]; k < unique_time_indices[i+1]; k++) {
         auto &pt = deskewed_scan_->points[k];
         pt.getVector4fMap()[3] = 1.;
@@ -380,7 +399,7 @@ pcl::PointCloud<PointType>::Ptr
 
     // this->deskew_status = true;
 
-    return deskewed_scan_;
+    return deskewed_scan_; // should be in global/world frame
 }
 
 std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
