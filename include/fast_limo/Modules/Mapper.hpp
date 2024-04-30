@@ -5,19 +5,35 @@
 
 using namespace fast_limo;
 
-class Mapper {
+class fast_limo::Mapper {
 
     // Variables
 
-    public:
-
     private:
+        KD_TREE<pcl::PointXYZ>::Ptr map;
+
+        double last_map_time;
+
+        int num_threads_;
 
     // Methods
 
     public:
+        Mapper(int num_threads);
+
+        bool is_built();
+        int size();
+        double last_time()
+
+        Matches match(const State&, pcl::PointCloud<PointType>::ConstPtr&);
+
+        void add(pcl::PointCloud<PointType>::ConstPtr&, double time, bool downsample=false);
 
     private:
+        void build(pcl::PointCloud<PointType>::ConstPtr&);
+        void add_pointcloud(pcl::PointCloud<PointType>::ConstPtr&, bool downsample=false);
+
+        Match match_plane(const PointType& p)
 
     // Singleton 
 

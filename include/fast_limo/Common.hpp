@@ -119,6 +119,9 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(fast_limo::Point,
                                  (double, timestamp, timestamp))
 
 typedef fast_limo::Point PointType;
-typedef std::vector<PointType, Eigen::aligned_allocator<PointType>> MapPoints;
+typedef std::vector<pcl::PointXYZ, Eigen::aligned_allocator<PointType>> MapPoints;
+
+typedef std::vector<fast_limo::Match> Matches;
+typedef std::vector<fast_limo::Plane> Planes;
 
 #endif

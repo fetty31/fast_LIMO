@@ -10,9 +10,13 @@ class fast_limo::Localizer {
 
     // VARIABLES
 
+    public:
+        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match in Xt2 frame
+
     private:
         // Iterated Kalman Filter on Manifolds (FASTLIOv2)
         esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
+        std::mutex mtx_ikfom;
 
         State state;
         Extrinsics extr;
@@ -23,10 +27,9 @@ class fast_limo::Localizer {
         pcl::VoxelGrid<PointType> voxel_filter;
 
         // Point Clouds
-        pcl::PointCloud<PointType>::ConstPtr original_scan;
-        pcl::PointCloud<PointType>::ConstPtr deskewed_scan;
-        pcl::PointCloud<PointType>::ConstPtr final_scan;
-        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match
+        pcl::PointCloud<PointType>::ConstPtr original_scan; // in base_link/body frame
+        pcl::PointCloud<PointType>::ConstPtr deskewed_scan; // in global/world frame
+        pcl::PointCloud<PointType>::ConstPtr final_scan;    // in global/world frame
 
         // Time related var.
         double scan_stamp;
@@ -78,6 +81,8 @@ class fast_limo::Localizer {
     public:
         Localizer();
         void init(double t);
+
+        void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
 
         void updateIMU(IMUmeas& raw_imu);
         void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double& time_stamp);

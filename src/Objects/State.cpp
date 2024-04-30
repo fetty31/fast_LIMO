@@ -17,6 +17,15 @@ fast_limo::State::State(state_ikfom& s){
     this->pLI = s.offset_T_L_I.cast<float>();
 }
 
+State(Eigen::Matrix4f& T){
+
+    // Get tranform matrix
+    Eigen::Matrix3f R = T.block(0, 0, 3, 3);
+    this->q = R;
+
+    this->p = T.block(0, 3, 3, 1);
+}
+
 Eigen::Matrix4f fast_limo::State::get_RT(){
     // Transformation matrix
     Eigen::Matrix4f T = Eigen::Matrix4f::Identity();

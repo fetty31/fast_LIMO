@@ -10,6 +10,7 @@ class fast_limo::Plane{
         Eigen::Matrix<float, 4, 1> n_ABCD; // plane normal vector
 
         Plane();
+        Plane(MapPoints& p, std::vector<float>& d);
         // float dist2plane(const PointType&) const;
         // bool on_plane(const PointType&);
 

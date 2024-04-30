@@ -4,14 +4,14 @@
 
 void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastruct<double> &ekfom_data) {
 	
-	// fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
-	// fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();
+	fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
+	fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();
 
-	// // Calculate matches
-	// Matches matches = MAP.match(
-	//     State (updated_state, LOC.last_time_integrated),
-	//     LOC.points2match
-	// );
+	// Calculate matches
+	Matches matches = MAP.match(
+	    State (updated_state),
+	    LOC.pc2match
+	);
 	
 	// // Calculate derivatives
 	// LOC.calculate_H(

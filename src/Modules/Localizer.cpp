@@ -41,44 +41,43 @@ void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double
         this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // should be in base_link/body frame
 
     // Motion compensation
-    pcl::PointCloud<PointType>::Ptr deskewed_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
-    deskewed_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
-    /*NOTE: deskewed_pc_ should be in global/world frame*/
-
-    if(this->debug) // debug only
-        this->deskewed_scan = deskewed_pc_;
+    pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+    deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
+    /*NOTE: deskewed_Xt2_pc_ should be in last predicted state (Xt2) frame*/
 
     // Voxel Grid Filter
     if (this->voxel_flag_) { 
         pcl::PointCloud<PointType>::Ptr current_scan_
-            (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_pc_));
+            (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
         this->voxel_filter.setInputCloud(current_scan_);
         this->voxel_filter.filter(*current_scan_);
         this->pc2match = current_scan_;
     } else {
-        this->pc2match = deskewed_pc_;
+        this->pc2match = deskewed_Xt2_pc_;
     }
 
-    /*TO DO: pc2match should be in lidar frame --> will be transported into world by the IMU predicted final state before landmark detection*/
+    // iKFoM observation stage
+    this->mtx_ikfom.lock();
 
-    // Update iKFoM measurements (after prediction)
+        // Update iKFoM measurements (after prediction)
     double solve_time = 0.0;
     this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
                                                     solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
 
-    /*NOTE: update_iterated_dyn_share_modified() will trigger a matching procedure ( see "use-ikfom.cpp" )
-    in order to update the measurement stage of the KF with point-to-plane distances as new measurements*/
+        /*NOTE: update_iterated_dyn_share_modified() will trigger a matching procedure ( see "use-ikfom.cpp" )
+        in order to update the measurement stage of the KF with point-to-plane distances as observed measurements*/
 
-    // Get output state from iKFoM
+        // Get output state from iKFoM
     fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
+
+    this->mtx_ikfom.unlock();
 
     // Transform deskewed pc 
     pcl::transformPointCloud (*this->pc2match, *this->final_scan, corrected_state.get_RT());
-    // TO DO: pc2match must be in lidar frame for this transform to work properly
+    // TO DO: pc2match must be in Xt2 frame for this transform to work properly
 
     /* To DO:
-        - transform deskewed pc with output state
-        - publish output pc
+        - get output pc function (this->final_scan)
         - add output pc to map
         - save & publish output state
         - start thread for debugging info (print out)
@@ -212,6 +211,15 @@ void Localizer::updateIMU(IMUmeas& raw_imu){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////          KF measurement model        /////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Localizer::calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h){
+    
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////          Aux. functions        ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,7 +268,9 @@ void Localizer::propagateImu(const IMUmeas& imu){
     // Q.block<3, 3>(9, 9) = Config.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
 
     double dt = imu.dt;
+    this->mtx_ikfom.lock();
     this->_iKFoM.predict(dt, Q, in);
+    this->mtx_ikfom.unlock();
 }
 
 pcl::PointCloud<PointType>::Ptr
@@ -383,6 +393,10 @@ pcl::PointCloud<PointType>::Ptr
     // update prior to be the estimated pose at the median time of the scan (corresponds to this->scan_stamp)
     this->T_prior = frames[median_pt_index];
 
+    // deskewed pointcloud w.r.t last known state prediction
+    pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+    deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
+
     #pragma omp parallel for num_threads(this->num_threads_)
     for (int i = 0; i < timestamps.size(); i++) {
 
@@ -391,15 +405,26 @@ pcl::PointCloud<PointType>::Ptr
         // transform point to world frame
         // TO DO: deskewed scan must be in lidar frame --> taking into account last frame (maybe pick frames from iKFoM)
         for (int k = unique_time_indices[i]; k < unique_time_indices[i+1]; k++) {
-        auto &pt = deskewed_scan_->points[k];
-        pt.getVector4fMap()[3] = 1.;
-        pt.getVector4fMap() = T * pt.getVector4fMap();
+
+            // world frame deskewed pc
+            auto &pt = deskewed_scan_->points[k];
+            pt.getVector4fMap()[3] = 1.;
+            pt.getVector4fMap() = T * pt.getVector4fMap();
+
+            // Xt2 frame deskewed pc
+            auto &pt2 = deskewed_Xt2_scan_->points[k];
+            pt2.getVector4fMap()[3] = 1.;
+            pt2.getVector4fMap() = fast_limo::State(frames[frames.size()-1]).get_RT_inv() * fast_limo::State(this->extr.baselink2lidar_T).get_RT_inv() * pt.getVector4fMap();
+
         }
     }
 
+    if(this->debug) // debug only
+        this->deskewed_scan = deskewed_scan_;
+
     // this->deskew_status = true;
 
-    return deskewed_scan_; // should be in global/world frame
+    return deskewed_Xt2_scan_; // should be in global/world frame
 }
 
 std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
@@ -410,6 +435,7 @@ Localizer::integrateImu(double start_time, Eigen::Quaternionf q_init, Eigen::Vec
 
     if (sorted_timestamps.empty() || start_time > sorted_timestamps.front()) {
         // invalid input, return empty vector
+        std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are not consistent\n";
         return empty;
     }
 
@@ -417,6 +443,7 @@ Localizer::integrateImu(double start_time, Eigen::Quaternionf q_init, Eigen::Vec
     boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it;
     if (not this->imuMeasFromTimeRange(start_time, sorted_timestamps.back(), begin_imu_it, end_imu_it)) {
         // not enough IMU measurements, return empty vector
+        std::cout << "FAST_LIMO::imuMeasFromTimeRange(): not enough IMU measurements\n";
         return empty;
     }
 
