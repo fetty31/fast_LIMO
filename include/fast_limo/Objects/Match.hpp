@@ -2,6 +2,7 @@
 #define __FASTLIMO_MATCH_HPP__
 
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Objects/Plane.hpp"
 
 class fast_limo::Match{
 

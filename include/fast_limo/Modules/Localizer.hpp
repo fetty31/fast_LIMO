@@ -89,7 +89,7 @@ class fast_limo::Localizer {
 
 
     private:
-        IMUmeas& imu2baselink(IMUmeas& imu);
+        IMUmeas imu2baselink(IMUmeas& imu);
 
         pcl::PointCloud<PointType>::Ptr deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time);
 

@@ -1,4 +1,9 @@
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Modules/Localizer.hpp"
+#include "fast_limo/Modules/Mapper.hpp"
+#include "fast_limo/Objects/Match.hpp"
+#include "fast_limo/Objects/State.hpp"
+#include "fast_limo/Objects/Plane.hpp"
 
 #include "use-ikfom.hpp"
 
@@ -9,7 +14,7 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 
 	// Calculate matches
 	Matches matches = MAP.match(
-	    State (updated_state),
+	    fast_limo::State (updated_state),
 	    LOC.pc2match
 	);
 	

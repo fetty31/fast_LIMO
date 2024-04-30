@@ -1,7 +1,9 @@
 #include "fast_limo/Objects/State.hpp"
 
+fast_limo::State::State(){ }
 
-fast_limo::State::State(state_ikfom& s){
+
+fast_limo::State::State(const state_ikfom& s){
 
     // Odom
     this->q = s.rot.cast<float>();
@@ -17,7 +19,7 @@ fast_limo::State::State(state_ikfom& s){
     this->pLI = s.offset_T_L_I.cast<float>();
 }
 
-State(Eigen::Matrix4f& T){
+fast_limo::State::State(Eigen::Matrix4f& T){
 
     // Get tranform matrix
     Eigen::Matrix3f R = T.block(0, 0, 3, 3);
@@ -42,5 +44,5 @@ Eigen::Matrix4f fast_limo::State::get_RT_inv(){
     Tinv.block(0, 0, 3, 3) = rot.transpose();
     Tinv.block(0, 3, 3, 1) = -rot.transpose()*this->p;
 
-    return Tinv
+    return Tinv;
 }

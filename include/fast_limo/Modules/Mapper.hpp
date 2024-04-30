@@ -19,11 +19,13 @@ class fast_limo::Mapper {
     // Methods
 
     public:
-        Mapper(int num_threads);
+        Mapper();
+
+        void set_num_threads(int n);
 
         bool is_built();
         int size();
-        double last_time()
+        double last_time();
 
         Matches match(const State&, pcl::PointCloud<PointType>::ConstPtr&);
 
@@ -33,12 +35,12 @@ class fast_limo::Mapper {
         void build(pcl::PointCloud<PointType>::ConstPtr&);
         void add_pointcloud(pcl::PointCloud<PointType>::ConstPtr&, bool downsample=false);
 
-        Match match_plane(const PointType& p)
+        Match match_plane(const PointType& p);
 
     // Singleton 
 
     public:
-        Mapper& getInstance() {
+        static Mapper& getInstance() {
             static Mapper* mapper = new Mapper();
             return *mapper;
         }

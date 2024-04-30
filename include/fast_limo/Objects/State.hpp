@@ -22,7 +22,8 @@ class fast_limo::State{
             Eigen::Vector3f accel;
         } b;                    // IMU bias in base_link/body frame 
 
-        State(state_ikfom& s);
+        State();
+        State(const state_ikfom& s);
         State(Eigen::Matrix4f& s);
 
         Eigen::Matrix4f get_RT(); // get Rotation & Translation matrix

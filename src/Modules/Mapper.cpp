@@ -1,10 +1,15 @@
 #include "fast_limo/Modules/Mapper.hpp"
 
-Mapper::Mapper(int num_threads) : last_map_time(-1.), num_threads_(num_threads){
+Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
     this->map = KD_TREE<PointType>::Ptr (new KD_TREE<PointType>(0., 0., 0., 0., 0., 0., 0.));
 }
 
 // Public
+
+void Mapper::set_num_threads(int n){
+    if(n < 1) return;
+    this->num_threads_ = n;
+}
         
 bool Mapper::exists(){
     return this->map->size() > 1;
@@ -25,9 +30,14 @@ Matches Mapper::match(const State& s, pcl::PointCloud<PointType>::ConstPtr& pc){
 
     #pragma omp parallel for num_threads(this->num_threads_)
     for(MapPoints::iterator map_it = pc->begin(); map_it != pc->end(); it++ ){
+        
         Eigen::Vector3f point = s.get_RT() * map_it.getVector3fMap();
-        Match match = this->match_plane()
+        Match match = this->match_plane(point);
+
+        if(match.lisanAlGaib()) matches.push_back(match);
     }
+
+    return matches;
 }
 
 void Mapper::add(pcl::PointCloud<PointType>::ConstPtr& pc, double time, bool downsample=false){
