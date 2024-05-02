@@ -1,86 +1,88 @@
 #include "fast_limo/Modules/Mapper.hpp"
 
-Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
-    this->map = KD_TREE<PointType>::Ptr (new KD_TREE<PointType>(0., 0., 0., 0., 0., 0., 0.));
-}
+// class fast_limo::Mapper
+    // public
 
-// Public
+        Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
+            this->map = KD_TREE<pcl::PointXYZ>::Ptr (new KD_TREE<pcl::PointXYZ>(0., 0., 0.));
+        }
 
-void Mapper::set_num_threads(int n){
-    if(n < 1) return;
-    this->num_threads_ = n;
-}
-        
-bool Mapper::exists(){
-    return this->map->size() > 1;
-}
+        void Mapper::set_num_threads(int n){
+            if(n < 1) return;
+            this->num_threads_ = n;
+        }
+                
+        bool Mapper::exists(){
+            return this->map->size() > 1;
+        }
 
-int Mapper::size(){
-    return this->map->size();
-}
+        int Mapper::size(){
+            return this->map->size();
+        }
 
-double Mapper::last_time(){
-    return this->last_map_time;
-}
+        double Mapper::last_time(){
+            return this->last_map_time;
+        }
 
-Matches Mapper::match(const State& s, pcl::PointCloud<PointType>::ConstPtr& pc){
-    Matches matches;
-    if(not this->exists()) return matches;
-    matches.reserve(pc->points.size());
+        Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
+            Matches matches;
+            if(not this->exists()) return matches;
+            matches.reserve(pc->points.size());
 
-    #pragma omp parallel for num_threads(this->num_threads_)
-    for(MapPoints::iterator map_it = pc->begin(); map_it != pc->end(); it++ ){
-        
-        Eigen::Vector3f point = s.get_RT() * map_it.getVector3fMap();
-        Match match = this->match_plane(point);
+            #pragma omp parallel for num_threads(this->num_threads_)
+            for(int i = 0; i < pc->points.size (); i++){
+                
+                Eigen::Vector4f bl_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
+                Eigen::Vector4f global_point = s.get_RT() * bl_point;                               // global 4d point == [x', y', z', 1.0]
+                Match match = this->match_plane(global_point);                                      // point-to-plane match
 
-        if(match.lisanAlGaib()) matches.push_back(match);
-    }
+                if(match.lisanAlGaib()) matches.push_back(match); // if match is chosen, push it
+            }
 
-    return matches;
-}
+            return matches;
+        }
 
-void Mapper::add(pcl::PointCloud<PointType>::ConstPtr& pc, double time, bool downsample=false){
-    if(pc->points.size() < 1) return;
+        void Mapper::add(pcl::PointCloud<PointType>::ConstPtr& pc, double time, bool downsample){
+            if(pc->points.size() < 1) return;
 
-    // If map doesn't exists, build one
-    if(not this->exists()) this->build(pc);
-    else this->add_pointcloud(pc, downsample);
+            // If map doesn't exists, build one
+            if(not this->exists()) this->build(pc);
+            else this->add_pointcloud(pc, downsample);
 
-    this->last_map_time = time;
-}
+            this->last_map_time = time;
+        }
 
-// Private
+    // private
 
-void Mapper::build(pcl::PointCloud<PointType>::ConstPtr& pc){
-    MapPoints map_vec;
-    map_vec.reserve(pc->points.size());
-    for(MapPoints::iterator map_it = pc->begin(); map_it != pc->end(); it++ ) map_vec.push_back( 
-                                                                                            map_it.getVector3fMap()[0], 
-                                                                                            map_it.getVector3fMap()[1], 
-                                                                                            map_it.getVector3fMap()[2]
-                                                                                            );
-    this->map->Build(map_vec);
-}
+        void Mapper::build(pcl::PointCloud<PointType>::ConstPtr& pc){
+            MapPoints map_vec;
+            map_vec.reserve(pc->points.size());
 
-void Mapper::add_pointcloud(pcl::PointCloud<PointType>::ConstPtr& pc, bool downsample=false){
-    MapPoints map_vec;
-    map_vec.reserve(pc->points.size());
-    for(MapPoints::iterator map_it = pc->begin(); map_it != pc->end(); it++ )map_vec.push_back( 
-                                                                                            map_it.getVector3fMap()[0], 
-                                                                                            map_it.getVector3fMap()[1], 
-                                                                                            map_it.getVector3fMap()[2]
-                                                                                            );
-    this->map->Add_Points(map_vec, downsample);
-}
+            #pragma omp parallel for num_threads(this->num_threads_)
+            for(int i = 0; i < pc->points.size (); i++)
+                map_vec.emplace_back( pc->points[i].x, pc->points[i].y, pc->points[i].z );
 
-Match Mapper::match_plane(Eigen::Vector3f& p) {
+            this->map->Build(map_vec);
+        }
 
-    // Find k nearest points
-    MapPoints near_points;
-    std::vector<float> pointSearchSqDis(5/*Config.NUM_MATCH_POINTS*/);
-    this->map->Nearest_Search(pcl::PointXYZ(p(0), p(1), p(2)), 5/*Config.NUM_MATCH_POINTS*/, near_points, pointSearchSqDis);
+        void Mapper::add_pointcloud(pcl::PointCloud<PointType>::ConstPtr& pc, bool downsample){
+            MapPoints map_vec;
+            map_vec.reserve(pc->points.size());
 
-    // Construct a plane fitting between them
-    return Match(p, Plane (near_points, pointSearchSqDis));
-}
+            #pragma omp parallel for num_threads(this->num_threads_)
+            for(int i = 0; i < pc->points.size (); i++)
+                map_vec.emplace_back( pc->points[i].x, pc->points[i].y, pc->points[i].z );
+
+            this->map->Add_Points(map_vec, downsample);
+        }
+
+        Match Mapper::match_plane(Eigen::Vector4f& p) {
+
+            // Find k nearest points
+            MapPoints near_points;
+            std::vector<float> pointSearchSqDis(5/*Config.NUM_MATCH_POINTS*/);
+            this->map->Nearest_Search(pcl::PointXYZ(p(0), p(1), p(2)), 5/*Config.NUM_MATCH_POINTS*/, near_points, pointSearchSqDis);
+
+            // Construct a plane fitting between them
+            return Match(p.head(3), Plane (near_points, pointSearchSqDis));
+        }

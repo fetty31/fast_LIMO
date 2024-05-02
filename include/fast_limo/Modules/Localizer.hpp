@@ -29,7 +29,7 @@ class fast_limo::Localizer {
         // Point Clouds
         pcl::PointCloud<PointType>::ConstPtr original_scan; // in base_link/body frame
         pcl::PointCloud<PointType>::ConstPtr deskewed_scan; // in global/world frame
-        pcl::PointCloud<PointType>::ConstPtr final_scan;    // in global/world frame
+        pcl::PointCloud<PointType>::Ptr final_scan;         // in global/world frame
 
         // Time related var.
         double scan_stamp;

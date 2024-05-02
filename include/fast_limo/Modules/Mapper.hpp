@@ -2,6 +2,9 @@
 #define __FASTLIMO_MAPPER_HPP__
 
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Objects/Match.hpp"
+#include "fast_limo/Objects/State.hpp"
+#include "fast_limo/Objects/Plane.hpp"
 
 using namespace fast_limo;
 
@@ -23,11 +26,11 @@ class fast_limo::Mapper {
 
         void set_num_threads(int n);
 
-        bool is_built();
+        bool exists();
         int size();
         double last_time();
 
-        Matches match(const State&, pcl::PointCloud<PointType>::ConstPtr&);
+        Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
 
         void add(pcl::PointCloud<PointType>::ConstPtr&, double time, bool downsample=false);
 
@@ -35,7 +38,7 @@ class fast_limo::Mapper {
         void build(pcl::PointCloud<PointType>::ConstPtr&);
         void add_pointcloud(pcl::PointCloud<PointType>::ConstPtr&, bool downsample=false);
 
-        Match match_plane(const PointType& p);
+        Match match_plane(Eigen::Vector4f& p);
 
     // Singleton 
 

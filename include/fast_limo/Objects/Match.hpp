@@ -11,7 +11,7 @@ class fast_limo::Match{
         fast_limo::Plane plane;
         float dist;
 
-        Match(Eigen::Vector3f& p, const fast_limo::Plane& H);
+        Match(const Eigen::Vector3f& p, const fast_limo::Plane& H);
 
         bool lisanAlGaib(); // whether is the chosen one :)
 

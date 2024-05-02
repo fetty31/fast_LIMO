@@ -62,8 +62,11 @@ add_executable(${PROJECT_NAME}
   include/IKFoM/use-ikfom.cpp
   
   src/Modules/Localizer.cpp
+  src/Modules/Mapper.cpp
   
   src/Objects/State.cpp
+  src/Objects/Plane.cpp
+  src/Objects/Match.cpp
 
   src/main.cpp
 )
