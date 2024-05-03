@@ -27,11 +27,20 @@
             this->sensor = fast_limo::SensorType::HESAI;
         }
 
+        pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
+            return this->final_scan;
+        }
+
+        State& Localizer::get_state(){
+            this->state.w = this->last_imu.ang_vel;
+            return this->state;
+        }
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////////////           Principal callbacks/threads        /////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double& time_stamp){
+        void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp){
 
             // TO DO: check IMU callibration is finished
 
@@ -267,7 +276,7 @@
 
             double dt = imu.stamp - this->prev_imu_stamp;
             
-            if (dt == 0.) { dt = 1.0/200.0; }
+            if ( (dt == 0.) || (dt > 0.1) ) { dt = 1.0/200.0; }
 
             // Transform angular velocity (will be the same on a rigid body, so just rotate to ROS convention)
             Eigen::Vector3f ang_vel_cg = this->extr.baselink2imu.R * imu.ang_vel;
@@ -461,7 +470,7 @@
 
             // this->deskew_status = true;
 
-            return deskewed_Xt2_scan_; // should be in global/world frame
+            return deskewed_Xt2_scan_; 
         }
 
         std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
@@ -487,6 +496,9 @@
             // Backwards integration to find pose at first IMU sample
             const IMUmeas& f1 = *begin_imu_it;
             const IMUmeas& f2 = *(begin_imu_it+1);
+
+            // Save last IMU being used
+            this->last_imu = *end_imu_it;
 
             // Time between first two IMU samples
             double dt = f2.dt;

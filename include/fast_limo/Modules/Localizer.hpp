@@ -23,6 +23,7 @@ class fast_limo::Localizer {
         State state;
         Extrinsics extr;
         SensorType sensor;
+        IMUmeas last_imu;
 
         // PCL Filters
         pcl::CropBox<PointType> crop_filter;
@@ -84,10 +85,13 @@ class fast_limo::Localizer {
         Localizer();
         void init(double t);
 
+        pcl::PointCloud<PointType>::Ptr get_pointcloud();
+        State& get_state();
+
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
 
         void updateIMU(IMUmeas& raw_imu);
-        void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double& time_stamp);
+        void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp);
 
 
     private:

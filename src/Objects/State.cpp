@@ -3,7 +3,12 @@
 // class fast_limo::State
     // public
 
-        fast_limo::State::State(){ }
+        fast_limo::State::State(){ 
+            this->q = Eigen::Quaternionf::Identity();
+            this->p = Eigen::Vector3f::Zero();
+            this->v = Eigen::Vector3f::Zero();
+            this->w = Eigen::Vector3f::Zero();
+        }
 
 
         fast_limo::State::State(const state_ikfom& s){

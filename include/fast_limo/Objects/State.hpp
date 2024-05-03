@@ -11,7 +11,9 @@ class fast_limo::State{
 
         Eigen::Vector3f p;      // position in global/world frame
         Eigen::Quaternionf q;   // orientation in global/world frame
-        Eigen::Vector3f v;
+        Eigen::Vector3f v;      // linear velocity
+        
+        Eigen::Vector3f w;      // angular velocity (input)
 
         // Offsets
         Eigen::Quaternionf qLI;

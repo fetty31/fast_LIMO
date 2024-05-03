@@ -27,12 +27,16 @@ find_package(Threads REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  pcl_ros
+  sensor_msgs
+  geometry_msgs
+  tf2
 )
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp
+ CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2
  DEPENDS EIGEN3 PCL
 )
 
@@ -82,7 +86,7 @@ add_library(${PROJECT_NAME}
             src/Objects/Plane.cpp
             src/Objects/Match.cpp
             )
-
+target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)
 
 # ROS exec
@@ -91,7 +95,6 @@ add_executable(${PROJECT_NAME}_exec
               )
 
 add_dependencies(${PROJECT_NAME}_exec ${catkin_EXPORTED_TARGETS})
-target_compile_options(${PROJECT_NAME}_exec PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME}_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # Binaries
