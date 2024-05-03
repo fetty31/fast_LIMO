@@ -19,15 +19,15 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 	);
 	
 	// // Calculate derivatives
-	// LOC.calculate_H(
-	//     // Inputs
-	//     updated_state,
-	//     matches,
+	LOC.calculate_H(
+	    // Inputs
+	    updated_state,
+	    matches,
 
-	//     // Outputs
-	//     ekfom_data.h_x,
-	//     ekfom_data.h
-	// );
+	    // Outputs
+	    ekfom_data.h_x,
+	    ekfom_data.h
+	);
 }
 
 MTK::get_cov<process_noise_ikfom>::type process_noise_cov()

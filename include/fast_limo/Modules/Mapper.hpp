@@ -13,7 +13,7 @@ class fast_limo::Mapper {
     // Variables
 
     private:
-        KD_TREE<pcl::PointXYZ>::Ptr map;
+        KD_TREE<MapPoint>::Ptr map;
 
         double last_map_time;
 

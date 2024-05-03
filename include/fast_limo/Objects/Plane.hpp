@@ -6,16 +6,33 @@
 class fast_limo::Plane{
 
     public:
-        PointType centroid;
-        Eigen::Matrix<float, 4, 1> n_ABCD; // plane normal vector
 
-        Plane();
-        Plane(MapPoints& p, std::vector<float>& d);
-        // float dist2plane(const PointType&) const;
-        // bool on_plane(const PointType&);
+        Plane(const MapPoints& p, const std::vector<float>& d);
 
-    // private:
-    //     void fill_plane(const MapPoints&);
+        Eigen::Vector4f get_normal();
+        bool good_fit();
+
+        float dist2plane(const Eigen::Vector3f&) const;
+        float dist2plane(const PointType&) const;
+
+        bool on_plane(const Eigen::Vector3f&);
+        bool on_plane(const PointType&);
+        
+        bool enough_points(const MapPoints& p);
+        bool close_enough(const std::vector<float>& d);
+
+    private:
+        Eigen::Vector3f centroid;
+        Eigen::Vector4f n_ABCD; // plane normal vector
+        bool is_plane;
+
+        void fit_plane(const MapPoints&);
+
+        Eigen::Vector4f estimate_plane(const MapPoints&);
+
+        bool plane_eval(const Eigen::Vector4f&, const MapPoints&, const float&);
+
+        Eigen::Vector3f get_centroid(const MapPoints&);
 
 };
 

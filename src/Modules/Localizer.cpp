@@ -216,8 +216,43 @@
         /////////////////////////////////          KF measurement model        /////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Localizer::calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h){
+        void Localizer::calculate_H(const state_ikfom& s, const Matches& matches, Eigen::MatrixXd& H, Eigen::VectorXd& h){
+            int Nmatches = matches.size();
+            H = Eigen::MatrixXd::Zero(Nmatches, 12);
+            h.resize(Nmatches);
+            State S(s);
 
+            // For each match, calculate its derivative and distance
+            for (int i = 0; i < matches.size(); ++i) {
+                Match match = matches[i];
+                Eigen::Vector4f p4_lidar = extr.baselink2lidar_T.inverse()/* lidar2baselink_T */ * S.get_RT_inv() * match.get_point();
+                Eigen::Vector4f p4_imu   = extr.baselink2lidar_T * p4_lidar;
+                Eigen::Vector4f normal   = match.plane.get_normal();
+
+                // Rotation matrices
+                Eigen::Matrix3f R_inv = s.rot.conjugate().toRotationMatrix().cast<float>();
+                Eigen::Matrix3f I_R_L_inv = s.offset_R_L_I.conjugate().toRotationMatrix().cast<float>();
+
+                // Set correct dimensions
+                Eigen::Vector3f p_lidar, p_imu, n;
+                p_lidar = p4_lidar.head(3);
+                p_imu   = p4_imu.head(3);
+                n       = normal.head(3);
+
+                if( (fabs(p4_lidar(3)-1.0) > 0.01) || (fabs(p4_imu(3)-1.0) > 0.01) ) std::cout << "FAST_LIMO::Localizer::calculate_H() "
+                                                                                                << "global to local transform with low precision!\n";
+
+                // Calculate H (:= dh/dx)
+                Eigen::Vector3f C = R_inv * n;
+                Eigen::Vector3f B = p_lidar.cross(I_R_L_inv * C);
+                Eigen::Vector3f A = p_imu.cross(C);
+                
+                H.block<1, 6>(i,0) << n(0), n(1), n(2), A(0), A(1), A(2);
+                if (false/*Config.estimate_extrinsics*/) H.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
+
+                // Measurement: distance to the closest plane
+                h(i) = -match.dist;
+            }
         }
 
     // private

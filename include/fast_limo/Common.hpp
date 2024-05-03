@@ -96,7 +96,7 @@ namespace fast_limo {
     };
     SE3 baselink2imu;
     SE3 baselink2lidar;
-    Eigen::Matrix4f baselin2imu_T;
+    Eigen::Matrix4f baselink2imu_T;
     Eigen::Matrix4f baselink2lidar_T;
   };
 
@@ -119,6 +119,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(fast_limo::Point,
                                  (double, timestamp, timestamp))
 
 typedef fast_limo::Point PointType;
+typedef pcl::PointXYZ MapPoint;
 typedef std::vector<pcl::PointXYZ, Eigen::aligned_allocator<pcl::PointXYZ>> MapPoints;
 
 typedef std::vector<fast_limo::Match> Matches;

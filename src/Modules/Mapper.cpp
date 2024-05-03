@@ -4,7 +4,7 @@
     // public
 
         Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
-            this->map = KD_TREE<pcl::PointXYZ>::Ptr (new KD_TREE<pcl::PointXYZ>(0., 0., 0.));
+            this->map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0., 0., 0.));
         }
 
         void Mapper::set_num_threads(int n){
@@ -81,7 +81,7 @@
             // Find k nearest points
             MapPoints near_points;
             std::vector<float> pointSearchSqDis(5/*Config.NUM_MATCH_POINTS*/);
-            this->map->Nearest_Search(pcl::PointXYZ(p(0), p(1), p(2)), 5/*Config.NUM_MATCH_POINTS*/, near_points, pointSearchSqDis);
+            this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), 5/*Config.NUM_MATCH_POINTS*/, near_points, pointSearchSqDis);
 
             // Construct a plane fitting between them
             return Match(p.head(3), Plane (near_points, pointSearchSqDis));

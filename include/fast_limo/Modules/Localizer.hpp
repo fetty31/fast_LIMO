@@ -3,6 +3,8 @@
 
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Objects/State.hpp"
+#include "fast_limo/Objects/Match.hpp"
+#include "fast_limo/Objects/Plane.hpp"
 
 using namespace fast_limo;
 
