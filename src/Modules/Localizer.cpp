@@ -66,8 +66,8 @@
             this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
                                                             solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
 
-                /*NOTE: update_iterated_dyn_share_modified() will trigger a matching procedure ( see "use-ikfom.cpp" )
-                in order to update the measurement stage of the KF with point-to-plane distances as observed measurements*/
+                /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
+                in order to update the measurement stage of the KF with the computed point-to-plane distances*/
 
                 // Get output state from iKFoM
             fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
@@ -79,7 +79,7 @@
             // TO DO: pc2match must be in Xt2 frame for this transform to work properly
 
             /* To DO:
-                - get output pc function (this->final_scan)
+                - get_output_pc function (this->final_scan)
                 - add output pc to map
                 - save & publish output state
                 - start thread for debugging info (print out)

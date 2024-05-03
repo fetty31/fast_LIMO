@@ -52,26 +52,48 @@ if(HAS_CPUID)
   add_compile_definitions(HAS_CPUID)
 endif()
 
-add_executable(${PROJECT_NAME}
+# IKD_TREE
+add_library(ikd_tree 
+              include/ikd-Tree/ikd_Tree/ikd_Tree.cpp
+            )
 
-  include/ikd-Tree/ikd_Tree/ikd_Tree.h
-  include/ikd-Tree/ikd_Tree/ikd_Tree.cpp
-  
-  include/IKFoM/IKFoM_toolkit
-  include/IKFoM/use-ikfom.hpp
-  include/IKFoM/use-ikfom.cpp
-  
-  src/Modules/Localizer.cpp
-  src/Modules/Mapper.cpp
-  
-  src/Objects/State.cpp
-  src/Objects/Plane.cpp
-  src/Objects/Match.cpp
-
-  src/main.cpp
+target_link_libraries(ikd_tree ${PCL_LIBRARIES} ${OpenMP_LIBS})
+target_include_directories(ikd_tree
+  PUBLIC include/ikd-Tree/ikd_Tree
 )
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-target_include_directories(${PROJECT_NAME} 
-  PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit include/ikd-Tree/ikd_Tree
+# IKFOM
+add_library(ikfom
+            include/IKFoM/IKFoM_toolkit
+            include/IKFoM/use-ikfom.cpp
+            )
+
+target_link_libraries(ikfom ${PCL_LIBRARIES} ${OpenMP_LIBS})
+target_include_directories(ikfom
+  PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit 
 )
+
+# Fast LIMO
+add_library(${PROJECT_NAME} 
+            src/Modules/Localizer.cpp
+            src/Modules/Mapper.cpp
+
+            src/Objects/State.cpp
+            src/Objects/Plane.cpp
+            src/Objects/Match.cpp
+            )
+
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)
+
+# ROS exec
+add_executable(${PROJECT_NAME}_exec
+              src/main.cpp
+              )
+
+add_dependencies(${PROJECT_NAME}_exec ${catkin_EXPORTED_TARGETS})
+target_compile_options(${PROJECT_NAME}_exec PRIVATE ${OpenMP_FLAGS})
+target_link_libraries(${PROJECT_NAME}_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+# Binaries
+install( TARGETS ${PROJECT_NAME}_exec
+         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )

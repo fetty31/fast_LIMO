@@ -60,7 +60,7 @@ class fast_limo::Localizer {
 
         // IMU axis matrix 
         Eigen::Matrix3f imu_accel_sm_;
-        /*(if your IMU doesn't comply with axis system ISO8855 
+        /*(if your IMU doesn't comply with axis system ISO-8855, 
         this matrix is meant to map its current orientation with respect to the standard axis system)
             Y-pitch
             ^   

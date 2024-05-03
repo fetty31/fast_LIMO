@@ -1,7 +1,7 @@
 #ifndef USE_IKFOM_H
 #define USE_IKFOM_H
 
-#include <esekfom/esekfom.hpp>
+#include "IKFoM_toolkit/esekfom/esekfom.hpp"
 
 typedef MTK::vect<3, double> vect3;
 typedef MTK::SO3<double> SO3;

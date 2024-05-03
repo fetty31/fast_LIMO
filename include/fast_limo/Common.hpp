@@ -39,8 +39,8 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 }
 
 // FASTLIOv2
-#include "use-ikfom.hpp"
-#include "ikd_Tree.h"
+#include "IKFoM/use-ikfom.hpp"
+#include "ikd-Tree/ikd_Tree/ikd_Tree.h"
 
 // Boost
 #include <boost/format.hpp>
