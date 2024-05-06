@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
     printf("\033[2J\033[1;1H");
     std::cout << std::endl
                 << "+-------------------------------------------------------------------+" << std::endl;
-    std::cout   << "|               Fast LIMO  v" << FAST_LIMO_v  << "                  |"
+    std::cout   << "|                        Fast LIMO  v" << FAST_LIMO_v  << "                          |"
                 << std::endl;
     std::cout   << "+-------------------------------------------------------------------+" << std::endl;
 
