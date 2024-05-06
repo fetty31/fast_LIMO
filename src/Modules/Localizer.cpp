@@ -95,6 +95,11 @@
 
             std::cout << "FAST_LIMO::updatePointCloud()\n";
 
+            // Remove NaNs
+            std::vector<int> idx;
+            raw_pc->is_dense = false;
+            pcl::removeNaNFromPointCloud(*raw_pc, *raw_pc, idx);
+
             // Crop Box Filter (1 m^2)
             this->crop_filter.setInputCloud(raw_pc);
             this->crop_filter.filter(*raw_pc);
