@@ -80,7 +80,7 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     sensor_msgs::PointCloud2 orig_msg;
     pcl::toROSMsg(*loc.get_orig_pointcloud(), orig_msg);
     orig_msg.header.stamp = msg->header.stamp;
-    orig_msg.header.frame_id = "/ona2/base_footprint";
+    orig_msg.header.frame_id = "map";
     orig_pub.publish(orig_msg);
 
     sensor_msgs::PointCloud2 deskewed_msg;
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     // Setup config parameters
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud", 1, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud_raw", 1, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe("/ona2/sensors/imu_front/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);

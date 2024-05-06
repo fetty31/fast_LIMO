@@ -411,6 +411,8 @@
             imu_baselink.dt        = dt;
             imu_baselink.stamp     = imu.stamp;
 
+            this->prev_imu_stamp = imu.stamp;
+
             return imu_baselink;
 
         }
