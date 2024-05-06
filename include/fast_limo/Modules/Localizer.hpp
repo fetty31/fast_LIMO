@@ -2,6 +2,7 @@
 #define __FASTLIMO_LOCALIZER_HPP__
 
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Modules/Mapper.hpp"
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/Plane.hpp"
@@ -86,6 +87,9 @@ class fast_limo::Localizer {
         void init(double t);
 
         pcl::PointCloud<PointType>::Ptr get_pointcloud();
+        pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
+        pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
+        pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
         State& get_state();
 
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
@@ -96,6 +100,7 @@ class fast_limo::Localizer {
 
     private:
         void init_iKFoM();
+        void init_iKFoM_state();
 
         IMUmeas imu2baselink(IMUmeas& imu);
 

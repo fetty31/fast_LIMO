@@ -32,11 +32,11 @@ class fast_limo::Mapper {
 
         Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
 
-        void add(pcl::PointCloud<PointType>::ConstPtr&, double time, bool downsample=false);
+        void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
 
     private:
-        void build(pcl::PointCloud<PointType>::ConstPtr&);
-        void add_pointcloud(pcl::PointCloud<PointType>::ConstPtr&, bool downsample=false);
+        void build(pcl::PointCloud<PointType>::Ptr&);
+        void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
 
         Match match_plane(Eigen::Vector4f& p);
 

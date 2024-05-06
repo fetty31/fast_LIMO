@@ -28,6 +28,8 @@ class fast_limo::State{
         State(const state_ikfom& s);
         State(Eigen::Matrix4f& s);
 
+        void operator+=(const State& s);
+
         Eigen::Matrix4f get_RT(); // get Rotation & Translation matrix
 
         Eigen::Matrix4f get_RT_inv(); // get inverted Rotation & Translation matrix

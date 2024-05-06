@@ -41,6 +41,19 @@
             this->p = T.block(0, 3, 3, 1);
         }
 
+        void fast_limo::State::operator+=(const fast_limo::State& state){
+            this->q *= state.q;
+            this->p += state.p;
+            this->v += state.v;
+            this->w += state.w;
+
+            this->b.gyro = state.b.gyro;
+            this->b.accel = state.b.accel;
+
+            this->qLI = state.qLI;
+            this->pLI = state.pLI;
+        }
+
         Eigen::Matrix4f fast_limo::State::get_RT(){
             // Transformation matrix
             Eigen::Matrix4f T = Eigen::Matrix4f::Identity();

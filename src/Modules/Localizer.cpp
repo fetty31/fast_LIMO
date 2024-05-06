@@ -55,10 +55,25 @@
             this->extr.baselink2lidar_T.block(0, 3, 3, 1) = this->extr.baselink2lidar.t;
             this->extr.baselink2lidar_T.block(0, 0, 3, 3) = this->extr.baselink2lidar.R;
 
+            // Debugging
+            this->debug_ = true;
+
         }
 
         pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
             return this->final_scan;
+        }
+
+        pcl::PointCloud<PointType>::ConstPtr Localizer::get_orig_pointcloud(){
+            return this->original_scan;
+        }
+
+        pcl::PointCloud<PointType>::ConstPtr Localizer::get_deskewed_pointcloud(){
+            return this->deskewed_scan;
+        }
+
+        pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
+            return this->pc2match;
         }
 
         State& Localizer::get_state(){
@@ -87,7 +102,7 @@
             std::cout << "crop filter done\n";
 
             if(this->debug_) // debug only
-                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // should be in base_link/body frame
+                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // base_link/body frame
 
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -96,54 +111,55 @@
 
             std::cout << "Pointcloud deskewed\n";
 
-            if(deskewed_Xt2_pc_->points.size() < 1)
-                return;
+            if(deskewed_Xt2_pc_->points.size() > 1){
 
-            // Voxel Grid Filter
-            if (this->voxel_flag_) { 
-                pcl::PointCloud<PointType>::Ptr current_scan_
-                    (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
-                this->voxel_filter.setInputCloud(current_scan_);
-                this->voxel_filter.filter(*current_scan_);
-                this->pc2match = current_scan_;
-            } else {
-                this->pc2match = deskewed_Xt2_pc_;
+                // Voxel Grid Filter
+                if (this->voxel_flag_) { 
+                    pcl::PointCloud<PointType>::Ptr current_scan_
+                        (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
+                    this->voxel_filter.setInputCloud(current_scan_);
+                    this->voxel_filter.filter(*current_scan_);
+                    this->pc2match = current_scan_;
+                } else {
+                    this->pc2match = deskewed_Xt2_pc_;
+                }
+
+                std::cout << "voxel grid filter applied\n";
+
+                // iKFoM observation stage
+                this->mtx_ikfom.lock();
+
+                    // Update iKFoM measurements (after prediction)
+                double solve_time = 0.0;
+                this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
+                                                                solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
+
+                    /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
+                    in order to update the measurement stage of the KF with the computed point-to-plane distances*/
+
+                    // Get output state from iKFoM
+                fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
+
+                std::cout << "IKFOM measurment updated\n";
+
+                    // Update current state estimate
+                corrected_state.b.gyro  = this->state.b.gyro;
+                corrected_state.b.accel = this->state.b.accel;
+                this->state = corrected_state;
+
+                this->mtx_ikfom.unlock();
+
+                // Transform deskewed pc 
+                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT());
+                // pc2match must be in Xt2 frame for this transform to work properly
+
+                std::cout << "final scan!\n";
+
+                // Add scan to map
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+                map.add(final_scan, this->scan_stamp);
+
             }
-
-            std::cout << "voxel grid filter applied\n";
-
-            // iKFoM observation stage
-            this->mtx_ikfom.lock();
-
-                // Update iKFoM measurements (after prediction)
-            double solve_time = 0.0;
-            this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
-                                                            solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
-
-                /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
-                in order to update the measurement stage of the KF with the computed point-to-plane distances*/
-
-                // Get output state from iKFoM
-            fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
-
-            std::cout << "IKFOM measurment updated\n";
-
-                // Update current state estimate
-            corrected_state.b.gyro  = this->state.b.gyro;
-            corrected_state.b.accel = this->state.b.accel;
-            this->state = corrected_state;
-
-            this->mtx_ikfom.unlock();
-
-            // Transform deskewed pc 
-            pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT());
-            // pc2match must be in Xt2 frame for this transform to work properly
-
-            std::cout << "final scan!\n";
-
-            /* To DO:
-                - add output pc to map
-            */
 
             this->prev_scan_stamp = this->scan_stamp;
 
@@ -153,8 +169,6 @@
 
             this->imu_stamp = raw_imu.stamp;
             IMUmeas imu = this->imu2baselink(raw_imu);
-
-            // this->first_imu_received = true;
 
             if(this->first_imu_stamp == 0.0) this->first_imu_stamp = imu.stamp;
 
@@ -211,9 +225,9 @@
 
                         // use alternate representation if the yaw is smaller
                         if (abs(remainder(yaw + 180.0, 360.0)) < abs(yaw)) {
-                        yaw   = remainder(yaw + 180.0,   360.0);
-                        pitch = remainder(180.0 - pitch, 360.0);
-                        roll  = remainder(roll + 180.0,  360.0);
+                            yaw   = remainder(yaw + 180.0,   360.0);
+                            pitch = remainder(180.0 - pitch, 360.0);
+                            roll  = remainder(roll + 180.0,  360.0);
                         }
                         std::cout << " Estimated initial attitude:" << std::endl;
                         std::cout << "   Roll  [deg]: " << to_string_with_precision(roll, 4) << std::endl;
@@ -242,6 +256,9 @@
                     }
 
                     this->imu_calibrated_ = true;
+
+                    // Set initial KF state
+                    this->init_iKFoM_state();
 
                 }
 
@@ -338,6 +355,28 @@
                 3 /*Config.MAX_NUM_ITERS*/,
                 std::vector<double> (23, 0.001) /*Config.LIMITS*/
             );
+        }
+
+        void Localizer::init_iKFoM_state() {
+            state_ikfom init_state = this->_iKFoM.get_x();
+            init_state.rot = this->state.q.cast<double> ();
+            init_state.grav = /*MTK::*/S2(Eigen::Vector3d(0., 0., -this->gravity_));
+            init_state.bg = this->state.b.gyro.cast<double>();
+            init_state.ba = this->state.b.accel.cast<double>();
+
+            init_state.offset_R_L_I = /*MTK::*/SO3(this->extr.baselink2lidar.R.cast<double>());
+            init_state.offset_T_L_I = this->extr.baselink2lidar.t.cast<double>();
+            this->_iKFoM.change_x(init_state);
+
+            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = this->_iKFoM.get_P();
+            init_P.setIdentity();
+            init_P(6,6) = init_P(7,7) = init_P(8,8) = 0.00001;
+            init_P(9,9) = init_P(10,10) = init_P(11,11) = 0.00001;
+            init_P(15,15) = init_P(16,16) = init_P(17,17) = 0.0001;
+            init_P(18,18) = init_P(19,19) = init_P(20,20) = 0.001;
+            init_P(21,21) = init_P(22,22) = 0.00001; 
+            
+            this->_iKFoM.change_P(init_P);
         }
 
         IMUmeas Localizer::imu2baselink(IMUmeas& imu){
@@ -463,14 +502,14 @@
                 offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
             // }
 
-            std::cout << "timestamps:\n";
+            // std::cout << "timestamps:\n";
 
             // build list of unique timestamps and indices of first point with each timestamp
             for (auto it = points_unique_timestamps.begin(); it != points_unique_timestamps.end(); it++) {
                 timestamps.push_back(extract_point_time(*it) + offset);
                 unique_time_indices.push_back(it->index());
 
-                std::cout << extract_point_time(*it) + offset << std::endl;
+                // std::cout << std::setprecision(20) << extract_point_time(*it) + offset << std::endl;
             }
             unique_time_indices.push_back(deskewed_scan_->points.size());
 
@@ -502,6 +541,9 @@
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(frames[frames.size()-1]);
+            std::cout << "LAST STATE: " << this->last_state.p << std::endl;
+
+            for(int i=0; i < frames.size(); i++) std::cout << "FRAME: " << fast_limo::State(frames[i]).p << std::endl;
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < timestamps.size(); i++) {
@@ -519,9 +561,8 @@
 
                     // Xt2 frame deskewed pc
                     auto &pt2 = deskewed_Xt2_scan_->points[k];
-                    pt2.getVector4fMap()[3] = 1.;
+                    // pt2.getVector4fMap()[3] = 1.;
                     pt2.getVector4fMap() = this->last_state.get_RT_inv() * fast_limo::State(this->extr.baselink2lidar_T).get_RT_inv() * pt.getVector4fMap();
-
                 }
             }
 
@@ -717,34 +758,34 @@
                                                 boost::circular_buffer<IMUmeas>::reverse_iterator& begin_imu_it,
                                                 boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it) {
 
-        if (this->imu_buffer.empty() || this->imu_buffer.front().stamp < end_time) {
-            // Wait for the latest IMU data
-            std::unique_lock<decltype(this->mtx_imu)> lock(this->mtx_imu);
-            this->cv_imu_stamp.wait(lock, [this, &end_time]{ return this->imu_buffer.front().stamp >= end_time; });
-        }
+            if (this->imu_buffer.empty() || this->imu_buffer.front().stamp < end_time) {
+                // Wait for the latest IMU data
+                std::unique_lock<decltype(this->mtx_imu)> lock(this->mtx_imu);
+                this->cv_imu_stamp.wait(lock, [this, &end_time]{ return this->imu_buffer.front().stamp >= end_time; });
+            }
 
-        auto imu_it = this->imu_buffer.begin();
+            auto imu_it = this->imu_buffer.begin();
 
-        auto last_imu_it = imu_it;
-        imu_it++;
-        while (imu_it != this->imu_buffer.end() && imu_it->stamp >= end_time) {
-            last_imu_it = imu_it;
+            auto last_imu_it = imu_it;
             imu_it++;
-        }
+            while (imu_it != this->imu_buffer.end() && imu_it->stamp >= end_time) {
+                last_imu_it = imu_it;
+                imu_it++;
+            }
 
-        while (imu_it != this->imu_buffer.end() && imu_it->stamp >= start_time) {
+            while (imu_it != this->imu_buffer.end() && imu_it->stamp >= start_time) {
+                imu_it++;
+            }
+
+            if (imu_it == this->imu_buffer.end()) {
+                // not enough IMU measurements, return false
+                return false;
+            }
             imu_it++;
-        }
 
-        if (imu_it == this->imu_buffer.end()) {
-            // not enough IMU measurements, return false
-            return false;
-        }
-        imu_it++;
+            // Set reverse iterators (to iterate forward in time)
+            end_imu_it = boost::circular_buffer<IMUmeas>::reverse_iterator(last_imu_it);
+            begin_imu_it = boost::circular_buffer<IMUmeas>::reverse_iterator(imu_it);
 
-        // Set reverse iterators (to iterate forward in time)
-        end_imu_it = boost::circular_buffer<IMUmeas>::reverse_iterator(last_imu_it);
-        begin_imu_it = boost::circular_buffer<IMUmeas>::reverse_iterator(imu_it);
-
-        return true;
+            return true;
         }

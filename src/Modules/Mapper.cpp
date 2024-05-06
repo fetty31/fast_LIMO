@@ -42,7 +42,7 @@
             return matches;
         }
 
-        void Mapper::add(pcl::PointCloud<PointType>::ConstPtr& pc, double time, bool downsample){
+        void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, double time, bool downsample){
             if(pc->points.size() < 1) return;
 
             // If map doesn't exists, build one
@@ -54,7 +54,7 @@
 
     // private
 
-        void Mapper::build(pcl::PointCloud<PointType>::ConstPtr& pc){
+        void Mapper::build(pcl::PointCloud<PointType>::Ptr& pc){
             MapPoints map_vec;
             map_vec.reserve(pc->points.size());
 
@@ -65,7 +65,7 @@
             this->map->Build(map_vec);
         }
 
-        void Mapper::add_pointcloud(pcl::PointCloud<PointType>::ConstPtr& pc, bool downsample){
+        void Mapper::add_pointcloud(pcl::PointCloud<PointType>::Ptr& pc, bool downsample){
             MapPoints map_vec;
             map_vec.reserve(pc->points.size());
 
