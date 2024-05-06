@@ -13,14 +13,14 @@ class fast_limo::Localizer {
     // VARIABLES
 
     public:
-        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match in Xt2 frame
+        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match in Xt2 (last_state) frame
 
     private:
         // Iterated Kalman Filter on Manifolds (FASTLIOv2)
         esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
         std::mutex mtx_ikfom;
 
-        State state;
+        State state, last_state;
         Extrinsics extr;
         SensorType sensor;
         IMUmeas last_imu;
@@ -95,6 +95,8 @@ class fast_limo::Localizer {
 
 
     private:
+        void init_iKFoM();
+
         IMUmeas imu2baselink(IMUmeas& imu);
 
         pcl::PointCloud<PointType>::Ptr deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time);

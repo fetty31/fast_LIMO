@@ -15,16 +15,46 @@
         }
 
         void Localizer::init(double t){
-
+            
+            // Set num of threads
             this->num_threads_ = omp_get_max_threads();
 
+            // Initialize Iterated Kalman Filter on Manifolds
+            this->init_iKFoM();
+
+            // Set buffer capacity
+            this->imu_buffer.set_capacity(2000);
+
+            // PCL filters setup
             this->crop_filter.setNegative(true);
             this->crop_filter.setMin(Eigen::Vector4f(-1.0, -1.0, -1.0, 1.0));
             this->crop_filter.setMax(Eigen::Vector4f(1.0, 1.0, 1.0, 1.0));
 
             this->voxel_filter.setLeafSize(0.25, 0.25, 0.25);
 
+            // LiDAR sensor type
             this->sensor = fast_limo::SensorType::HESAI;
+
+            // IMU attitude
+            this->imu_accel_sm_ = Eigen::Matrix3f::Identity();
+
+            // Extrinsics
+                // To DO: fill with parameters
+            this->extr.baselink2imu.t = Eigen::Vector3f(0., 0., 0.);
+            this->extr.baselink2imu.R = Eigen::Matrix3f::Identity();
+
+            this->extr.baselink2imu_T = Eigen::Matrix4f::Identity();
+            this->extr.baselink2imu_T.block(0, 3, 3, 1) = this->extr.baselink2imu.t;
+            this->extr.baselink2imu_T.block(0, 0, 3, 3) = this->extr.baselink2imu.R;
+
+                // To DO: fill with parameters
+            this->extr.baselink2lidar.t = Eigen::Vector3f(0., -0.8639, 0.);
+            this->extr.baselink2lidar.R = Eigen::Matrix3f::Identity();
+
+            this->extr.baselink2lidar_T = Eigen::Matrix4f::Identity();
+            this->extr.baselink2lidar_T.block(0, 3, 3, 1) = this->extr.baselink2lidar.t;
+            this->extr.baselink2lidar_T.block(0, 0, 3, 3) = this->extr.baselink2lidar.R;
+
         }
 
         pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
@@ -43,10 +73,18 @@
         void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp){
 
             // TO DO: check IMU callibration is finished
+            if (!this->imu_calibrated_ || this->imu_buffer.empty() ){
+                std::cout << "FAST_LIMO::IMU buffer is empty!\n";
+                return;
+            }
+
+            std::cout << "FAST_LIMO::updatePointCloud()\n";
 
             // Crop Box Filter (1 m^2)
             this->crop_filter.setInputCloud(raw_pc);
             this->crop_filter.filter(*raw_pc);
+
+            std::cout << "crop filter done\n";
 
             if(this->debug_) // debug only
                 this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // should be in base_link/body frame
@@ -55,6 +93,11 @@
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in last predicted state (Xt2) frame*/
+
+            std::cout << "Pointcloud deskewed\n";
+
+            if(deskewed_Xt2_pc_->points.size() < 1)
+                return;
 
             // Voxel Grid Filter
             if (this->voxel_flag_) { 
@@ -66,6 +109,8 @@
             } else {
                 this->pc2match = deskewed_Xt2_pc_;
             }
+
+            std::cout << "voxel grid filter applied\n";
 
             // iKFoM observation stage
             this->mtx_ikfom.lock();
@@ -81,20 +126,26 @@
                 // Get output state from iKFoM
             fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
 
+            std::cout << "IKFOM measurment updated\n";
+
+                // Update current state estimate
+            corrected_state.b.gyro  = this->state.b.gyro;
+            corrected_state.b.accel = this->state.b.accel;
+            this->state = corrected_state;
+
             this->mtx_ikfom.unlock();
 
             // Transform deskewed pc 
-            pcl::transformPointCloud (*this->pc2match, *this->final_scan, corrected_state.get_RT());
-            // TO DO: pc2match must be in Xt2 frame for this transform to work properly
+            pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT());
+            // pc2match must be in Xt2 frame for this transform to work properly
+
+            std::cout << "final scan!\n";
 
             /* To DO:
-                - get_output_pc function (this->final_scan)
                 - add output pc to map
-                - save & publish output state
-                - start thread for debugging info (print out)
             */
 
-        this->prev_scan_stamp = this->scan_stamp;
+            this->prev_scan_stamp = this->scan_stamp;
 
         }
 
@@ -150,8 +201,7 @@
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;
-                        this->T.block(0,0,3,3) = this->state.q.toRotationMatrix();
-                        // this->lidarPose.q = this->state.q;
+                        // this->T.block(0,0,3,3) = this->state.q.toRotationMatrix();
 
                         // rpy
                         auto euler = grav_q.toRotationMatrix().eulerAngles(2, 1, 0);
@@ -197,6 +247,8 @@
 
             } else {
 
+                // std::cout << "Receiving IMU meas\n";
+
                 // this->imu_rates.push_back( 1./imu.dt );
 
                 // Apply the calibrated bias to the new IMU measurements
@@ -211,11 +263,17 @@
                 this->imu_buffer.push_front(imu);
                 this->mtx_imu.unlock();
 
-                // Notify the callbackPointCloud::imuMeasFromTimeRange() thread that IMU data exists for this time
+                // std::cout << "IMU buffer filled: " << imu_buffer.size() << std::endl;
+
+                // Notify callbackPointCloud::imuMeasFromTimeRange() thread that IMU data exists for this time
                 this->cv_imu_stamp.notify_one();
+
+                // std::cout << "PC thread notified\n";
 
                 // iKFoM propagate state
                 this->propagateImu(imu);
+
+                // std::cout << "IKFOM propagate IMU\n";
 
             }
 
@@ -270,6 +328,18 @@
         /////////////////////////////////          Aux. functions        ///////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        void Localizer::init_iKFoM() {
+            // Initialize IKFoM
+            this->_iKFoM.init_dyn_share(
+                IKFoM::get_f,
+                IKFoM::df_dx,
+                IKFoM::df_dw,
+                IKFoM::h_share_model,
+                3 /*Config.MAX_NUM_ITERS*/,
+                std::vector<double> (23, 0.001) /*Config.LIMITS*/
+            );
+        }
+
         IMUmeas Localizer::imu2baselink(IMUmeas& imu){
 
             IMUmeas imu_baselink;
@@ -308,10 +378,10 @@
 
             Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
             // TO DO: get config params from covariance
-            // Q.block<3, 3>(0, 0) = Config.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(3, 3) = Config.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(6, 6) = Config.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(9, 9) = Config.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(0, 0) = 0.0001 /*Config.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(3, 3) = 0.01 /*Config.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(6, 6) = 0.00001 /*Config.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(9, 9) = 0.0001 /*Config.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
 
             double dt = imu.dt;
             this->mtx_ikfom.lock();
@@ -393,30 +463,19 @@
                 offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
             // }
 
+            std::cout << "timestamps:\n";
+
             // build list of unique timestamps and indices of first point with each timestamp
             for (auto it = points_unique_timestamps.begin(); it != points_unique_timestamps.end(); it++) {
                 timestamps.push_back(extract_point_time(*it) + offset);
                 unique_time_indices.push_back(it->index());
+
+                std::cout << extract_point_time(*it) + offset << std::endl;
             }
             unique_time_indices.push_back(deskewed_scan_->points.size());
 
             int median_pt_index = timestamps.size() / 2;
             this->scan_stamp = timestamps[median_pt_index]; // set this->scan_stamp to the timestamp of the median point
-
-            // TO DO: don't process scans until IMU data is present
-
-            // if (!this->first_valid_scan) {
-            //     if (this->imu_buffer.empty() || this->scan_stamp <= this->imu_buffer.back().stamp) {
-            //     return;
-            //     }
-
-            //     this->first_valid_scan = true;
-            //     this->T_prior = this->T; // assume no motion for the first scan
-            //     pcl::transformPointCloud (*deskewed_scan_, *deskewed_scan_, this->T_prior * this->extr.baselink2lidar_T);
-            //     this->deskewed_scan = deskewed_scan_;
-            //     this->deskew_status = true;
-            //     return;
-            // }
 
             // IMU prior & deskewing for second scan onwards
             std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> frames;
@@ -426,22 +485,23 @@
 
             // TO DO: if there are no frames between the start and end of the sweep
             // that probably means that there's a sync issue
-            // if (frames.size() != timestamps.size()) {
-            //     ROS_FATAL("Bad time sync between LiDAR and IMU!");
+            if (frames.size() != timestamps.size()) {
+                std::cout << "FAST_LIMO::FATAL ERROR: Bad time sync between LiDAR and IMU!\n";
+                std::cout << "frames.size(): " << frames.size() << std::endl;
+                std::cout << "timestamps.size(): " << timestamps.size() << std::endl;
+                // return boost::make_shared<pcl::PointCloud<PointType>>();
+            }
 
-            //     this->T_prior = this->T;
-            //     pcl::transformPointCloud (*deskewed_scan_, *deskewed_scan_, this->T_prior * this->extr.baselink2lidar_T);
-            //     this->deskewed_scan = deskewed_scan_;
-            //     this->deskew_status = false;
-            //     return;
-            // }
+            if(frames.size() < 1) return boost::make_shared<pcl::PointCloud<PointType>>();
 
             // update prior to be the estimated pose at the median time of the scan (corresponds to this->scan_stamp)
-            this->T_prior = frames[median_pt_index];
+            // this->T_prior = frames[median_pt_index];
 
             // deskewed pointcloud w.r.t last known state prediction
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
+
+            this->last_state = fast_limo::State(frames[frames.size()-1]);
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < timestamps.size(); i++) {
@@ -460,7 +520,7 @@
                     // Xt2 frame deskewed pc
                     auto &pt2 = deskewed_Xt2_scan_->points[k];
                     pt2.getVector4fMap()[3] = 1.;
-                    pt2.getVector4fMap() = fast_limo::State(frames[frames.size()-1]).get_RT_inv() * fast_limo::State(this->extr.baselink2lidar_T).get_RT_inv() * pt.getVector4fMap();
+                    pt2.getVector4fMap() = this->last_state.get_RT_inv() * fast_limo::State(this->extr.baselink2lidar_T).get_RT_inv() * pt.getVector4fMap();
 
                 }
             }

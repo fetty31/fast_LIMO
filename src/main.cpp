@@ -27,7 +27,7 @@
 ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
-void fromROS2Limo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
+void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
     out.stamp = in->header.stamp.toSec();
 
     out.ang_vel(0) = in->angular_velocity.x;
@@ -39,7 +39,7 @@ void fromROS2Limo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out)
     out.lin_accel(2) = in->linear_acceleration.z;
 }
 
-void fromROS2Limo(const fast_limo::State& in, nav_msgs::Odometry& out){
+void fromROStoLimo(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
     out.header.frame_id = "odom";
 
@@ -81,12 +81,12 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
     fast_limo::IMUmeas imu;
-    fromROS2Limo(msg, imu);
+    fromROStoLimo(msg, imu);
 
     loc.updateIMU(imu);
 
     nav_msgs::Odometry state_msg;
-    fromROS2Limo(loc.get_state(), state_msg);
+    fromROStoLimo(loc.get_state(), state_msg);
     state_pub.publish(state_msg);
 
 }
@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
     // Setup config parameters
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe("/velodyne_points", 1, lidar_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber imu_sub   = nh.subscribe("/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud", 1, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber imu_sub   = nh.subscribe("/ona2/sensors/imu_front/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);

@@ -4,10 +4,15 @@
     // public
 
         fast_limo::State::State(){ 
-            this->q = Eigen::Quaternionf::Identity();
-            this->p = Eigen::Vector3f::Zero();
-            this->v = Eigen::Vector3f::Zero();
-            this->w = Eigen::Vector3f::Zero();
+            this->q   = Eigen::Quaternionf::Identity();
+            this->p   = Eigen::Vector3f::Zero();
+            this->v   = Eigen::Vector3f::Zero();
+            this->w   = Eigen::Vector3f::Zero();
+            this->pLI = Eigen::Vector3f::Zero();
+            this->qLI = Eigen::Quaternionf::Identity();
+
+            this->b.gyro  = Eigen::Vector3f::Zero();
+            this->b.accel = Eigen::Vector3f::Zero();
         }
 
 
