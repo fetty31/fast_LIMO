@@ -112,7 +112,7 @@ class fast_limo::Localizer {
         pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
-        State& get_state();
+        State get_state();
 
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
 

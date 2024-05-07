@@ -131,9 +131,9 @@ int main(int argc, char** argv) {
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
 
         // debug
-    orig_pub = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
-    desk_pub = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
-    match_pub = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
+    orig_pub    = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
+    desk_pub    = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
+    match_pub   = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
 
 
     /*To DO:

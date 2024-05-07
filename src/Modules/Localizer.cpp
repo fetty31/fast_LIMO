@@ -90,9 +90,11 @@
             return this->pc2match;
         }
 
-        State& Localizer::get_state(){
-            this->state.w = this->last_imu.ang_vel;
-            return this->state;
+        State Localizer::get_state(){
+            State out = this->state;
+            out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;   // local velocity vector
+            out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            return out;
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -166,7 +168,8 @@
                     // Update current state estimate
                 corrected_state.b.gyro  = this->state.b.gyro;
                 corrected_state.b.accel = this->state.b.accel;
-                this->state = corrected_state;
+                this->state   = corrected_state;
+                this->state.w = this->last_imu.ang_vel;
 
                 this->mtx_ikfom.unlock();
 
