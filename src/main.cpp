@@ -146,13 +146,6 @@ int main(int argc, char** argv) {
 
     loc.init(0.0); // To DO: is it start time needed??
 
-    printf("\033[2J\033[1;1H");
-    std::cout << std::endl
-                << "+-------------------------------------------------------------------+" << std::endl;
-    std::cout   << "|                        Fast LIMO  v" << FAST_LIMO_v  << "                          |"
-                << std::endl;
-    std::cout   << "+-------------------------------------------------------------------+" << std::endl;
-
     ros::waitForShutdown();
 
     return 0;

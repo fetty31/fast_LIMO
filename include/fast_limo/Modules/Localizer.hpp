@@ -54,11 +54,18 @@ class fast_limo::Localizer {
         bool gravity_align_;
         bool calibrate_accel_;
         bool calibrate_gyro_;
-        bool debug_;
         bool voxel_flag_;
 
         // Transformation matrices
         Eigen::Matrix4f T, T_prior;
+
+        // OpenMP max threads
+        int num_threads_;
+
+        // IMU buffer
+        boost::circular_buffer<IMUmeas> imu_buffer;
+        std::mutex mtx_imu; // mutex for avoiding multiple thread access to the buffer
+        std::condition_variable cv_imu_stamp;
 
         // IMU axis matrix 
         Eigen::Matrix3f imu_accel_sm_;
@@ -72,13 +79,28 @@ class fast_limo::Localizer {
       Z-yaw o-----------> X-roll
         */
 
-        // OpenMP max threads
-        int num_threads_;
+        // Debugging
+            // Flags
+        bool verbose_;  // whether to print out stats
+        bool debug_;    // whether to copy original & deskewed pointclouds at each iteration
 
-        // IMU buffer
-        boost::circular_buffer<IMUmeas> imu_buffer;
-        std::mutex mtx_imu; // mutex for avoiding multiple thread access to the buffer
-        std::condition_variable cv_imu_stamp;
+            // Threads
+        std::thread debug_thread;
+
+            // Buffers
+        boost::circular_buffer<double> cpu_times;
+        boost::circular_buffer<double> imu_rates;
+        boost::circular_buffer<double> lidar_rates;
+        boost::circular_buffer<double> cpu_percents;
+
+            // CPU specs
+        std::string cpu_type;
+        clock_t lastCPU, lastSysCPU, lastUserCPU;
+        int numProcessors;
+
+            // Other
+        chrono::duration<double> elapsed_time;  // pointcloud callback elapsed time
+        int deskew_size;                        // steps taken to deskew (FoV discretization)
 
     // FUNCTIONS
 
@@ -121,6 +143,8 @@ class fast_limo::Localizer {
                                  boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it);
 
         void propagateImu(const IMUmeas& imu);
+        void getCPUinfo();
+        void debugVerbose();
 
     // SINGLETON 
 

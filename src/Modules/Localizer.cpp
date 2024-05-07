@@ -3,10 +3,10 @@
 // class fast_limo::Localizer
     // public
 
-        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), 
+        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
                                 imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
                                 imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
-                                calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true) { 
+                                calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true), verbose_(true) { 
 
             this->original_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
             this->deskewed_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -14,7 +14,7 @@
             this->final_scan    = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
         }
 
-        void Localizer::init(double t){
+        void Localizer::init(double t){ // TO DO: Give parameters config struct
             
             // Set num of threads
             this->num_threads_ = omp_get_max_threads();
@@ -55,9 +55,23 @@
             this->extr.baselink2lidar_T.block(0, 3, 3, 1) = this->extr.baselink2lidar.t;
             this->extr.baselink2lidar_T.block(0, 0, 3, 3) = this->extr.baselink2lidar.R;
 
+            // Avoid unnecessary warnings from PCL
+            pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
+
             // Debugging
             this->debug_ = true;
+            this->verbose_ = true;
 
+            if(this->verbose_){
+
+                // read CPU specs
+                this->getCPUinfo();
+
+                // set up buffer capacities
+                this->imu_rates.set_capacity(1000);
+                this->lidar_rates.set_capacity(1000);
+                this->cpu_times.set_capacity(1000);
+            }
         }
 
         pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
@@ -86,6 +100,8 @@
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp){
+
+            auto start_time = chrono::system_clock::now();
 
             // TO DO: check IMU callibration is finished
             if (!this->imu_calibrated_ || this->imu_buffer.empty() ){
@@ -166,8 +182,20 @@
 
             }
 
-            this->prev_scan_stamp = this->scan_stamp;
+            auto end_time = chrono::system_clock::now();
+            elapsed_time = end_time - start_time;
 
+            if(this->verbose_){
+                // fill stats
+                this->lidar_rates.push_front( 1. / (this->scan_stamp - this->prev_scan_stamp) );
+                this->cpu_times.push_front(elapsed_time.count());
+
+                // debug thread
+                this->debug_thread = std::thread( &Localizer::debugVerbose, this );
+                this->debug_thread.detach();
+            }
+
+            this->prev_scan_stamp = this->scan_stamp;
         }
 
         void Localizer::updateIMU(IMUmeas& raw_imu){
@@ -271,7 +299,7 @@
 
                 // std::cout << "Receiving IMU meas\n";
 
-                // this->imu_rates.push_back( 1./imu.dt );
+                if(this->verbose_) this->imu_rates.push_front( 1./imu.dt );
 
                 // Apply the calibrated bias to the new IMU measurements
                 Eigen::Vector3f lin_accel_corrected = (this->imu_accel_sm_ * imu.lin_accel) - this->state.b.accel;
@@ -527,7 +555,7 @@
             std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> frames;
             frames = this->integrateImu(this->prev_scan_stamp, this->state.q, this->state.p,
                                         this->state.v, timestamps);
-            // this->deskew_size = frames.size(); // if integration successful, equal to timestamps.size()
+            this->deskew_size = frames.size(); // if integration successful, equal to timestamps.size()
 
             // TO DO: if there are no frames between the start and end of the sweep
             // that probably means that there's a sync issue
@@ -795,4 +823,210 @@
             begin_imu_it = boost::circular_buffer<IMUmeas>::reverse_iterator(imu_it);
 
             return true;
+        }
+
+        void Localizer::getCPUinfo(){ // CPU Specs
+            char CPUBrandString[0x40];
+            memset(CPUBrandString, 0, sizeof(CPUBrandString));
+
+            this->cpu_type = "";
+
+            #ifdef HAS_CPUID
+            unsigned int CPUInfo[4] = {0,0,0,0};
+            __cpuid(0x80000000, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+            unsigned int nExIds = CPUInfo[0];
+            for (unsigned int i = 0x80000000; i <= nExIds; ++i) {
+                __cpuid(i, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+                if (i == 0x80000002)
+                memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+                else if (i == 0x80000003)
+                memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+                else if (i == 0x80000004)
+                memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
+            }
+            this->cpu_type = CPUBrandString;
+            boost::trim(this->cpu_type);
+            #endif
+
+            FILE* file;
+            struct tms timeSample;
+            char line[128];
+
+            this->lastCPU = times(&timeSample);
+            this->lastSysCPU = timeSample.tms_stime;
+            this->lastUserCPU = timeSample.tms_utime;
+
+            file = fopen("/proc/cpuinfo", "r");
+            this->numProcessors = 0;
+            while(fgets(line, 128, file) != nullptr) {
+                if (strncmp(line, "processor", 9) == 0) this->numProcessors++;
+            }
+            fclose(file);
+        }
+
+        void Localizer::debugVerbose(){
+
+            // Average computation time
+            double avg_comp_time =
+                std::accumulate(this->cpu_times.begin(), this->cpu_times.end(), 0.0) / this->cpu_times.size();
+
+            // Average sensor rates
+            double avg_imu_rate =
+                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size();
+            double avg_lidar_rate =
+                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size();
+
+            // RAM Usage
+            double vm_usage = 0.0;
+            double resident_set = 0.0;
+            std::ifstream stat_stream("/proc/self/stat", std::ios_base::in); //get info from proc directory
+            std::string pid, comm, state, ppid, pgrp, session, tty_nr;
+            std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
+            std::string utime, stime, cutime, cstime, priority, nice;
+            std::string num_threads, itrealvalue, starttime;
+            unsigned long vsize;
+            long rss;
+            stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr
+                        >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt
+                        >> utime >> stime >> cutime >> cstime >> priority >> nice
+                        >> num_threads >> itrealvalue >> starttime >> vsize >> rss; // don't care about the rest
+            stat_stream.close();
+            long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // for x86-64 is configured to use 2MB pages
+            vm_usage = vsize / 1024.0;
+            resident_set = rss * page_size_kb;
+
+            // CPU Usage
+            struct tms timeSample;
+            clock_t now;
+            double cpu_percent;
+            now = times(&timeSample);
+            if (now <= this->lastCPU || timeSample.tms_stime < this->lastSysCPU ||
+                timeSample.tms_utime < this->lastUserCPU) {
+                cpu_percent = -1.0;
+            } else {
+                cpu_percent = (timeSample.tms_stime - this->lastSysCPU) + (timeSample.tms_utime - this->lastUserCPU);
+                cpu_percent /= (now - this->lastCPU);
+                cpu_percent /= this->numProcessors;
+                cpu_percent *= 100.;
+            }
+            this->lastCPU = now;
+            this->lastSysCPU = timeSample.tms_stime;
+            this->lastUserCPU = timeSample.tms_utime;
+            this->cpu_percents.push_front(cpu_percent);
+            double avg_cpu_usage =
+                std::accumulate(this->cpu_percents.begin(), this->cpu_percents.end(), 0.0) / this->cpu_percents.size();
+
+            // ------------------------------------- PRINT OUT -------------------------------------
+
+            printf("\033[2J\033[1;1H");
+            std::cout << std::endl
+                        << "+-------------------------------------------------------------------+" << std::endl;
+            std::cout   << "|                        Fast LIMO  v" << FAST_LIMO_v  << "                          |"
+                        << std::endl;
+            std::cout   << "+-------------------------------------------------------------------+" << std::endl;
+
+            std::time_t curr_time = this->scan_stamp;
+            std::string asc_time = std::asctime(std::localtime(&curr_time)); asc_time.pop_back();
+            std::cout << "| " << std::left << asc_time;
+            std::cout << std::right << std::setfill(' ') << std::setw(42)
+                << "Elapsed Time: " + to_string_with_precision(this->imu_stamp - this->first_imu_stamp, 2) + " seconds "
+                << "|" << std::endl;
+
+            if ( !this->cpu_type.empty() ) {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << this->cpu_type + " x " + std::to_string(this->numProcessors)
+                << "|" << std::endl;
+            }
+
+            if (this->sensor == fast_limo::SensorType::OUSTER) {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Sensor Rates: Ouster @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                            + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+                << "|" << std::endl;
+            } else if (this->sensor == fast_limo::SensorType::VELODYNE) {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Sensor Rates: Velodyne @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                                + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+                << "|" << std::endl;
+            } else if (this->sensor == fast_limo::SensorType::HESAI) {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Sensor Rates: Hesai @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                            + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+                << "|" << std::endl;
+            } else if (this->sensor == fast_limo::SensorType::LIVOX) {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Sensor Rates: Livox @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                            + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+                << "|" << std::endl;
+            } else {
+                std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Sensor Rates: Unknown LiDAR @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                                    + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+                << "|" << std::endl;
+            }
+
+            std::cout << "|===================================================================|" << std::endl;
+
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p(0), 4) + " "
+                                            + to_string_with_precision(this->state.p(1), 4) + " "
+                                            + to_string_with_precision(this->state.p(2), 4)
+                << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Orientation  {W} [wxyz] :: " + to_string_with_precision(this->state.q.w(), 4) + " "
+                                            + to_string_with_precision(this->state.q.x(), 4) + " "
+                                            + to_string_with_precision(this->state.q.y(), 4) + " "
+                                            + to_string_with_precision(this->state.q.z(), 4)
+                << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Lin Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v(0), 4) + " "
+                                            + to_string_with_precision(this->state.v(1), 4) + " "
+                                            + to_string_with_precision(this->state.v(2), 4)
+                << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Ang Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.w(0), 4) + " "
+                                            + to_string_with_precision(this->state.w(1), 4) + " "
+                                            + to_string_with_precision(this->state.w(2), 4)
+                << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Accel Bias        [xyz] :: " + to_string_with_precision(this->state.b.accel(0), 8) + " "
+                                            + to_string_with_precision(this->state.b.accel(1), 8) + " "
+                                            + to_string_with_precision(this->state.b.accel(2), 8)
+                << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Gyro Bias         [xyz] :: " + to_string_with_precision(this->state.b.gyro(0), 8) + " "
+                                            + to_string_with_precision(this->state.b.gyro(1), 8) + " "
+                                            + to_string_with_precision(this->state.b.gyro(2), 8)
+                << "|" << std::endl;
+
+            std::cout << "|                                                                   |" << std::endl;
+
+
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Deskewed points: " + std::to_string(this->deskew_size) << "|" << std::endl;
+            std::cout << "|                                                                   |" << std::endl;
+
+            std::cout << std::right << std::setprecision(2) << std::fixed;
+            std::cout << "| Computation Time :: "
+                << std::setfill(' ') << std::setw(6) << this->cpu_times.front()*1000. << " ms    // Avg: "
+                << std::setw(6) << avg_comp_time*1000. << " / Max: "
+                << std::setw(6) << *std::max_element(this->cpu_times.begin(), this->cpu_times.end())*1000.
+                << "     |" << std::endl;
+            std::cout << "| Cores Utilized   :: "
+                << std::setfill(' ') << std::setw(6) << (cpu_percent/100.) * this->numProcessors << " cores // Avg: "
+                << std::setw(6) << (avg_cpu_usage/100.) * this->numProcessors << " / Max: "
+                << std::setw(6) << (*std::max_element(this->cpu_percents.begin(), this->cpu_percents.end()) / 100.)
+                                * this->numProcessors
+                << "     |" << std::endl;
+            std::cout << "| CPU Load         :: "
+                << std::setfill(' ') << std::setw(6) << cpu_percent << " %     // Avg: "
+                << std::setw(6) << avg_cpu_usage << " / Max: "
+                << std::setw(6) << *std::max_element(this->cpu_percents.begin(), this->cpu_percents.end())
+                << "     |" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "RAM Allocation   :: " + to_string_with_precision(resident_set/1000., 2) + " MB"
+                << "|" << std::endl;
+
+            std::cout << "+-------------------------------------------------------------------+" << std::endl;
+
         }
