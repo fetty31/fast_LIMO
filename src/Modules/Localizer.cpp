@@ -8,10 +8,11 @@
                                 imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
                                 calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true), verbose_(true) { 
 
-            this->original_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->deskewed_scan = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->pc2match      = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->final_scan    = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
         }
 
         void Localizer::init(double t){ // TO DO: Give parameters config struct
@@ -40,33 +41,51 @@
 
             // Extrinsics
                 // To DO: fill with parameters
-            this->extr.baselink2imu.t = Eigen::Vector3f(0., 0., 0.);
+            this->extr.baselink2imu.t = Eigen::Vector3f(0.87, 0.44, 0.17);
             this->extr.baselink2imu.R = Eigen::Matrix3f::Identity();
 
             this->extr.baselink2imu_T = Eigen::Matrix4f::Identity();
             this->extr.baselink2imu_T.block(0, 3, 3, 1) = this->extr.baselink2imu.t;
             this->extr.baselink2imu_T.block(0, 0, 3, 3) = this->extr.baselink2imu.R;
 
+            /* base_link --> imu front
+            - Translation: [0.870, 0.440, 0.170]
+            - Rotation: in Quaternion [0.000, 0.000, 0.000, 1.000]
+                        in RPY (radian) [0.000, -0.000, 0.000]
+                        in RPY (degree) [0.000, -0.000, 0.000]
+           */
+
                 // To DO: fill with parameters
-            this->extr.baselink2lidar.t = Eigen::Vector3f(0., -0.8639, 0.);
-            this->extr.baselink2lidar.R = Eigen::Matrix3f::Identity();
+            this->extr.baselink2lidar.t = Eigen::Vector3f(0.87, -0.44, 0.17);
+
+            Eigen::Quaternionf quat(0.942, 0.016, 0.006, 0.336);
+            this->extr.baselink2lidar.R = quat.toRotationMatrix();
+            // this->extr.baselink2lidar.R = Eigen::Matrix3f::Identity();
 
             this->extr.baselink2lidar_T = Eigen::Matrix4f::Identity();
             this->extr.baselink2lidar_T.block(0, 3, 3, 1) = this->extr.baselink2lidar.t;
             this->extr.baselink2lidar_T.block(0, 0, 3, 3) = this->extr.baselink2lidar.R;
 
+            /* base_link --> pandar front
+            - Translation: [0.870, -0.440, 0.170]
+            - Rotation: in Quaternion [0.016, 0.006, 0.336, 0.942]
+                        in RPY (radian) [0.035, -0.000, 0.685]
+                        in RPY (degree) [2.005, -0.000, 39.271]
+            */
+
             // Avoid unnecessary warnings from PCL
             pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
+
+            // Flags
+            this->gravity_align_ = false;
+            this->calibrate_accel_ = false;
+            this->calibrate_gyro_ = false;
 
             // Debugging
             this->debug_ = true;
             this->verbose_ = true;
 
             if(this->verbose_){
-
-                // read CPU specs
-                this->getCPUinfo();
-
                 // set up buffer capacities
                 this->imu_rates.set_capacity(1000);
                 this->lidar_rates.set_capacity(1000);
@@ -76,6 +95,10 @@
 
         pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
             return this->final_scan;
+        }
+
+        pcl::PointCloud<PointType>::Ptr Localizer::get_finalraw_pointcloud(){
+            return this->final_raw_scan;
         }
 
         pcl::PointCloud<PointType>::ConstPtr Localizer::get_orig_pointcloud(){
@@ -93,7 +116,7 @@
         State Localizer::get_state(){
             State out = this->state;
             out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;   // local velocity vector
-            out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            // out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
             return out;
         }
 
@@ -130,7 +153,7 @@
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
-            /*NOTE: deskewed_Xt2_pc_ should be in last predicted state (Xt2) frame*/
+            /*NOTE: deskewed_Xt2_pc_ should be in LiDAR frame w.r.t last predicted state (Xt2) */
 
             std::cout << "Pointcloud deskewed\n";
 
@@ -174,14 +197,23 @@
                 this->mtx_ikfom.unlock();
 
                 // Transform deskewed pc 
-                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT());
-                // pc2match must be in Xt2 frame for this transform to work properly
+                    // Get deskewed scan to add to map
+                pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
+                pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
+                // pc2match must be in LiDAR frame w.r.t Xt2 frame for this transform to work properly
+                // mapped_scan is in LiDAR frame w.r.t world/global frame
+
+                    // Get final scan to output (in base_link/body frame w.r.t. world/global frame)
+                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->extr.baselink2lidar_T * this->state.get_RT());
+
+                if(this->debug_) // save final scan without voxel grid
+                    pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->extr.baselink2lidar_T * this->state.get_RT());
 
                 std::cout << "final scan!\n";
 
                 // Add scan to map
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-                map.add(final_scan, this->scan_stamp);
+                map.add(mapped_scan, this->scan_stamp);
 
             }
 
@@ -194,8 +226,8 @@
                 this->cpu_times.push_front(elapsed_time.count());
 
                 // debug thread
-                this->debug_thread = std::thread( &Localizer::debugVerbose, this );
-                this->debug_thread.detach();
+                // this->debug_thread = std::thread( &Localizer::debugVerbose, this );
+                // this->debug_thread.detach();
             }
 
             this->prev_scan_stamp = this->scan_stamp;
@@ -245,9 +277,14 @@
 
                     if (this->gravity_align_) {
 
+                        std::cout << "accel_avg: " << accel_avg << std::endl;
+                        std::cout << "state.b.accel: " << this->state.b.accel << std::endl;
+
                         // Estimate gravity vector - Only approximate if biases have not been pre-calibrated
                         grav_vec = (accel_avg - this->state.b.accel).normalized() * abs(this->gravity_);
                         Eigen::Quaternionf grav_q = Eigen::Quaternionf::FromTwoVectors(grav_vec, Eigen::Vector3f(0., 0., this->gravity_));
+                        
+                        std::cout << "grav_vec: " << grav_vec << std::endl;
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;

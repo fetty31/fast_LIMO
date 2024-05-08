@@ -28,7 +28,7 @@ ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
 // debug
-ros::Publisher orig_pub, desk_pub, match_pub;
+ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub;
 
 void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
     out.stamp = in->header.stamp.toSec();
@@ -44,7 +44,7 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
 
 void fromROStoLimo(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
-    out.header.frame_id = "map";
+    out.header.frame_id = "limo_world";
 
     // Pose/Attitude
     Eigen::Vector3d pos = in.p.cast<double>();
@@ -74,26 +74,32 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     sensor_msgs::PointCloud2 pc_ros;
     pcl::toROSMsg(*loc.get_pointcloud(), pc_ros);
     pc_ros.header.stamp = msg->header.stamp;
-    pc_ros.header.frame_id = "map";
+    pc_ros.header.frame_id = "limo_world";
     pc_pub.publish(pc_ros);
 
     sensor_msgs::PointCloud2 orig_msg;
     pcl::toROSMsg(*loc.get_orig_pointcloud(), orig_msg);
     orig_msg.header.stamp = msg->header.stamp;
-    orig_msg.header.frame_id = "map";
+    orig_msg.header.frame_id = "limo_world";
     orig_pub.publish(orig_msg);
 
     sensor_msgs::PointCloud2 deskewed_msg;
     pcl::toROSMsg(*loc.get_deskewed_pointcloud(), deskewed_msg);
     deskewed_msg.header.stamp = msg->header.stamp;
-    deskewed_msg.header.frame_id = "map";
+    deskewed_msg.header.frame_id = "limo_world";
     desk_pub.publish(deskewed_msg);
 
     sensor_msgs::PointCloud2 match_msg;
     pcl::toROSMsg(*loc.get_pc2match_pointcloud(), match_msg);
     match_msg.header.stamp = msg->header.stamp;
-    match_msg.header.frame_id = "map";
+    match_msg.header.frame_id = "limo_world";
     match_pub.publish(match_msg);
+
+    sensor_msgs::PointCloud2 finalraw_msg;
+    pcl::toROSMsg(*loc.get_finalraw_pointcloud(), finalraw_msg);
+    finalraw_msg.header.stamp = msg->header.stamp;
+    finalraw_msg.header.frame_id = "limo_world";
+    finalraw_pub.publish(finalraw_msg);
 
 }
 
@@ -131,9 +137,10 @@ int main(int argc, char** argv) {
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
 
         // debug
-    orig_pub    = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
-    desk_pub    = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
-    match_pub   = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
+    orig_pub     = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
+    desk_pub     = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
+    match_pub    = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
+    finalraw_pub = nh.advertise<sensor_msgs::PointCloud2>("final_raw", 1);
 
 
     /*To DO:

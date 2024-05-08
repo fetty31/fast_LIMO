@@ -33,6 +33,7 @@ class fast_limo::Localizer {
         // Point Clouds
         pcl::PointCloud<PointType>::ConstPtr original_scan; // in base_link/body frame
         pcl::PointCloud<PointType>::ConstPtr deskewed_scan; // in global/world frame
+        pcl::PointCloud<PointType>::Ptr final_raw_scan;     // in global/world frame
         pcl::PointCloud<PointType>::Ptr final_scan;         // in global/world frame
 
         // Time related var.
@@ -109,9 +110,12 @@ class fast_limo::Localizer {
         void init(double t);
 
         pcl::PointCloud<PointType>::Ptr get_pointcloud();
+        pcl::PointCloud<PointType>::Ptr get_finalraw_pointcloud();
+
         pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
+
         State get_state();
 
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);

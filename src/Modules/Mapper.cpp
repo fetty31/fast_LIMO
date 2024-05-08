@@ -33,8 +33,8 @@
             for(int i = 0; i < pc->points.size (); i++){
                 
                 Eigen::Vector4f bl_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
-                Eigen::Vector4f global_point = s.get_RT() * bl_point;                               // global 4d point == [x', y', z', 1.0]
-                Match match = this->match_plane(global_point);                                      // point-to-plane match
+                Eigen::Vector4f global_point = s.get_RT() * bl_point;                            // global 4d point == [x', y', z', 1.0]
+                Match match = this->match_plane(global_point);                                   // point-to-plane match
 
                 if(match.lisanAlGaib()) matches.push_back(match); // if match is chosen, push it
             }
