@@ -72,3 +72,22 @@
 
             return Tinv;
         }
+
+        Eigen::Matrix4f fast_limo::State::get_extr_RT(){
+            // Transform matrix
+            Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+            T.block(0, 0, 3, 3) = this->qLI.toRotationMatrix();
+            T.block(0, 3, 3, 1) = this->pLI;
+
+            return T;
+        }
+
+        Eigen::Matrix4f fast_limo::State::get_extr_RT_inv(){
+            Eigen::Matrix4f Tinv = Eigen::Matrix4f::Identity();
+            Eigen::Matrix3f rot = this->qLI.toRotationMatrix();
+            
+            Tinv.block(0, 0, 3, 3) = rot.transpose();
+            Tinv.block(0, 3, 3, 1) = -rot.transpose()*this->pLI;
+
+            return Tinv;
+        }

@@ -34,19 +34,21 @@
             this->voxel_filter.setLeafSize(0.25, 0.25, 0.25);
 
             // LiDAR sensor type
-            this->sensor = fast_limo::SensorType::HESAI;
+            // this->sensor = fast_limo::SensorType::HESAI; // ona
+            this->sensor = fast_limo::SensorType::VELODYNE; // cat
 
             // IMU attitude
             this->imu_accel_sm_ = Eigen::Matrix3f::Identity();
 
             // Extrinsics
                 // To DO: fill with parameters
-            this->extr.baselink2imu.t = Eigen::Vector3f(0.87, 0.44, 0.17);
-            this->extr.baselink2imu.R = Eigen::Matrix3f::Identity();
+            // this->extr.imu2baselink.t = Eigen::Vector3f(0.87, 0.44, 0.17); // ona
+            this->extr.imu2baselink.t = Eigen::Vector3f(0.0, 0.0, 0.0); // cat
+            this->extr.imu2baselink.R = Eigen::Matrix3f::Identity();
 
-            this->extr.baselink2imu_T = Eigen::Matrix4f::Identity();
-            this->extr.baselink2imu_T.block(0, 3, 3, 1) = this->extr.baselink2imu.t;
-            this->extr.baselink2imu_T.block(0, 0, 3, 3) = this->extr.baselink2imu.R;
+            this->extr.imu2baselink_T = Eigen::Matrix4f::Identity();
+            this->extr.imu2baselink_T.block(0, 3, 3, 1) = this->extr.imu2baselink.t;
+            this->extr.imu2baselink_T.block(0, 0, 3, 3) = this->extr.imu2baselink.R;
 
             /* base_link --> imu front
             - Translation: [0.870, 0.440, 0.170]
@@ -56,15 +58,16 @@
            */
 
                 // To DO: fill with parameters
-            this->extr.baselink2lidar.t = Eigen::Vector3f(0.87, -0.44, 0.17);
+            // this->extr.lidar2baselink.t = Eigen::Vector3f(0.87, -0.44, 0.17); // ona
+            this->extr.lidar2baselink.t = Eigen::Vector3f(1.25, 0.0, 0.0); // cat
 
-            Eigen::Quaternionf quat(0.942, 0.016, 0.006, 0.336);
-            this->extr.baselink2lidar.R = quat.toRotationMatrix();
-            // this->extr.baselink2lidar.R = Eigen::Matrix3f::Identity();
+            Eigen::Quaternionf quat(0.942, 0.016, 0.006, 0.336); // (w, x, y, z)
+            // this->extr.lidar2baselink.R = quat.toRotationMatrix(); // ona
+            this->extr.lidar2baselink.R = Eigen::Matrix3f::Identity(); // cat
 
-            this->extr.baselink2lidar_T = Eigen::Matrix4f::Identity();
-            this->extr.baselink2lidar_T.block(0, 3, 3, 1) = this->extr.baselink2lidar.t;
-            this->extr.baselink2lidar_T.block(0, 0, 3, 3) = this->extr.baselink2lidar.R;
+            this->extr.lidar2baselink_T = Eigen::Matrix4f::Identity();
+            this->extr.lidar2baselink_T.block(0, 3, 3, 1) = this->extr.lidar2baselink.t;
+            this->extr.lidar2baselink_T.block(0, 0, 3, 3) = this->extr.lidar2baselink.R;
 
             /* base_link --> pandar front
             - Translation: [0.870, -0.440, 0.170]
@@ -77,19 +80,23 @@
             pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
 
             // Flags
-            this->gravity_align_ = false;
-            this->calibrate_accel_ = false;
-            this->calibrate_gyro_ = false;
+            this->gravity_align_    = true;
+            this->calibrate_accel_  = true;
+            this->calibrate_gyro_   = true;
 
             // Debugging
-            this->debug_ = true;
-            this->verbose_ = true;
+            this->debug_    = true;
+            this->verbose_  = true;
+
+            // CPU info
+            this->getCPUinfo();
 
             if(this->verbose_){
                 // set up buffer capacities
                 this->imu_rates.set_capacity(1000);
                 this->lidar_rates.set_capacity(1000);
                 this->cpu_times.set_capacity(1000);
+                this->cpu_percents.set_capacity(1000);
             }
         }
 
@@ -153,7 +160,7 @@
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
-            /*NOTE: deskewed_Xt2_pc_ should be in LiDAR frame w.r.t last predicted state (Xt2) */
+            /*NOTE: deskewed_Xt2_pc_ should be in base_link frame w.r.t last predicted state (Xt2) */
 
             std::cout << "Pointcloud deskewed\n";
 
@@ -196,18 +203,22 @@
 
                 this->mtx_ikfom.unlock();
 
+                // Get estimated offset
+                if(true /*Config.estimate_extrinsics*/)
+                    this->extr.lidar2baselink_T = this->state.get_extr_RT();
+
                 // Transform deskewed pc 
                     // Get deskewed scan to add to map
                 pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
                 pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
-                // pc2match must be in LiDAR frame w.r.t Xt2 frame for this transform to work properly
-                // mapped_scan is in LiDAR frame w.r.t world/global frame
+                // pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work properly
+                // mapped_scan is in base_link frame w.r.t world/global frame
 
                     // Get final scan to output (in base_link/body frame w.r.t. world/global frame)
-                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->extr.baselink2lidar_T * this->state.get_RT());
+                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // mapped_scan = final_scan
 
                 if(this->debug_) // save final scan without voxel grid
-                    pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->extr.baselink2lidar_T * this->state.get_RT());
+                    pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
                 std::cout << "final scan!\n";
 
@@ -226,8 +237,8 @@
                 this->cpu_times.push_front(elapsed_time.count());
 
                 // debug thread
-                // this->debug_thread = std::thread( &Localizer::debugVerbose, this );
-                // this->debug_thread.detach();
+                this->debug_thread = std::thread( &Localizer::debugVerbose, this );
+                this->debug_thread.detach();
             }
 
             this->prev_scan_stamp = this->scan_stamp;
@@ -268,7 +279,7 @@
 
                 } else {
 
-                    std::cout << "done" << std::endl << std::endl;
+                    std::cout << "done!" << std::endl << std::endl;
 
                     gyro_avg /= num_samples;
                     accel_avg /= num_samples;
@@ -277,14 +288,15 @@
 
                     if (this->gravity_align_) {
 
-                        std::cout << "accel_avg: " << accel_avg << std::endl;
-                        std::cout << "state.b.accel: " << this->state.b.accel << std::endl;
+                        std::cout << "accel_avg: \n";
+                        std::cout << accel_avg << std::endl;
 
                         // Estimate gravity vector - Only approximate if biases have not been pre-calibrated
                         grav_vec = (accel_avg - this->state.b.accel).normalized() * abs(this->gravity_);
                         Eigen::Quaternionf grav_q = Eigen::Quaternionf::FromTwoVectors(grav_vec, Eigen::Vector3f(0., 0., this->gravity_));
                         
-                        std::cout << "grav_vec: " << grav_vec << std::endl;
+                        std::cout << "grav_vec: \n";
+                        std::cout << grav_vec << std::endl;
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;
@@ -382,8 +394,8 @@
             // For each match, calculate its derivative and distance
             for (int i = 0; i < matches.size(); ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_lidar = extr.baselink2lidar_T.inverse()/* lidar2baselink_T */ * S.get_RT_inv() * match.get_point();
-                Eigen::Vector4f p4_imu   = extr.baselink2lidar_T * p4_lidar;
+                Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * S.get_RT_inv() * match.get_point();
+                Eigen::Vector4f p4_imu   = S.get_extr_RT() /* lidar2baselink */ * p4_lidar;
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
                 // Rotation matrices
@@ -405,7 +417,7 @@
                 Eigen::Vector3f A = p_imu.cross(C);
                 
                 H.block<1, 6>(i,0) << n(0), n(1), n(2), A(0), A(1), A(2);
-                if (false/*Config.estimate_extrinsics*/) H.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
+                if (true/*Config.estimate_extrinsics*/) H.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
 
                 // Measurement: distance to the closest plane
                 h(i) = -match.dist;
@@ -437,8 +449,8 @@
             init_state.bg = this->state.b.gyro.cast<double>();
             init_state.ba = this->state.b.accel.cast<double>();
 
-            init_state.offset_R_L_I = /*MTK::*/SO3(this->extr.baselink2lidar.R.cast<double>());
-            init_state.offset_T_L_I = this->extr.baselink2lidar.t.cast<double>();
+            init_state.offset_R_L_I = /*MTK::*/SO3(this->extr.lidar2baselink.R.cast<double>());
+            init_state.offset_T_L_I = this->extr.lidar2baselink.t.cast<double>();
             this->_iKFoM.change_x(init_state);
 
             esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = this->_iKFoM.get_P();
@@ -461,16 +473,16 @@
             if ( (dt == 0.) || (dt > 0.1) ) { dt = 1.0/200.0; }
 
             // Transform angular velocity (will be the same on a rigid body, so just rotate to ROS convention)
-            Eigen::Vector3f ang_vel_cg = this->extr.baselink2imu.R * imu.ang_vel;
+            Eigen::Vector3f ang_vel_cg = this->extr.imu2baselink.R * imu.ang_vel;
 
             static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
 
             // Transform linear acceleration (need to account for component due to translational difference)
-            Eigen::Vector3f lin_accel_cg = this->extr.baselink2imu.R * imu.lin_accel;
+            Eigen::Vector3f lin_accel_cg = this->extr.imu2baselink.R * imu.lin_accel;
 
             lin_accel_cg = lin_accel_cg
-                            + ((ang_vel_cg - ang_vel_cg_prev) / dt).cross(-this->extr.baselink2imu.t)
-                            + ang_vel_cg.cross(ang_vel_cg.cross(-this->extr.baselink2imu.t));
+                            + ((ang_vel_cg - ang_vel_cg_prev) / dt).cross(-this->extr.imu2baselink.t)
+                            + ang_vel_cg.cross(ang_vel_cg.cross(-this->extr.imu2baselink.t));
 
             ang_vel_cg_prev = ang_vel_cg;
 
@@ -618,12 +630,12 @@
             this->last_state = fast_limo::State(frames[frames.size()-1]);
             std::cout << "LAST STATE: " << this->last_state.p << std::endl;
 
-            for(int i=0; i < frames.size(); i++) std::cout << "FRAME: " << fast_limo::State(frames[i]).p << std::endl;
+            // for(int i=0; i < frames.size(); i++) std::cout << "FRAME: " << fast_limo::State(frames[i]).p << std::endl;
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < timestamps.size(); i++) {
 
-                Eigen::Matrix4f T = frames[i] * this->extr.baselink2lidar_T;
+                Eigen::Matrix4f T = frames[i] * this->extr.lidar2baselink_T;
 
                 // transform point to world frame
                 // TO DO: deskewed scan must be in lidar frame --> taking into account last frame (maybe pick frames from iKFoM)
@@ -632,12 +644,11 @@
                     // world frame deskewed pc
                     auto &pt = deskewed_scan_->points[k];
                     pt.getVector4fMap()[3] = 1.;
-                    pt.getVector4fMap() = T * pt.getVector4fMap();
+                    pt.getVector4fMap() = T * pt.getVector4fMap(); // base_link w.r.t global/world frame
 
                     // Xt2 frame deskewed pc
                     auto &pt2 = deskewed_Xt2_scan_->points[k];
-                    // pt2.getVector4fMap()[3] = 1.;
-                    pt2.getVector4fMap() = this->last_state.get_RT_inv() * fast_limo::State(this->extr.baselink2lidar_T).get_RT_inv() * pt.getVector4fMap();
+                    pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // base_link w.r.t Xt2 frame
                 }
             }
 

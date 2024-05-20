@@ -30,9 +30,13 @@ class fast_limo::State{
 
         void operator+=(const State& s);
 
-        Eigen::Matrix4f get_RT(); // get Rotation & Translation matrix
+        Eigen::Matrix4f get_RT();           // get Rotation & Translation matrix
 
-        Eigen::Matrix4f get_RT_inv(); // get inverted Rotation & Translation matrix
+        Eigen::Matrix4f get_RT_inv();       // get inverted Rotation & Translation matrix
+
+        Eigen::Matrix4f get_extr_RT();      // get estimated extrinsics Rotation & Translation matrix
+
+        Eigen::Matrix4f get_extr_RT_inv();  // get estimated extrinsics inverted Rotation & Translation matrix
 
 };
 

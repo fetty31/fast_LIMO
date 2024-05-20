@@ -90,10 +90,10 @@ namespace fast_limo {
         Eigen::Vector3f t;
         Eigen::Matrix3f R;
     };
-    SE3 baselink2imu;
-    SE3 baselink2lidar;
-    Eigen::Matrix4f baselink2imu_T;
-    Eigen::Matrix4f baselink2lidar_T;
+    SE3 imu2baselink;
+    SE3 lidar2baselink;
+    Eigen::Matrix4f imu2baselink_T;
+    Eigen::Matrix4f lidar2baselink_T;
   };
 
   struct IMUmeas{

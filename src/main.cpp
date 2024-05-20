@@ -42,9 +42,9 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
     out.lin_accel(2) = in->linear_acceleration.z;
 }
 
-void fromROStoLimo(const fast_limo::State& in, nav_msgs::Odometry& out){
+void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
-    out.header.frame_id = "limo_world";
+    out.header.frame_id = "global";
 
     // Pose/Attitude
     Eigen::Vector3d pos = in.p.cast<double>();
@@ -74,31 +74,31 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     sensor_msgs::PointCloud2 pc_ros;
     pcl::toROSMsg(*loc.get_pointcloud(), pc_ros);
     pc_ros.header.stamp = msg->header.stamp;
-    pc_ros.header.frame_id = "limo_world";
+    pc_ros.header.frame_id = "global";
     pc_pub.publish(pc_ros);
 
     sensor_msgs::PointCloud2 orig_msg;
     pcl::toROSMsg(*loc.get_orig_pointcloud(), orig_msg);
     orig_msg.header.stamp = msg->header.stamp;
-    orig_msg.header.frame_id = "limo_world";
+    orig_msg.header.frame_id = "global";
     orig_pub.publish(orig_msg);
 
     sensor_msgs::PointCloud2 deskewed_msg;
     pcl::toROSMsg(*loc.get_deskewed_pointcloud(), deskewed_msg);
     deskewed_msg.header.stamp = msg->header.stamp;
-    deskewed_msg.header.frame_id = "limo_world";
+    deskewed_msg.header.frame_id = "global";
     desk_pub.publish(deskewed_msg);
 
     sensor_msgs::PointCloud2 match_msg;
     pcl::toROSMsg(*loc.get_pc2match_pointcloud(), match_msg);
     match_msg.header.stamp = msg->header.stamp;
-    match_msg.header.frame_id = "limo_world";
+    match_msg.header.frame_id = "global";
     match_pub.publish(match_msg);
 
     sensor_msgs::PointCloud2 finalraw_msg;
     pcl::toROSMsg(*loc.get_finalraw_pointcloud(), finalraw_msg);
     finalraw_msg.header.stamp = msg->header.stamp;
-    finalraw_msg.header.frame_id = "limo_world";
+    finalraw_msg.header.frame_id = "global";
     finalraw_pub.publish(finalraw_msg);
 
 }
@@ -113,7 +113,7 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     loc.updateIMU(imu);
 
     nav_msgs::Odometry state_msg;
-    fromROStoLimo(loc.get_state(), state_msg);
+    fromLimoToROS(loc.get_state(), state_msg);
     state_pub.publish(state_msg);
 
 }
@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     // Setup config parameters
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud_raw", 1, lidar_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber imu_sub   = nh.subscribe("/ona2/sensors/imu_front/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe("/velodyne_points", 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber imu_sub   = nh.subscribe("/EL/Sensors/vectornav/IMU", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
