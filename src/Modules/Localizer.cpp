@@ -585,9 +585,9 @@
 
             // compute offset between sweep reference time and first point timestamp
             double offset = 0.0;
-            // if (this->time_offset_) {
+            if (false /*this->time_offset_*/) {
                 offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
-            // }
+            }
 
             // std::cout << "timestamps:\n";
 
