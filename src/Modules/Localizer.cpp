@@ -34,46 +34,46 @@
             this->voxel_filter.setLeafSize(0.25, 0.25, 0.25);
 
             // LiDAR sensor type
-            // this->sensor = fast_limo::SensorType::HESAI; // ona
-            this->sensor = fast_limo::SensorType::VELODYNE; // cat
+            this->sensor = fast_limo::SensorType::HESAI; // ona
+            // this->sensor = fast_limo::SensorType::VELODYNE; // cat
 
             // IMU attitude
             this->imu_accel_sm_ = Eigen::Matrix3f::Identity();
 
             // Extrinsics
                 // To DO: fill with parameters
-            // this->extr.imu2baselink.t = Eigen::Vector3f(0.87, 0.44, 0.17); // ona
-            this->extr.imu2baselink.t = Eigen::Vector3f(0.0, 0.0, 0.0); // cat
+            this->extr.imu2baselink.t = Eigen::Vector3f(-0.87, -0.44, -0.17); // ona
+            // this->extr.imu2baselink.t = Eigen::Vector3f(0.0, 0.0, 0.0); // cat
             this->extr.imu2baselink.R = Eigen::Matrix3f::Identity();
 
             this->extr.imu2baselink_T = Eigen::Matrix4f::Identity();
             this->extr.imu2baselink_T.block(0, 3, 3, 1) = this->extr.imu2baselink.t;
             this->extr.imu2baselink_T.block(0, 0, 3, 3) = this->extr.imu2baselink.R;
 
-            /* base_link --> imu front
-            - Translation: [0.870, 0.440, 0.170]
+            /* imu_front --> base_link
+            - Translation: [-0.870, -0.440, -0.170]
             - Rotation: in Quaternion [0.000, 0.000, 0.000, 1.000]
                         in RPY (radian) [0.000, -0.000, 0.000]
                         in RPY (degree) [0.000, -0.000, 0.000]
            */
 
                 // To DO: fill with parameters
-            // this->extr.lidar2baselink.t = Eigen::Vector3f(0.87, -0.44, 0.17); // ona
-            this->extr.lidar2baselink.t = Eigen::Vector3f(1.25, 0.0, 0.0); // cat
+            this->extr.lidar2baselink.t = Eigen::Vector3f(-0.395, 0.885, -0.201); // ona
+            // this->extr.lidar2baselink.t = Eigen::Vector3f(1.25, 0.0, 0.0); // cat
 
-            Eigen::Quaternionf quat(0.942, 0.016, 0.006, 0.336); // (w, x, y, z)
-            // this->extr.lidar2baselink.R = quat.toRotationMatrix(); // ona
-            this->extr.lidar2baselink.R = Eigen::Matrix3f::Identity(); // cat
+            Eigen::Quaternionf quat(0.942, -0.016, -0.006, -0.336); // (w, x, y, z)
+            this->extr.lidar2baselink.R = quat.toRotationMatrix(); // ona
+            // this->extr.lidar2baselink.R = Eigen::Matrix3f::Identity(); // cat
 
             this->extr.lidar2baselink_T = Eigen::Matrix4f::Identity();
             this->extr.lidar2baselink_T.block(0, 3, 3, 1) = this->extr.lidar2baselink.t;
             this->extr.lidar2baselink_T.block(0, 0, 3, 3) = this->extr.lidar2baselink.R;
 
-            /* base_link --> pandar front
-            - Translation: [0.870, -0.440, 0.170]
-            - Rotation: in Quaternion [0.016, 0.006, 0.336, 0.942]
-                        in RPY (radian) [0.035, -0.000, 0.685]
-                        in RPY (degree) [2.005, -0.000, 39.271]
+            /* pandar_front --> base_link
+            - Translation: [-0.395, 0.885, -0.201]
+            - Rotation: in Quaternion [-0.016, -0.006, -0.336, 0.942]
+                        in RPY (radian) [-0.027, -0.022, -0.685]
+                        in RPY (degree) [-1.553, -1.269, -39.253]
             */
 
             // Avoid unnecessary warnings from PCL
@@ -122,8 +122,8 @@
 
         State Localizer::get_state(){
             State out = this->state;
-            out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;   // local velocity vector
-            // out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            out.v =this->state.q.toRotationMatrix().transpose() * this->state.v;    // local velocity vector
             return out;
         }
 
@@ -141,7 +141,7 @@
                 return;
             }
 
-            std::cout << "FAST_LIMO::updatePointCloud()\n";
+            // std::cout << "FAST_LIMO::updatePointCloud()\n";
 
             // Remove NaNs
             std::vector<int> idx;
@@ -152,7 +152,7 @@
             this->crop_filter.setInputCloud(raw_pc);
             this->crop_filter.filter(*raw_pc);
 
-            std::cout << "crop filter done\n";
+            // std::cout << "crop filter done\n";
 
             if(this->debug_) // debug only
                 this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // base_link/body frame
@@ -162,7 +162,7 @@
             deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in base_link frame w.r.t last predicted state (Xt2) */
 
-            std::cout << "Pointcloud deskewed\n";
+            // std::cout << "Pointcloud deskewed\n";
 
             if(deskewed_Xt2_pc_->points.size() > 1){
 
@@ -177,7 +177,7 @@
                     this->pc2match = deskewed_Xt2_pc_;
                 }
 
-                std::cout << "voxel grid filter applied\n";
+                // std::cout << "voxel grid filter applied\n";
 
                 // iKFoM observation stage
                 this->mtx_ikfom.lock();
@@ -193,13 +193,13 @@
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x()); 
 
-                std::cout << "IKFOM measurment updated\n";
+                // std::cout << "IKFOM measurment updated\n";
 
                     // Update current state estimate
                 corrected_state.b.gyro  = this->state.b.gyro;
                 corrected_state.b.accel = this->state.b.accel;
-                this->state   = corrected_state;
-                this->state.w = this->last_imu.ang_vel;
+                this->state    = corrected_state;
+                this->state.w  = this->last_imu.ang_vel;
 
                 this->mtx_ikfom.unlock();
 
@@ -220,7 +220,7 @@
                 if(this->debug_) // save final scan without voxel grid
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
-                std::cout << "final scan!\n";
+                // std::cout << "final scan!\n";
 
                 // Add scan to map
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
@@ -628,7 +628,7 @@
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(frames[frames.size()-1]);
-            std::cout << "LAST STATE: " << this->last_state.p << std::endl;
+            // std::cout << "LAST STATE: " << this->last_state.p << std::endl;
 
             // for(int i=0; i < frames.size(); i++) std::cout << "FRAME: " << fast_limo::State(frames[i]).p << std::endl;
 
