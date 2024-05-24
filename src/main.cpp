@@ -127,11 +127,14 @@ int main(int argc, char** argv) {
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
 
-    // Setup config parameters
+    // To DO: Setup config parameters
 
     // Define subscribers & publishers
     ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud", 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe("/ona2/sensors/imu_front/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
+
+    // ros::Subscriber lidar_sub = nh.subscribe("/velodyne_points", 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
+    // ros::Subscriber imu_sub   = nh.subscribe("/EL/Sensors/vectornav/IMU", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
@@ -147,11 +150,11 @@ int main(int argc, char** argv) {
         - update Localizer & Mapper parameters (maybe create config struct)
     */ 
 
+    loc.init(0.0); // To DO: is it start time needed??
+
     // Start spinning (async)
     ros::AsyncSpinner spinner(0);
     spinner.start();
-
-    loc.init(0.0); // To DO: is it start time needed??
 
     ros::waitForShutdown();
 

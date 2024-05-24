@@ -59,11 +59,11 @@
 
                 // To DO: fill with parameters
             this->extr.lidar2baselink.t = Eigen::Vector3f(-0.395, 0.885, -0.201); // ona
-            // this->extr.lidar2baselink.t = Eigen::Vector3f(1.25, 0.0, 0.0); // cat
+            // this->extr.lidar2baselink.t = Eigen::Vector3f(-1.25, 0.0, 0.0); // cat
 
-            Eigen::Quaternionf quat(0.942, -0.016, -0.006, -0.336); // (w, x, y, z)
-            this->extr.lidar2baselink.R = quat.toRotationMatrix(); // ona
-            // this->extr.lidar2baselink.R = Eigen::Matrix3f::Identity(); // cat
+            Eigen::Quaternionf quat(0.942, -0.016, -0.006, -0.336); // (w, x, y, z) ona
+            // Eigen::Quaternionf quat(0.9989877, 0.0, -0.0449848, 0.0); // (w, x, y, z) cat
+            this->extr.lidar2baselink.R = quat.toRotationMatrix();
 
             this->extr.lidar2baselink_T = Eigen::Matrix4f::Identity();
             this->extr.lidar2baselink_T.block(0, 3, 3, 1) = this->extr.lidar2baselink.t;
@@ -138,6 +138,11 @@
             // TO DO: check IMU callibration is finished
             if (!this->imu_calibrated_ || this->imu_buffer.empty() ){
                 std::cout << "FAST_LIMO::IMU buffer is empty!\n";
+                return;
+            }
+
+            if(raw_pc->size() < 1){
+                std::cout << "FAST_LIMO::Raw PointCloud is empty!\n";
                 return;
             }
 

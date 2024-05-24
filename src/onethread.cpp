@@ -71,6 +71,8 @@ pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
 
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
 
+    if(lidar_buffer.size() < 1) return pc_;
+
     // Retreive points from t1 to t2 sorted new to old
     for(int k=0; k < lidar_buffer.size(); k++){
         /*To DO: 
@@ -95,11 +97,9 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::fromROSMsg(*msg, *pc_);
 
     // Fill buffer
-    #pragma omp parallel for num_threads(omp_get_max_threads())
+    // #pragma omp parallel for num_threads(omp_get_max_threads())
     for(int i=0; i < pc_->size(); i++)
         lidar_buffer.push_front(pc_->points[i]);
-
-    last_t2 = lidar_buffer.front().timestamp; // To DO: adapt "timestamp" field depending on sensor_type
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
@@ -143,6 +143,8 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     fromROStoLimo(msg, imu);
 
     loc.updateIMU(imu);
+
+    last_t2 = msg->header.stamp.toSec(); // last time KF updated
 
     nav_msgs::Odometry state_msg;
     fromLimoToROS(loc.get_state(), state_msg);
@@ -188,7 +190,7 @@ int main(int argc, char** argv) {
     while(ros::ok()){
 
         while(true){
-
+            
             ros::spinOnce();
 
             /*To DO:
@@ -202,14 +204,19 @@ int main(int argc, char** argv) {
             t2 = last_t2;
             t1 = t2 - delta;
 
+            std::cout << "t2: " << t2 << std::endl;
+            std::cout << "t1: " << t1 << std::endl;
+
             if(t1 < 0.0) break;
 
             // Get points from t1 to t2
             pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2);
 
             // Call fast_limo
-            loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].timestamp);
+            if(piepiece_pc->size() > 0)
+                loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].timestamp);
 
+            // Rate sleep
             r.sleep();
         }
     }
