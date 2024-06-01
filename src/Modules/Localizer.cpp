@@ -86,7 +86,7 @@
 
             // Debugging
             this->debug_    = true;
-            this->verbose_  = true;
+            this->verbose_  = false;
 
             // CPU info
             this->getCPUinfo();

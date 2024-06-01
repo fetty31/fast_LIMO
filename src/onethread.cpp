@@ -87,6 +87,9 @@ pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
 }
 
 void clearBuffer(double t){
+    if(lidar_buffer.size() > 0)
+        std::cout << "lidar_buffer.back().timestamp: " << lidar_buffer.back().timestamp << std::endl;
+
     while(lidar_buffer.size() > 0 && t >= lidar_buffer.back().timestamp)
         lidar_buffer.pop_back();
 }
@@ -100,6 +103,9 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     // #pragma omp parallel for num_threads(omp_get_max_threads())
     for(int i=0; i < pc_->size(); i++)
         lidar_buffer.push_front(pc_->points[i]);
+
+    if(lidar_buffer.size() > 0)
+        last_t2 = lidar_buffer.front().timestamp; 
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
@@ -144,7 +150,7 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
     loc.updateIMU(imu);
 
-    last_t2 = msg->header.stamp.toSec(); // last time KF updated
+    // last_t2 = msg->header.stamp.toSec(); // last time KF updated
 
     nav_msgs::Odometry state_msg;
     fromLimoToROS(loc.get_state(), state_msg);
@@ -184,12 +190,12 @@ int main(int argc, char** argv) {
     loc.init(0.0); // To DO: is it start time needed??
 
     double t1, t2;
-    double delta = 0.02;
+    double delta = 0.05;
 
-    ros::Rate r(9999);
+    ros::Rate r(20);
     while(ros::ok()){
 
-        while(true){
+        while(ros::ok()){
             
             ros::spinOnce();
 
@@ -204,17 +210,23 @@ int main(int argc, char** argv) {
             t2 = last_t2;
             t1 = t2 - delta;
 
-            std::cout << "t2: " << t2 << std::endl;
-            std::cout << "t1: " << t1 << std::endl;
+            std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
+            std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
 
             if(t1 < 0.0) break;
 
             // Get points from t1 to t2
             pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2);
 
+            std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
+
             // Call fast_limo
             if(piepiece_pc->size() > 0)
                 loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].timestamp);
+
+            std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
+            clearBuffer(t1);
+            std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
 
             // Rate sleep
             r.sleep();
