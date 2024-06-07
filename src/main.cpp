@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     // To DO: Setup config parameters
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud", 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe("/ona2/sensors/pandar_front/cloud", 100, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe("/ona2/sensors/imu_front/imu", 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     // ros::Subscriber lidar_sub = nh.subscribe("/velodyne_points", 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
         - update Localizer & Mapper parameters (maybe create config struct)
     */ 
 
-    loc.init(0.0); // To DO: is it start time needed??
+    loc.init(false/*One thread*/); // To DO: config obj as arg
 
     // Start spinning (async)
     ros::AsyncSpinner spinner(0);

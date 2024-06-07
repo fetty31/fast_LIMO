@@ -56,6 +56,7 @@ class fast_limo::Localizer {
         bool calibrate_accel_;
         bool calibrate_gyro_;
         bool voxel_flag_;
+        bool one_thread_;
 
         // Transformation matrices
         Eigen::Matrix4f T, T_prior;
@@ -107,7 +108,7 @@ class fast_limo::Localizer {
 
     public:
         Localizer();
-        void init(double t);
+        void init(bool one_thread=true);
 
         pcl::PointCloud<PointType>::Ptr get_pointcloud();
         pcl::PointCloud<PointType>::Ptr get_finalraw_pointcloud();
@@ -118,7 +119,12 @@ class fast_limo::Localizer {
 
         State get_state();
 
+        bool is_calibrated();
+
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
+
+        void propagateImu(const IMUmeas& imu);
+        void propagateImu(double t1, double t2);
 
         void updateIMU(IMUmeas& raw_imu);
         void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp);
@@ -146,7 +152,6 @@ class fast_limo::Localizer {
                                  boost::circular_buffer<IMUmeas>::reverse_iterator begin_imu_it,
                                  boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it);
 
-        void propagateImu(const IMUmeas& imu);
         void getCPUinfo();
         void debugVerbose();
 

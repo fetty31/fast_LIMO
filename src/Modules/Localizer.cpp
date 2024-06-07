@@ -15,7 +15,10 @@
             this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
         }
 
-        void Localizer::init(double t){ // TO DO: Give parameters config struct
+        void Localizer::init(bool one_thread){ // TO DO: Give parameters config struct
+
+            // Set One Threaded flag
+            this->one_thread_ = one_thread;
             
             // Set num of threads
             this->num_threads_ = omp_get_max_threads();
@@ -86,7 +89,7 @@
 
             // Debugging
             this->debug_    = true;
-            this->verbose_  = false;
+            this->verbose_  = true;
 
             // CPU info
             this->getCPUinfo();
@@ -120,10 +123,14 @@
             return this->pc2match;
         }
 
+        bool Localizer::is_calibrated(){
+            return this->imu_calibrated_;
+        }
+
         State Localizer::get_state(){
             State out = this->state;
             out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
-            out.v =this->state.q.toRotationMatrix().transpose() * this->state.v;    // local velocity vector
+            out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;    // local velocity vector
             return out;
         }
 
@@ -136,8 +143,13 @@
             auto start_time = chrono::system_clock::now();
 
             // TO DO: check IMU callibration is finished
-            if (!this->imu_calibrated_ || this->imu_buffer.empty() ){
+            if(this->imu_buffer.empty()){
                 std::cout << "FAST_LIMO::IMU buffer is empty!\n";
+                return;
+            }
+
+            if(!this->imu_calibrated_){
+                std::cout << "FAST_LIMO::IMU calibrating...!\n";
                 return;
             }
 
@@ -378,10 +390,10 @@
                 // std::cout << "PC thread notified\n";
 
                 // iKFoM propagate state
-                this->propagateImu(imu);
+                if(not this->one_thread_)
+                    this->propagateImu(imu);
 
                 // std::cout << "IKFOM propagate IMU\n";
-
             }
 
         }
@@ -426,6 +438,63 @@
 
                 // Measurement: distance to the closest plane
                 h(i) = -match.dist;
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////          KF propagation model        /////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        void Localizer::propagateImu(const IMUmeas& imu){
+            input_ikfom in;
+            in.acc = imu.lin_accel.cast<double>();
+            in.gyro = imu.ang_vel.cast<double>();
+
+            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
+            // TO DO: get config params from covariance
+            Q.block<3, 3>(0, 0) = 0.0001 /*Config.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(3, 3) = 0.01 /*Config.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(6, 6) = 0.00001 /*Config.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(9, 9) = 0.0001 /*Config.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
+
+            double dt = imu.dt;
+            this->mtx_ikfom.lock();
+            this->_iKFoM.predict(dt, Q, in);
+            this->mtx_ikfom.unlock();
+        }
+
+        void Localizer::propagateImu(double t1, double t2){
+
+            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
+            // TO DO: get config params from covariance
+            Q.block<3, 3>(0, 0) = 0.0001 /*Config.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(3, 3) = 0.01 /*Config.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(6, 6) = 0.00001 /*Config.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(9, 9) = 0.0001 /*Config.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
+
+            boost::circular_buffer<IMUmeas>::reverse_iterator begin_imu_it;
+            boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it;
+            if (not this->imuMeasFromTimeRange(t1, t2, begin_imu_it, end_imu_it)) {
+                // not enough IMU measurements, return empty vector
+                std::cout << "FAST_LIMO::propagateImu(): not enough IMU measurements\n";
+                return;
+            }
+
+            // Iterate over IMU measurements
+            auto imu_it = begin_imu_it;
+
+            input_ikfom input;
+            double dt;
+            for (; imu_it != end_imu_it; imu_it++) {
+                const IMUmeas& imu = *imu_it;
+
+                input.acc  = imu.lin_accel.cast<double>();
+                input.gyro = imu.ang_vel.cast<double>();
+                dt = imu.dt;
+
+                this->mtx_ikfom.lock();
+                this->_iKFoM.predict(dt, Q, input);
+                this->mtx_ikfom.unlock();
             }
         }
 
@@ -500,24 +569,6 @@
 
             return imu_baselink;
 
-        }
-
-        void Localizer::propagateImu(const IMUmeas& imu){
-            input_ikfom in;
-            in.acc = imu.lin_accel.cast<double>();
-            in.gyro = imu.ang_vel.cast<double>();
-
-            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
-            // TO DO: get config params from covariance
-            Q.block<3, 3>(0, 0) = 0.0001 /*Config.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(3, 3) = 0.01 /*Config.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(6, 6) = 0.00001 /*Config.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(9, 9) = 0.0001 /*Config.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
-
-            double dt = imu.dt;
-            this->mtx_ikfom.lock();
-            this->_iKFoM.predict(dt, Q, in);
-            this->mtx_ikfom.unlock();
         }
 
         pcl::PointCloud<PointType>::Ptr
@@ -605,8 +656,9 @@
             }
             unique_time_indices.push_back(deskewed_scan_->points.size());
 
-            int median_pt_index = timestamps.size() / 2;
-            this->scan_stamp = timestamps[median_pt_index]; // set this->scan_stamp to the timestamp of the median point
+            // int median_pt_index = timestamps.size() / 2;
+            // this->scan_stamp = timestamps[median_pt_index]; // set this->scan_stamp to the timestamp of the median point
+            this->scan_stamp = start_time;
 
             // IMU prior & deskewing for second scan onwards
             std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> frames;
@@ -671,9 +723,13 @@
 
             const std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> empty;
 
-            if (sorted_timestamps.empty() || start_time > sorted_timestamps.front()) {
-                // invalid input, return empty vector
+            if(start_time > sorted_timestamps.front()){
                 std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are not consistent\n";
+                return empty;
+            }
+
+            if(sorted_timestamps.empty()){
+                std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are empty!\n";
                 return empty;
             }
 
@@ -803,32 +859,32 @@
 
                 // Interpolate for given timestamps
                 while (stamp_it != sorted_timestamps.end() && *stamp_it <= f.stamp) {
-                // Time between previous IMU sample and given timestamp
-                double idt = *stamp_it - f0.stamp;
+                    // Time between previous IMU sample and given timestamp
+                    double idt = *stamp_it - f0.stamp;
 
-                // Average angular velocity
-                Eigen::Vector3f omega_i = f0.ang_vel + 0.5*alpha*idt;
+                    // Average angular velocity
+                    Eigen::Vector3f omega_i = f0.ang_vel + 0.5*alpha*idt;
 
-                // Orientation
-                Eigen::Quaternionf q_i (
-                    q.w() - 0.5*( q.x()*omega_i[0] + q.y()*omega_i[1] + q.z()*omega_i[2] ) * idt,
-                    q.x() + 0.5*( q.w()*omega_i[0] - q.z()*omega_i[1] + q.y()*omega_i[2] ) * idt,
-                    q.y() + 0.5*( q.z()*omega_i[0] + q.w()*omega_i[1] - q.x()*omega_i[2] ) * idt,
-                    q.z() + 0.5*( q.x()*omega_i[1] - q.y()*omega_i[0] + q.w()*omega_i[2] ) * idt
-                );
-                q_i.normalize();
+                    // Orientation
+                    Eigen::Quaternionf q_i (
+                        q.w() - 0.5*( q.x()*omega_i[0] + q.y()*omega_i[1] + q.z()*omega_i[2] ) * idt,
+                        q.x() + 0.5*( q.w()*omega_i[0] - q.z()*omega_i[1] + q.y()*omega_i[2] ) * idt,
+                        q.y() + 0.5*( q.z()*omega_i[0] + q.w()*omega_i[1] - q.x()*omega_i[2] ) * idt,
+                        q.z() + 0.5*( q.x()*omega_i[1] - q.y()*omega_i[0] + q.w()*omega_i[2] ) * idt
+                    );
+                    q_i.normalize();
 
-                // Position
-                Eigen::Vector3f p_i = p + v*idt + 0.5*a0*idt*idt + (1/6.)*j*idt*idt*idt;
+                    // Position
+                    Eigen::Vector3f p_i = p + v*idt + 0.5*a0*idt*idt + (1/6.)*j*idt*idt*idt;
 
-                // Transformation
-                Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
-                T.block(0, 0, 3, 3) = q_i.toRotationMatrix();
-                T.block(0, 3, 3, 1) = p_i;
+                    // Transformation
+                    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+                    T.block(0, 0, 3, 3) = q_i.toRotationMatrix();
+                    T.block(0, 3, 3, 1) = p_i;
 
-                imu_se3.push_back(T);
+                    imu_se3.push_back(T);
 
-                stamp_it++;
+                    stamp_it++;
                 }
 
                 // Position
@@ -850,9 +906,11 @@
                                                 boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it) {
 
             if (this->imu_buffer.empty() || this->imu_buffer.front().stamp < end_time) {
-                // Wait for the latest IMU data
-                std::unique_lock<decltype(this->mtx_imu)> lock(this->mtx_imu);
-                this->cv_imu_stamp.wait(lock, [this, &end_time]{ return this->imu_buffer.front().stamp >= end_time; });
+                if(not this->one_thread_){ // Wait for the latest IMU data
+                    std::unique_lock<decltype(this->mtx_imu)> lock(this->mtx_imu);
+                    this->cv_imu_stamp.wait(lock, [this, &end_time]{ return this->imu_buffer.front().stamp >= end_time; });
+                }else
+                    return false;
             }
 
             auto imu_it = this->imu_buffer.begin();

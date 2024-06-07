@@ -32,7 +32,7 @@ ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub;
 
 // buffer variables
 std::deque<PointType> lidar_buffer;
-double last_t2 = -1.0;
+double imu_t2 = -1.0;
 
 void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
     out.stamp = in->header.stamp.toSec();
@@ -100,12 +100,8 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::fromROSMsg(*msg, *pc_);
 
     // Fill buffer
-    // #pragma omp parallel for num_threads(omp_get_max_threads())
     for(int i=0; i < pc_->size(); i++)
         lidar_buffer.push_front(pc_->points[i]);
-
-    if(lidar_buffer.size() > 0)
-        last_t2 = lidar_buffer.front().timestamp; 
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
@@ -150,7 +146,7 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
     loc.updateIMU(imu);
 
-    // last_t2 = msg->header.stamp.toSec(); // last time KF updated
+    imu_t2 = msg->header.stamp.toSec(); // last time KF updated
 
     nav_msgs::Odometry state_msg;
     fromLimoToROS(loc.get_state(), state_msg);
@@ -187,46 +183,63 @@ int main(int argc, char** argv) {
         - update Localizer & Mapper parameters (maybe create config struct)
     */ 
 
-    loc.init(0.0); // To DO: is it start time needed??
+    loc.init(true/*One thread*/); // To DO: config obj as arg
 
     double t1, t2;
-    double delta = 0.05;
+    double last_t2;
+    double delta = 0.025;
 
-    ros::Rate r(20);
+    std::vector<double> deltas = {0.025, 0.05, 0.075, 0.1};
+    std::vector<double> times = {1.5, 1.25, 1.0, 0.5};
+
+    double init_time = ros::Time::now().toSec();
+
+    ros::Rate r(2000);
     while(ros::ok()){
 
         while(ros::ok()){
             
             ros::spinOnce();
 
-            /*To DO:
-                - accumulate pcl comming from callback
-                - (accumulate imu's --> better done inside callback)
-                - call localizer::updateIMU() from t1 to t2+
-                - call localizer::updatePointCloud() from t1 to t2
-            */
+            if(lidar_buffer.size() < 1) break;
+
+            if(not loc.is_calibrated()) break;
 
             // Define time interval [t1, t2]
-            t2 = last_t2;
-            t1 = t2 - delta;
+            if(deltas.size() > 0 && times.size() > 0){
+                t2 = imu_t2 - 0.1;
+                t1 = t2 - deltas.back();
+                if(ros::Time::now().toSec() - 3.0 - init_time > times.back()){
+                    deltas.pop_back();
+                    times.pop_back();
+                }
+            }else{
+                t2 = imu_t2 - 0.1;
+                t1 = t2 - delta;
+            }
 
-            std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
-            std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
+            if(last_t2 > t1) break; // no overlap between iterations
+            
+            // std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
+            // std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
 
-            if(t1 < 0.0) break;
+            // Update KF with IMU measurements
+            loc.propagateImu(t1, t2);
 
             // Get points from t1 to t2
             pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2);
 
-            std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
+            // std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
 
             // Call fast_limo
             if(piepiece_pc->size() > 0)
                 loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].timestamp);
 
-            std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
-            clearBuffer(t1);
-            std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
+            // std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
+            clearBuffer(t2 - 0.1);
+            // std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
+
+            last_t2 = t2;
 
             // Rate sleep
             r.sleep();
