@@ -70,6 +70,9 @@ namespace fast_limo {
   class Plane;
   class Match;
 
+    // UTILS
+  struct Config;
+
     // STRUCTURES
   struct Point {
     Point(): data{0.f, 0.f, 0.f, 1.f} {}

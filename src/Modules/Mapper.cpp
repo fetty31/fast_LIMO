@@ -11,6 +11,10 @@
             if(n < 1) return;
             this->num_threads_ = n;
         }
+
+        void Mapper::set_match_points(int n){
+            this->NUM_MATCH_POINTS_ = n;
+        }
                 
         bool Mapper::exists(){
             return this->map->size() > 1;
@@ -70,7 +74,7 @@
             map_vec.reserve(pc->points.size());
 
             #pragma omp parallel for num_threads(this->num_threads_)
-            for(int i = 0; i < pc->points.size (); i++)
+            for(int i = 0; i < pc->points.size(); i++)
                 map_vec.emplace_back( pc->points[i].x, pc->points[i].y, pc->points[i].z );
 
             this->map->Add_Points(map_vec, downsample);
@@ -80,8 +84,8 @@
 
             // Find k nearest points
             MapPoints near_points;
-            std::vector<float> pointSearchSqDis(5/*Config.NUM_MATCH_POINTS*/);
-            this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), 5/*Config.NUM_MATCH_POINTS*/, near_points, pointSearchSqDis);
+            std::vector<float> pointSearchSqDis(this->NUM_MATCH_POINTS_);
+            this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), this->NUM_MATCH_POINTS_, near_points, pointSearchSqDis);
 
             // Construct a plane fitting between them
             return Match(p.head(3), Plane (near_points, pointSearchSqDis));

@@ -19,12 +19,15 @@ class fast_limo::Mapper {
 
         int num_threads_;
 
+        int NUM_MATCH_POINTS_;
+
     // Methods
 
     public:
         Mapper();
 
         void set_num_threads(int n);
+        void set_match_points(int n);
 
         bool exists();
         int size();

@@ -20,12 +20,12 @@
         }
 
         bool fast_limo::Plane::enough_points(const MapPoints& pts){
-            return this->is_plane = pts.size() >= 5/*NUM_MATCH_POINTS*/;
+            return this->is_plane = pts.size() >= 5/*Config.NUM_MATCH_POINTS*/;
         }
 
         bool fast_limo::Plane::close_enough(const std::vector<float>& dts){
             if(dts.size() < 1) return this->is_plane = false;
-            return this->is_plane = dts.back() < 2.0/*MAX_DIST_TO_PLANE*/;
+            return this->is_plane = dts.back() < 2.0/*Config.MAX_DIST_TO_PLANE*/;
         }
 
         float fast_limo::Plane::dist2plane(const Eigen::Vector3f& p) const {
@@ -38,12 +38,12 @@
 
         bool fast_limo::Plane::on_plane(const Eigen::Vector3f& p) {
             if(not this->is_plane) return false;
-            return std::fabs(this->dist2plane(p)) < 0.01/*PLANE_THRESHOLD*/;
+            return std::fabs(this->dist2plane(p)) < 0.01/*Config.PLANE_THRESHOLD*/;
         }
 
         bool fast_limo::Plane::on_plane(const PointType& p) {
             if(not this->is_plane) return false;
-            return std::fabs(this->dist2plane(p)) < 0.01/*PLANE_THRESHOLD*/;
+            return std::fabs(this->dist2plane(p)) < 0.01/*Config.PLANE_THRESHOLD*/;
         }
     
     // private
@@ -51,7 +51,7 @@
         void fast_limo::Plane::fit_plane(const MapPoints& pts){
             // Estimate plane
             this->n_ABCD   = this->estimate_plane(pts);
-            this->is_plane = this->plane_eval(n_ABCD, pts, 0.01/*PLANE_THRESHOLD*/);
+            this->is_plane = this->plane_eval(n_ABCD, pts, 0.01/*Config.PLANE_THRESHOLD*/);
 
             if(this->is_plane)
                 this->centroid = this->get_centroid(pts);

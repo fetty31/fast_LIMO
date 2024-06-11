@@ -6,6 +6,7 @@
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/Plane.hpp"
+#include "fast_limo/Utils/Config.hpp"
 
 using namespace fast_limo;
 
@@ -25,6 +26,8 @@ class fast_limo::Localizer {
         Extrinsics extr;
         SensorType sensor;
         IMUmeas last_imu;
+
+        Config config;
 
         // PCL Filters
         pcl::CropBox<PointType> crop_filter;
@@ -58,9 +61,6 @@ class fast_limo::Localizer {
         bool voxel_flag_;
         bool one_thread_;
 
-        // Transformation matrices
-        Eigen::Matrix4f T, T_prior;
-
         // OpenMP max threads
         int num_threads_;
 
@@ -86,6 +86,8 @@ class fast_limo::Localizer {
         bool verbose_;  // whether to print out stats
         bool debug_;    // whether to copy original & deskewed pointclouds at each iteration
 
+        int calibrating = 0;
+
             // Threads
         std::thread debug_thread;
 
@@ -108,8 +110,13 @@ class fast_limo::Localizer {
 
     public:
         Localizer();
-        void init(bool one_thread=true);
+        void init(Config& cfg, bool one_thread=true);
 
+        // Callbacks 
+        void updateIMU(IMUmeas& raw_imu);
+        void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp);
+
+        // Get output
         pcl::PointCloud<PointType>::Ptr get_pointcloud();
         pcl::PointCloud<PointType>::Ptr get_finalraw_pointcloud();
 
@@ -119,16 +126,18 @@ class fast_limo::Localizer {
 
         State get_state();
 
+        // Status info
         bool is_calibrated();
 
+        // Config
+        void set_sensor_type(uint8_t type);
+
+        // iKFoM measurement model
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
 
+        // Backpropagation
         void propagateImu(const IMUmeas& imu);
         void propagateImu(double t1, double t2);
-
-        void updateIMU(IMUmeas& raw_imu);
-        void updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp);
-
 
     private:
         void init_iKFoM();
