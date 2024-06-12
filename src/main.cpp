@@ -134,6 +134,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("calibration/gravity_align", config->gravity_align, true);
     nh_ptr->param<bool>("calibration/accel", config->calibrate_accel, true);
     nh_ptr->param<bool>("calibration/gyro", config->calibrate_gyro, true);
+    nh_ptr->param<double>("calibration/time", config->imu_calib_time, 3.0);
 
     nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/t", config->extrinsics.baselink2imu_t, {0.0, 0.0, 0.0});
     nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/R", config->extrinsics.baselink2imu_R, std::vector<float> (9, 0.0));

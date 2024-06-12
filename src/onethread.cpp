@@ -76,21 +76,21 @@ pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
     // Retreive points from t1 to t2 sorted new to old
     for(int k=0; k < lidar_buffer.size(); k++){
         /*To DO: 
-            - adapt "time" field depending on sensor_type
+            - adapt "timestamp" field depending on sensor_type
         */
         PointType p = lidar_buffer[k];
-        if(t1 > p.time) break;
-        else if(t2 >= p.time) pc_->points.push_back(p);
+        if(t1 > p.timestamp) break;
+        else if(t2 >= p.timestamp) pc_->points.push_back(p);
     }
 
     return pc_;
 }
 
 void clearBuffer(double t){
-    if(lidar_buffer.size() > 0)
-        std::cout << std::setprecision(12) << "lidar_buffer.back().time: " << lidar_buffer.back().time << std::endl;
+    // if(lidar_buffer.size() > 0)
+        // std::cout << std::setprecision(12) << "lidar_buffer.back().timestamp: " << lidar_buffer.back().timestamp << std::endl;
 
-    while(lidar_buffer.size() > 0 && t >= lidar_buffer.back().time)
+    while(lidar_buffer.size() > 0 && t >= lidar_buffer.back().timestamp)
         lidar_buffer.pop_back();
 }
 
@@ -100,9 +100,9 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::fromROSMsg(*msg, *pc_);
 
     // Fill buffer
-    double stamp = msg->header.stamp.toSec();
+    // double stamp = msg->header.stamp.toSec();
     for(int i=0; i < pc_->size(); i++){
-        pc_->points[i].time += stamp; // workaround for VELODYNE
+        // pc_->points[i].time += stamp; // workaround for VELODYNE
         lidar_buffer.push_front(pc_->points[i]);
     }
 
@@ -173,6 +173,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("calibration/gravity_align", config->gravity_align, true);
     nh_ptr->param<bool>("calibration/accel", config->calibrate_accel, true);
     nh_ptr->param<bool>("calibration/gyro", config->calibrate_gyro, true);
+    nh_ptr->param<double>("calibration/time", config->imu_calib_time, 3.0);
 
     nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/t", config->extrinsics.baselink2imu_t, {0.0, 0.0, 0.0});
     nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/R", config->extrinsics.baselink2imu_R, std::vector<float> (9, 0.0));
@@ -219,7 +220,7 @@ int main(int argc, char** argv) {
     load_config(&nh, &config);
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 100, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
@@ -235,10 +236,10 @@ int main(int argc, char** argv) {
 
     double t1, t2;
     double last_t2;
-    double delta = 0.025;
+    double delta = 0.05;
 
-    std::vector<double> deltas = {0.025, 0.05, 0.075, 0.1};
-    std::vector<double> times = {1.5, 1.25, 1.0, 0.5};
+    std::vector<double> deltas = {0.05, 0.075, 0.1};
+    std::vector<double> times = {1.5, 1.0, 0.5};
 
     double init_time = ros::Time::now().toSec();
 
@@ -257,7 +258,7 @@ int main(int argc, char** argv) {
             if(deltas.size() > 0 && times.size() > 0){
                 t2 = imu_t2 - 0.1;
                 t1 = t2 - deltas.back();
-                if(ros::Time::now().toSec() - 3.0 - init_time > times.back()){
+                if(ros::Time::now().toSec() - config.imu_calib_time - init_time > times.back()){
                     deltas.pop_back();
                     times.pop_back();
                 }
@@ -268,8 +269,8 @@ int main(int argc, char** argv) {
 
             if(last_t2 > t1) break; // no overlap between iterations
             
-            std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
-            std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
+            // std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
+            // std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
 
             // Update KF with IMU measurements
             loc.propagateImu(t1, t2);
@@ -277,15 +278,15 @@ int main(int argc, char** argv) {
             // Get points from t1 to t2
             pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2);
 
-            std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
+            // std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
 
             // Call fast_limo
-            if(piepiece_pc->size() > 0)
-                loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].time);
+            if(piepiece_pc->points.size() > 0)
+                loc.updatePointCloud(piepiece_pc, piepiece_pc->points[0].timestamp);
 
-            std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
+            // std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
             clearBuffer(t2 - 0.1);
-            std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
+            // std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
 
             last_t2 = t2;
 

@@ -5,7 +5,7 @@
 
         Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
                                 imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
-                                imu_calib_time_(1.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
+                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
                                 calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true), verbose_(true) { 
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -98,6 +98,8 @@
                 this->init_iKFoM_state();
             }
 
+            // Calibration time
+            this->imu_calib_time_ = config.imu_calib_time;
 
             // Debugging
             this->debug_    = config.debug;

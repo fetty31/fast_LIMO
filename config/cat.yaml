@@ -6,7 +6,7 @@ topics:
     imu: /EL/Sensors/vectornav/IMU
   # output:
 
-num_threads: 10
+num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
 sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
@@ -19,6 +19,7 @@ calibration:    # automatic IMU calibration
   gravity_align: true
   accel: true
   gyro: true
+  time: 3.0
 
 extrinsics:
   baselink2imu:
