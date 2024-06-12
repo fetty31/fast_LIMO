@@ -4,7 +4,10 @@
     // public
 
         Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
-            this->map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0., 0., 0.));
+            this->map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0.3, 0.6, 0.2));
+            /*To DO:
+                - make KD_TREE parameters into shared config obj
+            */
         }
 
         void Mapper::set_num_threads(int n){
@@ -17,7 +20,7 @@
         }
                 
         bool Mapper::exists(){
-            return this->map->size() > 1;
+            return this->map->size() > 0;
         }
 
         int Mapper::size(){
