@@ -16,9 +16,9 @@ verbose: true   # print debug/performance board
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 
 calibration:    # automatic IMU calibration
-  gravity_align: true
-  accel: true
-  gyro: true
+  gravity_align: false
+  accel: false
+  gyro: false
   time: 3.0
 
 extrinsics:

@@ -24,6 +24,8 @@
 #include <chrono>
 #include <string>
 
+#include <climits>
+
 #include <thread>
 #include <atomic>
 #include <mutex>

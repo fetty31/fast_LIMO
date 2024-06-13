@@ -5,7 +5,7 @@
 
         Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
                                 imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
-                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true),
+                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true), crop_flag_(true),
                                 calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true), verbose_(true) { 
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -42,14 +42,16 @@
             this->imu_buffer.set_capacity(2000);
 
             // PCL filters setup
+            this->crop_flag_ = config.filters.crop_active;
             this->crop_filter.setNegative(true);
             this->crop_filter.setMin(Eigen::Vector4f(config.filters.cropBoxMin[0], config.filters.cropBoxMin[1], config.filters.cropBoxMin[2], 1.0));
             this->crop_filter.setMax(Eigen::Vector4f(config.filters.cropBoxMax[0], config.filters.cropBoxMax[1], config.filters.cropBoxMax[2], 1.0));
 
+            this->voxel_flag_ = config.filters.voxel_active;
             this->voxel_filter.setLeafSize(config.filters.leafSize[0], config.filters.leafSize[0], config.filters.leafSize[0]);
 
             // LiDAR sensor type
-            this->sensor = static_cast<fast_limo::SensorType>(config.sensor_type); 
+            this->set_sensor_type(config.sensor_type); 
 
             // IMU attitude
             this->imu_accel_sm_ = Eigen::Map<Eigen::Matrix3f>(config.intrinsics.imu_sm.data(), 3, 3);
@@ -142,27 +144,16 @@
         }
 
         void Localizer::set_sensor_type(uint8_t type){
-            switch(type) {
-                case 0:
-                    this->sensor = fast_limo::SensorType::OUSTER;
-                    break;
-                case 1:
-                    this->sensor = fast_limo::SensorType::VELODYNE;
-                    break;
-                case 2:
-                    this->sensor = fast_limo::SensorType::HESAI;
-                    break;
-                case 3:
-                    this->sensor = fast_limo::SensorType::LIVOX;
-                    break;
-                default:
-                    this->sensor = fast_limo::SensorType::UNKNOWN;
-            }
+            if(type < 5)
+                this->sensor = static_cast<fast_limo::SensorType>(type);
+            else 
+                this->sensor = fast_limo::SensorType::UNKNOWN;
         }
 
         State Localizer::get_state(){
             State out = this->state;
-            out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            out.p += this->state.pLI;                                                // position in body/base_link frame
+            out.q = this->state.q * this->state.qLI;                                 // attitude in body/base_link frame
             out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;    // local velocity vector
             return out;
         }
@@ -198,13 +189,15 @@
             pcl::removeNaNFromPointCloud(*raw_pc, *raw_pc, idx);
 
             // Crop Box Filter (1 m^2)
-            this->crop_filter.setInputCloud(raw_pc);
-            this->crop_filter.filter(*raw_pc);
+            if(this->crop_flag_){
+                this->crop_filter.setInputCloud(raw_pc);
+                this->crop_filter.filter(*raw_pc);
+            }
 
             // std::cout << "crop filter done\n";
 
             if(this->debug_) // debug only
-                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // base_link/body frame
+                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // LiDAR frame
 
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -260,11 +253,16 @@
                     // Get deskewed scan to add to map
                 pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
                 pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
-                // pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work properly
-                // mapped_scan is in world/global frame
+                /*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
+                        mapped_scan is in world/global frame.
+                */
+
+                /*To DO:
+                    - mapped_scan --> segmentation of dynamic objects
+                */
 
                     // Get final scan to output (in world/global frame)
-                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // mapped_scan = final_scan
+                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // mapped_scan = final_scan (for now)
 
                 if(this->debug_) // save final scan without voxel grid
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
@@ -285,7 +283,8 @@
                 if(this->prev_scan_stamp > 0.0) this->lidar_rates.push_front( 1. / (this->scan_stamp - this->prev_scan_stamp) );
                 if(calibrating > 0) this->cpu_times.push_front(elapsed_time.count());
                 else this->cpu_times.push_front(0.0);
-                calibrating++;
+                
+                if(calibrating < UCHAR_MAX) calibrating++;
 
                 // debug thread
                 this->debug_thread = std::thread( &Localizer::debugVerbose, this );
@@ -750,7 +749,8 @@
 
                     // Xt2 frame deskewed pc
                     auto &pt2 = deskewed_Xt2_scan_->points[k];
-                    pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // base_link w.r.t Xt2 frame
+                    pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
+                    pt2.intensity = pt.intensity;
                 }
             }
 

@@ -16,7 +16,7 @@ verbose: true   # print debug/performance board
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 
 calibration:    # automatic IMU calibration
-  gravity_align: true
+  gravity_align: false
   accel: true
   gyro: true
   time: 3.0
@@ -46,8 +46,8 @@ filters:
   cropBox:
     active: true
     box:
-      min: [ -1.0, -1.0, -1.0 ]
-      max: [ 1.0, 1.0, 1.0 ]
+      min: [ -2.0, -2.0, -1.0 ]
+      max: [ 2.0, 2.0, 1.0 ]
 
   voxelGrid:
     active: true
