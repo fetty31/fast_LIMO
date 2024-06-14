@@ -135,6 +135,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("verbose", config->verbose, true);
 
     nh_ptr->param<bool>("estimate_extrinsics", config->ikfom.estimate_extrinsics, true);
+    nh_ptr->param<bool>("time_offset", config->time_offset, true);
 
     nh_ptr->param<bool>("calibration/gravity_align", config->gravity_align, true);
     nh_ptr->param<bool>("calibration/accel", config->calibrate_accel, true);

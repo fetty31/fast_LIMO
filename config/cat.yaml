@@ -14,6 +14,7 @@ debug: true     # fill useful intermediate pcl (pc2match, deskewed...) for visua
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
+time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
 
 calibration:    # automatic IMU calibration
   gravity_align: false

@@ -48,6 +48,7 @@ struct fast_limo::Config{
     bool gravity_align;
     bool calibrate_accel;
     bool calibrate_gyro;
+    bool time_offset;
 
     bool debug;
     bool verbose;

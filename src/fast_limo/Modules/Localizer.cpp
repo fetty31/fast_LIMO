@@ -684,7 +684,7 @@
 
             // compute offset between sweep reference time and first point timestamp
             double offset = 0.0;
-            if (false /*this->time_offset_*/) {
+            if (config.time_offset) {
                 offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
             }
 
@@ -1124,40 +1124,85 @@
 
             std::cout << "|===================================================================|" << std::endl;
 
+            State final_state = this->get_state();
+
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p(0), 4) + " "
-                                            + to_string_with_precision(this->state.p(1), 4) + " "
-                                            + to_string_with_precision(this->state.p(2), 4)
+                << "Position     {W}  [xyz] :: " + to_string_with_precision(final_state.p(0), 4) + " "
+                                            + to_string_with_precision(final_state.p(1), 4) + " "
+                                            + to_string_with_precision(final_state.p(2), 4)
                 << "|" << std::endl;
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Orientation  {W} [wxyz] :: " + to_string_with_precision(this->state.q.w(), 4) + " "
-                                            + to_string_with_precision(this->state.q.x(), 4) + " "
-                                            + to_string_with_precision(this->state.q.y(), 4) + " "
-                                            + to_string_with_precision(this->state.q.z(), 4)
+                << "Orientation  {W} [wxyz] :: " + to_string_with_precision(final_state.q.w(), 4) + " "
+                                            + to_string_with_precision(final_state.q.x(), 4) + " "
+                                            + to_string_with_precision(final_state.q.y(), 4) + " "
+                                            + to_string_with_precision(final_state.q.z(), 4)
+                << "|" << std::endl;
+
+            auto euler = final_state.q.toRotationMatrix().eulerAngles(2, 1, 0);
+            double yaw = euler[0] * (180.0/M_PI);
+            double pitch = euler[1] * (180.0/M_PI);
+            double roll = euler[2] * (180.0/M_PI);
+
+            // use alternate representation if the yaw is smaller
+            if (abs(remainder(yaw + 180.0, 360.0)) < abs(yaw)) {
+                yaw   = remainder(yaw + 180.0,   360.0);
+                pitch = remainder(180.0 - pitch, 360.0);
+                roll  = remainder(roll + 180.0,  360.0);
+            }
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "             {W} [ypr] :: " + to_string_with_precision(yaw, 4) + " "
+                                            + to_string_with_precision(pitch, 4) + " "
+                                            + to_string_with_precision(roll, 4)
+                << "|" << std::endl;
+
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Lin Velocity {B}  [xyz] :: " + to_string_with_precision(final_state.v(0), 4) + " "
+                                            + to_string_with_precision(final_state.v(1), 4) + " "
+                                            + to_string_with_precision(final_state.v(2), 4)
                 << "|" << std::endl;
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Lin Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v(0), 4) + " "
-                                            + to_string_with_precision(this->state.v(1), 4) + " "
-                                            + to_string_with_precision(this->state.v(2), 4)
+                << "Ang Velocity {B}  [xyz] :: " + to_string_with_precision(final_state.w(0), 4) + " "
+                                            + to_string_with_precision(final_state.w(1), 4) + " "
+                                            + to_string_with_precision(final_state.w(2), 4)
                 << "|" << std::endl;
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Ang Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.w(0), 4) + " "
-                                            + to_string_with_precision(this->state.w(1), 4) + " "
-                                            + to_string_with_precision(this->state.w(2), 4)
+                << "Accel Bias        [xyz] :: " + to_string_with_precision(final_state.b.accel(0), 8) + " "
+                                            + to_string_with_precision(final_state.b.accel(1), 8) + " "
+                                            + to_string_with_precision(final_state.b.accel(2), 8)
                 << "|" << std::endl;
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Accel Bias        [xyz] :: " + to_string_with_precision(this->state.b.accel(0), 8) + " "
-                                            + to_string_with_precision(this->state.b.accel(1), 8) + " "
-                                            + to_string_with_precision(this->state.b.accel(2), 8)
-                << "|" << std::endl;
-            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-                << "Gyro Bias         [xyz] :: " + to_string_with_precision(this->state.b.gyro(0), 8) + " "
-                                            + to_string_with_precision(this->state.b.gyro(1), 8) + " "
-                                            + to_string_with_precision(this->state.b.gyro(2), 8)
+                << "Gyro Bias         [xyz] :: " + to_string_with_precision(final_state.b.gyro(0), 8) + " "
+                                            + to_string_with_precision(final_state.b.gyro(1), 8) + " "
+                                            + to_string_with_precision(final_state.b.gyro(2), 8)
                 << "|" << std::endl;
 
             std::cout << "|                                                                   |" << std::endl;
 
+
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "LiDAR -> BaseLink     [t] :: " + to_string_with_precision(final_state.pLI(0), 4) + " "
+                                            + to_string_with_precision(final_state.pLI(1), 4) + " "
+                                            + to_string_with_precision(final_state.pLI(2), 4)
+                << "|" << std::endl;
+            
+            euler = final_state.qLI.toRotationMatrix().eulerAngles(2, 1, 0);
+            yaw = euler[0] * (180.0/M_PI);
+            pitch = euler[1] * (180.0/M_PI);
+            roll = euler[2] * (180.0/M_PI);
+
+            // use alternate representation if the yaw is smaller
+            if (abs(remainder(yaw + 180.0, 360.0)) < abs(yaw)) {
+                yaw   = remainder(yaw + 180.0,   360.0);
+                pitch = remainder(180.0 - pitch, 360.0);
+                roll  = remainder(roll + 180.0,  360.0);
+            }
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "                      [ypr] :: " + to_string_with_precision(yaw, 4) + " "
+                                            + to_string_with_precision(pitch, 4) + " "
+                                            + to_string_with_precision(roll, 4)
+                << "|" << std::endl;
+
+            std::cout << "|                                                                   |" << std::endl;
 
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
                 << "Deskewed points: " + std::to_string(this->deskew_size) << "|" << std::endl;
