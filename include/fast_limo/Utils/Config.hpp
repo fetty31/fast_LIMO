@@ -56,6 +56,7 @@ struct fast_limo::Config{
     int sensor_type;
     int num_threads;
     double imu_calib_time;
+    double time_delay;
 
 };
 

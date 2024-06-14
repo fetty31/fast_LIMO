@@ -166,13 +166,13 @@
 
             auto start_time = chrono::system_clock::now();
 
-            if(raw_pc->size() < 1){
+            if(raw_pc->points.size() < 1){
                 std::cout << "FAST_LIMO::Raw PointCloud is empty!\n";
                 return;
             }
 
             if(!this->imu_calibrated_){
-                std::cout << "FAST_LIMO::IMU calibrating...!\n";
+                // std::cout << "FAST_LIMO::IMU calibrating...!\n";
                 return;
             }
 
@@ -336,6 +336,8 @@
 
                     Eigen::Vector3f grav_vec (0., 0., this->gravity_);
 
+                    this->state.q = imu.q;
+
                     if (this->gravity_align_) {
 
                         std::cout << " Acceleration average: \n";
@@ -350,25 +352,7 @@
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;
-                        // this->T.block(0,0,3,3) = this->state.q.toRotationMatrix();
 
-                        // rpy
-                        auto euler = grav_q.toRotationMatrix().eulerAngles(2, 1, 0);
-                        double yaw = euler[0] * (180.0/M_PI);
-                        double pitch = euler[1] * (180.0/M_PI);
-                        double roll = euler[2] * (180.0/M_PI);
-
-                        // use alternate representation if the yaw is smaller
-                        if (abs(remainder(yaw + 180.0, 360.0)) < abs(yaw)) {
-                            yaw   = remainder(yaw + 180.0,   360.0);
-                            pitch = remainder(180.0 - pitch, 360.0);
-                            roll  = remainder(roll + 180.0,  360.0);
-                        }
-                        std::cout << " Estimated initial attitude:" << std::endl;
-                        std::cout << "   Roll  [deg]: " << to_string_with_precision(roll, 4) << std::endl;
-                        std::cout << "   Pitch [deg]: " << to_string_with_precision(pitch, 4) << std::endl;
-                        std::cout << "   Yaw   [deg]: " << to_string_with_precision(yaw, 4) << std::endl;
-                        std::cout << std::endl;
                     }
 
                     if (this->calibrate_accel_) {
@@ -394,6 +378,24 @@
 
                     // Set initial KF state
                     this->init_iKFoM_state();
+
+                    // Initial attitude
+                    auto euler = this->state.q.toRotationMatrix().eulerAngles(2, 1, 0);
+                    double yaw = euler[0] * (180.0/M_PI);
+                    double pitch = euler[1] * (180.0/M_PI);
+                    double roll = euler[2] * (180.0/M_PI);
+
+                    // use alternate representation if the yaw is smaller
+                    if (abs(remainder(yaw + 180.0, 360.0)) < abs(yaw)) {
+                        yaw   = remainder(yaw + 180.0,   360.0);
+                        pitch = remainder(180.0 - pitch, 360.0);
+                        roll  = remainder(roll + 180.0,  360.0);
+                    }
+                    std::cout << " Estimated initial attitude:" << std::endl;
+                    std::cout << "   Roll  [deg]: " << to_string_with_precision(roll, 4) << std::endl;
+                    std::cout << "   Pitch [deg]: " << to_string_with_precision(pitch, 4) << std::endl;
+                    std::cout << "   Yaw   [deg]: " << to_string_with_precision(yaw, 4) << std::endl;
+                    std::cout << std::endl;
 
                 }
 
@@ -489,11 +491,6 @@
             Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
             Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
 
-            // Q.block<3, 3>(0, 0) = 0.0001 /*config.ikfom.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(3, 3) = 0.01 /*config.ikfom.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(6, 6) = 0.00001 /*config.ikfom.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(9, 9) = 0.0001 /*config.ikfom.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
-
             double dt = imu.dt;
             this->mtx_ikfom.lock();
             this->_iKFoM.predict(dt, Q, in);
@@ -507,11 +504,6 @@
             Q.block<3, 3>(3, 3) = config.ikfom.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
             Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
             Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
-
-            // Q.block<3, 3>(0, 0) = 0.0001 /*config.ikfom.cov_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(3, 3) = 0.01 /*config.ikfom.cov_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(6, 6) = 0.00001 /*config.ikfom.cov_bias_gyro*/ * Eigen::Matrix<double, 3, 3>::Identity();
-            // Q.block<3, 3>(9, 9) = 0.0001 /*config.ikfom.cov_bias_acc*/ * Eigen::Matrix<double, 3, 3>::Identity();
 
             boost::circular_buffer<IMUmeas>::reverse_iterator begin_imu_it;
             boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it;
@@ -588,7 +580,7 @@
             
             if ( (dt == 0.) || (dt > 0.1) ) { dt = 1.0/200.0; }
 
-            // Transform angular velocity (will be the same on a rigid body, so just rotate to ROS convention)
+            // Transform angular velocity (will be the same on a rigid body, so just rotate to baselink frame)
             Eigen::Vector3f ang_vel_cg = this->extr.imu2baselink.R * imu.ang_vel;
 
             static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
@@ -606,6 +598,10 @@
             imu_baselink.lin_accel = lin_accel_cg;
             imu_baselink.dt        = dt;
             imu_baselink.stamp     = imu.stamp;
+
+            Eigen::Quaternionf q(this->extr.imu2baselink.R);
+            q.normalize();
+            imu_baselink.q = q * imu.q;
 
             this->prev_imu_stamp = imu.stamp;
 
@@ -703,6 +699,8 @@
             }
             unique_time_indices.push_back(deskewed_scan_->points.size());
 
+            // std::cout << "timestamps size: " << timestamps.size() << std::endl;
+
             // To DO: check which option from above works better
             // int median_pt_index = timestamps.size() / 2;
             // this->scan_stamp = timestamps[median_pt_index]; // set this->scan_stamp to the timestamp of the median point
@@ -714,13 +712,15 @@
                                         this->state.v, timestamps);
             this->deskew_size = frames.size(); // if integration successful, equal to timestamps.size()
 
+            // std::cout << "Imu integrated: " << frames.size() << std::endl;
+
             // TO DO: if there are no frames between the start and end of the sweep
             // that probably means that there's a sync issue
-            if (frames.size() != timestamps.size()) {
+            if (frames.size() < timestamps.size()) {
                 std::cout << "FAST_LIMO::FATAL ERROR: Bad time sync between LiDAR and IMU!\n";
                 std::cout << "frames.size(): " << frames.size() << std::endl;
                 std::cout << "timestamps.size(): " << timestamps.size() << std::endl;
-                // return boost::make_shared<pcl::PointCloud<PointType>>();
+                return boost::make_shared<pcl::PointCloud<PointType>>();
             }
 
             if(frames.size() < 1) return boost::make_shared<pcl::PointCloud<PointType>>();
@@ -766,13 +766,13 @@
 
             const std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> empty;
 
-            if(start_time > sorted_timestamps.front()){
-                std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are not consistent\n";
+            if(sorted_timestamps.size() < 1){
+                std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are empty!\n";
                 return empty;
             }
 
-            if(sorted_timestamps.empty()){
-                std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are empty!\n";
+            if(start_time > sorted_timestamps.front()){
+                std::cout << "FAST_LIMO::integrateImu() invalid input: sorted timestamps are not consistent\n";
                 return empty;
             }
 

@@ -32,9 +32,10 @@ ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub;
 
 // buffer variables
 std::deque<PointType> lidar_buffer;
+std::deque<double> stamp_buffer;
 double imu_t2 = -1.0;
 
-// initialization
+// initialization variables
 std::vector<double> deltas, intervals;
 
 void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
@@ -70,7 +71,7 @@ void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.twist.twist.angular.z = ang_v(2);
 }
 
-pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
+pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2, double& start_time){
 
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
 
@@ -78,14 +79,13 @@ pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
 
     // Retreive points from t1 to t2 sorted new to old
     for(int k=0; k < lidar_buffer.size(); k++){
-        /*To DO: 
-            - adapt "timestamp/time" field depending on sensor_type
-        */
         PointType p = lidar_buffer[k];
-
-        if(t1 > p.timestamp) break;
-        else if(t2 >= p.timestamp) pc_->points.push_back(p);
-
+        double stamp = stamp_buffer[k];
+        if(t1 > p.time + stamp) break;
+        else if(t2 >= p.time + stamp){
+            pc_->points.push_back(p);
+            start_time = stamp + p.time;
+        }
     }
 
     return pc_;
@@ -93,10 +93,12 @@ pcl::PointCloud<PointType>::Ptr getPoints(double t1, double t2){
 
 void clearBuffer(double t){
     if(lidar_buffer.size() > 0)
-        std::cout << std::setprecision(12) << "lidar_buffer.back().timestamp: " << lidar_buffer.back().timestamp << std::endl; // HESAI
+        std::cout << std::setprecision(12) << "lidar_buffer.back().timestamp: " << lidar_buffer.back().time + stamp_buffer.back() << std::endl; // VELODYNE
 
-    while(lidar_buffer.size() > 0 && t >= lidar_buffer.back().timestamp) // HESAI
+    while(lidar_buffer.size() > 0 && t >= lidar_buffer.back().time + stamp_buffer.back()){ // VELODYNE
         lidar_buffer.pop_back();
+        stamp_buffer.pop_back();
+    }
 }
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
@@ -105,8 +107,11 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::fromROSMsg(*msg, *pc_);
 
     // Fill buffer
-    for(int i=0; i < pc_->size(); i++)
+    double stamp = msg->header.stamp.toSec();
+    for(int i=0; i < pc_->size(); i++){
         lidar_buffer.push_front(pc_->points[i]);
+        stamp_buffer.push_front(stamp);
+    }
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
@@ -211,6 +216,8 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     std::reverse(deltas.begin(), deltas.end());
     std::reverse(intervals.begin(), intervals.end());
 
+    nh_ptr->param<double>("onethread/delay", config->time_delay, 0.1);
+
 }
 
 int main(int argc, char** argv) {
@@ -259,18 +266,18 @@ int main(int argc, char** argv) {
 
             // Define time interval [t1, t2]
             if(deltas.size() > 1 && intervals.size() > 0){
-                t2 = imu_t2 - 0.1;
+                t2 = imu_t2 - config.time_delay;
                 t1 = t2 - deltas.back();
                 if(ros::Time::now().toSec() - config.imu_calib_time - init_time > intervals.back()){
                     deltas.pop_back();
                     intervals.pop_back();
                 }
             }else{
-                t2 = imu_t2 - 0.1;
+                t2 = imu_t2 - config.time_delay;
                 t1 = t2 - deltas.back();
             }
 
-            if(last_t2 > t1) break; // no overlap between iterations
+            if(last_t2 >= t1) break; // no overlap between iterations
             
             std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
             std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
@@ -279,18 +286,19 @@ int main(int argc, char** argv) {
             loc.propagateImu(t1, t2);
 
             // Get points from t1 to t2
-            pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2);
+            double stamp;
+            pcl::PointCloud<PointType>::Ptr piepiece_pc = getPoints(t1, t2, stamp);
 
             std::cout << "pie piece size: " << piepiece_pc->size() << std::endl;
+            std::cout << "stamp: " << stamp << std::endl;
 
             // Call fast_limo
             if(piepiece_pc->points.size() > 0){
-                auto &pt = piepiece_pc->points[piepiece_pc->points.size()-1];
-                loc.updatePointCloud(piepiece_pc, pt.timestamp); // HESAI
+                loc.updatePointCloud(piepiece_pc, stamp); // VELODYNE
             }
 
             std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
-            clearBuffer(t2 - 0.1);
+            clearBuffer(t2 - config.time_delay);
             std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
 
             last_t2 = t2;

@@ -82,10 +82,10 @@ namespace fast_limo {
     PCL_ADD_POINT4D;
     float intensity;
     union {
-    std::uint32_t t;   // (Ouster) time since beginning of scan in nanoseconds
-    float time;        // (Velodyne) time since beginning of scan in seconds
-    double timestamp;  // (Hesai) absolute timestamp in seconds
-                       // (Livox) absolute timestamp in (seconds * 10e9)
+      std::uint32_t t;   // (Ouster) time since beginning of scan in nanoseconds
+      float time;        // (Velodyne) time since beginning of scan in seconds
+      double timestamp;  // (Hesai) absolute timestamp in seconds
+                         // (Livox) absolute timestamp in (seconds * 10e9)
     };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   } EIGEN_ALIGN16;
@@ -106,6 +106,7 @@ namespace fast_limo {
     double dt; // defined as the difference between the current and the previous measurement
     Eigen::Vector3f ang_vel;
     Eigen::Vector3f lin_accel;
+    Eigen::Quaternionf q;
   };
 
 }

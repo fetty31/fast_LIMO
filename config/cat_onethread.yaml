@@ -1,37 +1,37 @@
-# ONA config
+# CAT15 config
 
 topics:
   input:
-    lidar: /ona2/sensors/pandar_front/cloud
-    imu: /ona2/sensors/imu_front/imu
+    lidar: /velodyne_points
+    imu: /EL/Sensors/vectornav/IMU
   # output:
 
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
-sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
+sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
-debug: true     # save useful intermediate pcl (pc2match, deskewed...)
-verbose: true   # print debug/performance board
+debug: true     # fill useful intermediate pcl (pc2match, deskewed...) for visualizing purposes
+verbose: false   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 
 calibration:    # automatic IMU calibration
-  gravity_align: false
+  gravity_align: true
   accel: true
   gyro: true
   time: 3.0
 
 extrinsics:
   baselink2imu:
-    t: [ 0.87, 0.44, 0.17 ]
+    t: [ 0.0, 0.0, 0.0 ]
     R: [ 1.,  0.,  0.,
           0.,  1.,  0.,
           0.,  0.,  1. ]
   baselink2lidar:
-    t: [ 0.395,  -0.885,  0.201 ]
-    R: [ 0.774, -0.633, 0.022,
-        0.633, 0.774,  -0.026,
-        -0.0005, 0.03,  0.999 ]
+    t: [ 1.25,  0.,  0. ]
+    R: [ 0.99,  0.,  0.09,
+          0.,  1.,  0.,
+        -0.09,  0.,  0.99 ]
 
 intrinsics:
   accel:
@@ -46,8 +46,8 @@ filters:
   cropBox:
     active: true
     box:
-      min: [ -1.0, -1.0, -1.0 ]
-      max: [ 1.0, 1.0, 1.0 ]
+      min: [ -2.0, -2.0, -1.0 ]
+      max: [ 2.0, 2.0, 1.0 ]
 
   voxelGrid:
     active: true
@@ -60,7 +60,12 @@ iKFoM:
   PLANES_THRESHOLD: 5.0e-2
   LIMITS: 0.001
   covariance:
-    gyro: 0.0001 
-    accel: 0.01
-    bias_gyro: 0.00001
-    bias_accel: 0.0001
+    gyro: 6.01e-4 
+    accel: 1.53e-2
+    bias_gyro: 1.54e-5
+    bias_accel: 3.38e-4
+
+onethread:
+  delay: 0.1
+  intervals: [0.5, 1.0, 1.5]
+  deltas:    [0.1, 0.08, 0.06, 0.04]

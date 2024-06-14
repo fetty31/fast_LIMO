@@ -40,6 +40,11 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
     out.lin_accel(0) = in->linear_acceleration.x;
     out.lin_accel(1) = in->linear_acceleration.y;
     out.lin_accel(2) = in->linear_acceleration.z;
+
+    Eigen::Quaterniond qd;
+    tf2::fromMsg(in->orientation, qd);
+    out.q = qd.cast<float>();
+    // out.q = Eigen::Quaternionf::Identity();
 }
 
 void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){

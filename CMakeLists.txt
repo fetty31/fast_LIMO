@@ -96,14 +96,22 @@ add_executable(${PROJECT_NAME}_multi_exec
 add_executable(${PROJECT_NAME}_exec
               src/onethread.cpp
               )
+add_executable(${PROJECT_NAME}_cat_exec
+              src/onethread_cat.cpp
+              )
 
 add_dependencies(${PROJECT_NAME}_multi_exec ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_exec ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_cat_exec ${catkin_EXPORTED_TARGETS})
+
 target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_cat_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # Binaries
 install( TARGETS ${PROJECT_NAME}_multi_exec
          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
 install( TARGETS ${PROJECT_NAME}_exec
+         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
+install( TARGETS ${PROJECT_NAME}_cat_exec
          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
