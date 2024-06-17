@@ -55,11 +55,6 @@ class fast_limo::Localizer {
 
         // Flags
         bool imu_calibrated_;
-        bool gravity_align_;
-        bool calibrate_accel_;
-        bool calibrate_gyro_;
-        bool voxel_flag_;
-        bool crop_flag_;
         bool one_thread_;
 
         // OpenMP max threads
@@ -83,10 +78,6 @@ class fast_limo::Localizer {
         */
 
         // Debugging
-            // Flags
-        bool verbose_;  // whether to print out stats
-        bool debug_;    // whether to copy original & deskewed pointclouds at each iteration
-
         unsigned char calibrating = 0;
 
             // Threads

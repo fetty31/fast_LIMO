@@ -17,7 +17,7 @@ estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics
 time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
 
 calibration:    # automatic IMU calibration
-  gravity_align: false
+  gravity_align: true
   accel: true
   gyro: true
   time: 3.0

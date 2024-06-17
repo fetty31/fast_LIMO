@@ -5,8 +5,8 @@
 
         Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
                                 imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
-                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false), gravity_align_(true), crop_flag_(true),
-                                calibrate_accel_(true), calibrate_gyro_(true), debug_(false), voxel_flag_(true), verbose_(true) { 
+                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
+                            { 
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
             this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -42,12 +42,10 @@
             this->imu_buffer.set_capacity(2000);
 
             // PCL filters setup
-            this->crop_flag_ = config.filters.crop_active;
             this->crop_filter.setNegative(true);
             this->crop_filter.setMin(Eigen::Vector4f(config.filters.cropBoxMin[0], config.filters.cropBoxMin[1], config.filters.cropBoxMin[2], 1.0));
             this->crop_filter.setMax(Eigen::Vector4f(config.filters.cropBoxMax[0], config.filters.cropBoxMax[1], config.filters.cropBoxMax[2], 1.0));
 
-            this->voxel_flag_ = config.filters.voxel_active;
             this->voxel_filter.setLeafSize(config.filters.leafSize[0], config.filters.leafSize[0], config.filters.leafSize[0]);
 
             // LiDAR sensor type
@@ -90,12 +88,8 @@
             // Avoid unnecessary warnings from PCL
             pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
 
-            // Flags
-            this->gravity_align_    = config.gravity_align;
-            this->calibrate_accel_  = config.calibrate_accel;
-            this->calibrate_gyro_   = config.calibrate_gyro;
-
-            if( not (gravity_align_ || calibrate_accel_ || calibrate_gyro_) ){ // no need for automatic calibration
+            // Initial calibration
+            if( not (config.gravity_align || config.calibrate_accel || config.calibrate_gyro) ){ // no need for automatic calibration
                 this->imu_calibrated_ = true;
                 this->init_iKFoM_state();
             }
@@ -103,14 +97,10 @@
             // Calibration time
             this->imu_calib_time_ = config.imu_calib_time;
 
-            // Debugging
-            this->debug_    = config.debug;
-            this->verbose_  = config.verbose;
-
             // CPU info
             this->getCPUinfo();
 
-            if(this->verbose_){
+            if(config.verbose){
                 // set up buffer capacities
                 this->imu_rates.set_capacity(1000);
                 this->lidar_rates.set_capacity(1000);
@@ -189,14 +179,14 @@
             pcl::removeNaNFromPointCloud(*raw_pc, *raw_pc, idx);
 
             // Crop Box Filter (1 m^2)
-            if(this->crop_flag_){
+            if(this->config.filters.crop_active){
                 this->crop_filter.setInputCloud(raw_pc);
                 this->crop_filter.filter(*raw_pc);
             }
 
             // std::cout << "crop filter done\n";
 
-            if(this->debug_) // debug only
+            if(this->config.debug) // debug only
                 this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // LiDAR frame
 
             // Motion compensation
@@ -209,7 +199,7 @@
             if(deskewed_Xt2_pc_->points.size() > 1){
 
                 // Voxel Grid Filter
-                if (this->voxel_flag_) { 
+                if (this->config.filters.voxel_active) { 
                     pcl::PointCloud<PointType>::Ptr current_scan_
                         (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
                     this->voxel_filter.setInputCloud(current_scan_);
@@ -264,7 +254,7 @@
                     // Get final scan to output (in world/global frame)
                 pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // mapped_scan = final_scan (for now)
 
-                if(this->debug_) // save final scan without voxel grid
+                if(this->config.debug) // save final scan without voxel grid
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
                 // std::cout << "final scan!\n";
@@ -278,7 +268,7 @@
             auto end_time = chrono::system_clock::now();
             elapsed_time = end_time - start_time;
 
-            if(this->verbose_){
+            if(this->config.verbose){
                 // fill stats
                 if(this->prev_scan_stamp > 0.0) this->lidar_rates.push_front( 1. / (this->scan_stamp - this->prev_scan_stamp) );
                 if(calibrating > 0) this->cpu_times.push_front(elapsed_time.count());
@@ -338,7 +328,7 @@
 
                     this->state.q = imu.q;
 
-                    if (this->gravity_align_) {
+                    if (this->config.gravity_align) {
 
                         std::cout << " Acceleration average: \n";
                         std::cout << accel_avg << std::endl;
@@ -355,7 +345,7 @@
 
                     }
 
-                    if (this->calibrate_accel_) {
+                    if (this->config.calibrate_accel) {
 
                         // subtract gravity from avg accel to get bias
                         this->state.b.accel = accel_avg - grav_vec;
@@ -365,7 +355,7 @@
                                                             << to_string_with_precision(this->state.b.accel[2], 8) << std::endl;
                     }
 
-                    if (this->calibrate_gyro_) {
+                    if (this->config.calibrate_gyro) {
 
                         this->state.b.gyro = gyro_avg;
 
@@ -403,7 +393,7 @@
 
                 // std::cout << "Receiving IMU meas\n";
 
-                if(this->verbose_) this->imu_rates.push_front( 1./imu.dt );
+                if(this->config.verbose) this->imu_rates.push_front( 1./imu.dt );
 
                 // Apply the calibrated bias to the new IMU measurements
                 Eigen::Vector3f lin_accel_corrected = (this->imu_accel_sm_ * imu.lin_accel) - this->state.b.accel;
@@ -754,7 +744,7 @@
                 }
             }
 
-            if(this->debug_) // debug only
+            if(this->config.debug) // debug only
                 this->deskewed_scan = deskewed_scan_;
 
             return deskewed_Xt2_scan_; 
