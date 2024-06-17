@@ -158,6 +158,12 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("filters/voxelGrid/active", config->filters.voxel_active, true);
     nh_ptr->param<std::vector<float>>("filters/voxelGrid/leafSize", config->filters.leafSize, {0.25, 0.25, 0.25});
 
+    nh_ptr->param<bool>("filters/minDistance/active", config->filters.dist_active, true);
+    nh_ptr->param<double>("filters/minDistance/value", config->filters.min_dist, 4.0);
+
+    nh_ptr->param<bool>("filters/rateSampling/active", config->filters.rate_active, true);
+    nh_ptr->param<int>("filters/rateSampling/value", config->filters.rate_value, 4);
+
     nh_ptr->param<int>("iKFoM/MAX_NUM_ITERS", config->ikfom.MAX_NUM_ITERS, 3);
     nh_ptr->param<int>("iKFoM/NUM_MATCH_POINTS", config->ikfom.NUM_MATCH_POINTS, 5);
     nh_ptr->param<double>("iKFoM/MAX_DIST_PLANE", config->ikfom.MAX_DIST_PLANE, 2.0);

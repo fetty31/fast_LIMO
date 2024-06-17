@@ -54,6 +54,14 @@ filters:
     active: true
     leafSize: [ 0.25, 0.25, 0.25 ]
 
+  minDistance:
+    active: true
+    value: 4.0
+
+  rateSampling:
+    active: true
+    value: 4
+
 iKFoM:
   MAX_NUM_ITERS: 3
   NUM_MATCH_POINTS: 5

@@ -29,6 +29,10 @@ struct fast_limo::Config{
         bool crop_active;               // crop filter
         std::vector<float> leafSize;    // voxel grid filter
         bool voxel_active;              // voxel grid filter
+        double min_dist;                // norm/dist filter
+        bool dist_active;               // norm/dist filter
+        int rate_value;                 // time rate filter
+        bool rate_active;               // time rate filter
     } filters;
 
     struct iKFoM{

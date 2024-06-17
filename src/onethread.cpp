@@ -104,9 +104,12 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
-    // Fill buffer
-    for(int i=0; i < pc_->size(); i++)
+    // Fill buffer (new to old)
+    for(int i=0; i < pc_->points.size(); i++)
         lidar_buffer.push_front(pc_->points[i]);
+
+    std::cout << "first point stamp: " << std::setprecision(15) << pc_->points[0].timestamp << std::endl;
+    std::cout << "last point stamp: " << std::setprecision(15) << pc_->points[pc_->points.size()-1].timestamp << std::endl;
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
@@ -162,13 +165,13 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
 
     nh_ptr->param<std::string>("topics/input/lidar", config->topics.lidar, "/velodyne_points");
-    nh_ptr->param<std::string>("topics/input/imu", config->topics.imu, "/EL/Sensors/vectornav/IMU");
+    nh_ptr->param<std::string>("topics/input/imu",   config->topics.imu, "/EL/Sensors/vectornav/IMU");
 
     nh_ptr->param<int>("num_threads", config->num_threads, 10);
     nh_ptr->param<int>("sensor_type", config->sensor_type, 1);
 
-    nh_ptr->param<bool>("debug", config->debug, true);
-    nh_ptr->param<bool>("verbose", config->verbose, true);
+    nh_ptr->param<bool>("debug",    config->debug, true);
+    nh_ptr->param<bool>("verbose",  config->verbose, true);
 
     nh_ptr->param<bool>("estimate_extrinsics", config->ikfom.estimate_extrinsics, true);
 
@@ -193,6 +196,12 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("filters/voxelGrid/active", config->filters.voxel_active, true);
     nh_ptr->param<std::vector<float>>("filters/voxelGrid/leafSize", config->filters.leafSize, {0.25, 0.25, 0.25});
 
+    nh_ptr->param<bool>("filters/minDistance/active", config->filters.dist_active, true);
+    nh_ptr->param<double>("filters/minDistance/value", config->filters.min_dist, 4.0);
+
+    nh_ptr->param<bool>("filters/rateSampling/active", config->filters.rate_active, true);
+    nh_ptr->param<int>("filters/rateSampling/value", config->filters.rate_value, 4);
+
     nh_ptr->param<int>("iKFoM/MAX_NUM_ITERS", config->ikfom.MAX_NUM_ITERS, 3);
     nh_ptr->param<int>("iKFoM/NUM_MATCH_POINTS", config->ikfom.NUM_MATCH_POINTS, 5);
     nh_ptr->param<double>("iKFoM/MAX_DIST_PLANE", config->ikfom.MAX_DIST_PLANE, 2.0);
@@ -211,6 +220,8 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     std::reverse(deltas.begin(), deltas.end());
     std::reverse(intervals.begin(), intervals.end());
 
+    nh_ptr->param<double>("onethread/delay", config->time_delay, 0.1);
+
 }
 
 int main(int argc, char** argv) {
@@ -227,7 +238,7 @@ int main(int argc, char** argv) {
     load_config(&nh, &config);
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 100, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
@@ -244,8 +255,6 @@ int main(int argc, char** argv) {
     double t1, t2;
     double last_t2;
 
-    double init_time = ros::Time::now().toSec();
-
     ros::Rate r(2000);
     while(ros::ok()){
 
@@ -257,20 +266,25 @@ int main(int argc, char** argv) {
 
             if(not loc.is_calibrated()) break;
 
+            static double init_time = ros::Time::now().toSec();
+
             // Define time interval [t1, t2]
             if(deltas.size() > 1 && intervals.size() > 0){
-                t2 = imu_t2 - 0.1;
-                t1 = t2 - deltas.back();
-                if(ros::Time::now().toSec() - config.imu_calib_time - init_time > intervals.back()){
+                t2 = imu_t2 - config.time_delay;
+                t1 = std::max(t2 - deltas.back(), loc.get_propagate_time());
+                if(ros::Time::now().toSec() - init_time > intervals.back()){
+                    ROS_WARN("Interval %f passed", intervals.back());
+                    ROS_WARN("time: %f", ros::Time::now().toSec() - init_time);
                     deltas.pop_back();
                     intervals.pop_back();
                 }
             }else{
-                t2 = imu_t2 - 0.1;
-                t1 = t2 - deltas.back();
+                t2 = imu_t2 - config.time_delay;
+                t1 = std::max(t2 - deltas.back(), loc.get_propagate_time());
             }
 
             if(last_t2 > t1) break; // no overlap between iterations
+            if(t2 - t1 < deltas.back() - 1e-5) break; // FoV check
             
             std::cout << std::setprecision(12) << "t2: " << t2 << std::endl;
             std::cout << std::setprecision(12) << "t1: " << t1 << std::endl;
@@ -290,7 +304,7 @@ int main(int argc, char** argv) {
             }
 
             std::cout << "clear buffer before: " << lidar_buffer.size() << std::endl;
-            clearBuffer(t2 - 0.1);
+            clearBuffer(t2 - 3.0*config.time_delay);
             std::cout << "clear buffer after: " << lidar_buffer.size() << std::endl;
 
             last_t2 = t2;

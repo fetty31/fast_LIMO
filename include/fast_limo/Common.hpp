@@ -50,6 +50,7 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 #include <boost/algorithm/string.hpp>
 #include <boost/range/adaptor/indexed.hpp>
 #include <boost/range/adaptor/adjacent_filtered.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 
 // PCL
 #define PCL_NO_PRECOMPILE

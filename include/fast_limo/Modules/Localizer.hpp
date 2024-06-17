@@ -48,6 +48,7 @@ class fast_limo::Localizer {
         double prev_imu_stamp;
         double imu_dt;
         double first_imu_stamp;
+        double last_propagate_time_;
         double imu_calib_time_;
 
         // Gravity
@@ -117,6 +118,7 @@ class fast_limo::Localizer {
         pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
 
         State get_state();
+        double get_propagate_time();
 
         // Status info
         bool is_calibrated();

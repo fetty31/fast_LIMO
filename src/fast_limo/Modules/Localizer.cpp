@@ -5,7 +5,7 @@
 
         Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
                                 imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
-                                imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
+                                last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
                             { 
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
@@ -148,6 +148,10 @@
             return out;
         }
 
+        double Localizer::get_propagate_time(){
+            return this->last_propagate_time_;
+        }
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////////////           Principal callbacks/threads        /////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,12 +190,42 @@
 
             // std::cout << "crop filter done\n";
 
+            // Distance & Time Rate filters
+            static float min_dist = static_cast<float>(this->config.filters.min_dist);
+            static int rate_value = this->config.filters.rate_value;
+            std::function<bool(boost::range::index_value<PointType&, long>)> filter_f;
+            
+            if(this->config.filters.dist_active && this->config.filters.rate_active){
+                filter_f = [&min_dist, &rate_value](boost::range::index_value<PointType&, long> p)
+                    { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist)
+                                && (p.index()%rate_value == 0); };
+            }
+            else if(this->config.filters.dist_active){
+                filter_f = [&min_dist](boost::range::index_value<PointType&, long> p)
+                    { return Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist; };
+            }
+            else if(this->config.filters.rate_active){
+                filter_f = [&rate_value](boost::range::index_value<PointType&, long> p)
+                    { return p.index()%rate_value == 0; };
+            }else{
+                filter_f = [](boost::range::index_value<PointType&, long> p)
+                    { return true; };
+            }
+            auto filtered_pc = raw_pc->points 
+                        | boost::adaptors::indexed()
+                        | boost::adaptors::filtered(filter_f);
+
+            pcl::PointCloud<PointType>::Ptr input_pc (boost::make_shared<pcl::PointCloud<PointType>>());
+            for (auto it = filtered_pc.begin(); it != filtered_pc.end(); it++) {
+                input_pc->points.push_back(it->value());
+            }
+             
             if(this->config.debug) // debug only
-                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*raw_pc); // LiDAR frame
+                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
 
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
-            deskewed_Xt2_pc_ = this->deskewPointCloud(raw_pc, time_stamp);
+            deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in base_link frame w.r.t last predicted state (Xt2) */
 
             // std::cout << "Pointcloud deskewed\n";
@@ -485,6 +519,8 @@
             this->mtx_ikfom.lock();
             this->_iKFoM.predict(dt, Q, in);
             this->mtx_ikfom.unlock();
+
+            this->last_propagate_time_ = imu.stamp;
         }
 
         void Localizer::propagateImu(double t1, double t2){
@@ -519,6 +555,8 @@
                 this->_iKFoM.predict(dt, Q, input);
                 this->mtx_ikfom.unlock();
             }
+
+            this->last_propagate_time_ = end_imu_it->stamp;
         }
 
     // private
