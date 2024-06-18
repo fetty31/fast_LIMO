@@ -14,12 +14,11 @@ debug: true     # fill useful intermediate pcl (pc2match, deskewed...) for visua
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
-time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
 
 calibration:    # automatic IMU calibration
   gravity_align: true
-  accel: true
-  gyro: true
+  accel: false
+  gyro: false
   time: 3.0
 
 extrinsics:
@@ -36,7 +35,7 @@ extrinsics:
 
 intrinsics:
   accel:
-    bias: [ 0.01, 0.01, 0.01 ]
+    bias: [ 0.01, 0.01, 0.015 ]
     sm:   [ 1.,  0.,  0.,
             0.,  1.,  0.,
             0.,  0.,  1. ]
@@ -53,14 +52,14 @@ filters:
   voxelGrid:
     active: true
     leafSize: [ 0.25, 0.25, 0.25 ]
-
+  
   minDistance:
     active: true
     value: 4.0
 
   rateSampling:
-    active: true
-    value: 4
+    active: false
+    value: 2
 
 iKFoM:
   MAX_NUM_ITERS: 3
@@ -69,7 +68,12 @@ iKFoM:
   PLANES_THRESHOLD: 5.0e-2
   LIMITS: 0.001
   covariance:
-    gyro: 0.0001 
-    accel: 0.01
-    bias_gyro: 0.00001
-    bias_accel: 0.0001
+    gyro: 6.01e-4
+    accel: 1.53e-2
+    bias_gyro: 1.54e-5
+    bias_accel: 3.38e-4
+
+onethread:
+  delay: 0.1
+  intervals: [1.5, 2.5]
+  deltas:    [0.1, 0.07, 0.05]

@@ -51,8 +51,10 @@
             // LiDAR sensor type
             this->set_sensor_type(config.sensor_type); 
 
-            // IMU attitude
+            // IMU intrinsics
             this->imu_accel_sm_ = Eigen::Map<Eigen::Matrix3f>(config.intrinsics.imu_sm.data(), 3, 3);
+            this->state.b.accel = Eigen::Map<Eigen::Vector3f>(config.intrinsics.accel_bias.data(), 3);
+            this->state.b.gyro  = Eigen::Map<Eigen::Vector3f>(config.intrinsics.gyro_bias.data(), 3);
 
             // Extrinsics
             this->extr.imu2baselink.t = - Eigen::Map<Eigen::Vector3f>(config.extrinsics.baselink2imu_t.data(), 3);
@@ -142,9 +144,9 @@
 
         State Localizer::get_state(){
             State out = this->state;
-            out.p += this->state.pLI;                                                // position in body/base_link frame
-            out.q = this->state.q * this->state.qLI;                                 // attitude in body/base_link frame
-            out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;    // local velocity vector
+            out.p += this->state.pLI;                                               // position in body/base_link frame
+            out.q = this->state.q * this->state.qLI;                                // attitude in body/base_link frame
+            out.v = this->state.q.toRotationMatrix().transpose() * this->state.v;   // local velocity vector
             return out;
         }
 
@@ -196,16 +198,16 @@
             std::function<bool(boost::range::index_value<PointType&, long>)> filter_f;
             
             if(this->config.filters.dist_active && this->config.filters.rate_active){
-                filter_f = [&min_dist, &rate_value](boost::range::index_value<PointType&, long> p)
+                filter_f = [](boost::range::index_value<PointType&, long> p)
                     { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist)
                                 && (p.index()%rate_value == 0); };
             }
             else if(this->config.filters.dist_active){
-                filter_f = [&min_dist](boost::range::index_value<PointType&, long> p)
+                filter_f = [](boost::range::index_value<PointType&, long> p)
                     { return Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist; };
             }
             else if(this->config.filters.rate_active){
-                filter_f = [&rate_value](boost::range::index_value<PointType&, long> p)
+                filter_f = [](boost::range::index_value<PointType&, long> p)
                     { return p.index()%rate_value == 0; };
             }else{
                 filter_f = [](boost::range::index_value<PointType&, long> p)
@@ -226,7 +228,7 @@
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
-            /*NOTE: deskewed_Xt2_pc_ should be in base_link frame w.r.t last predicted state (Xt2) */
+            /*NOTE: deskewed_Xt2_pc_ should be in base_link frame w.r.t last propagated state (Xt2) */
 
             // std::cout << "Pointcloud deskewed\n";
 
@@ -398,10 +400,13 @@
                                                             << to_string_with_precision(this->state.b.gyro[2], 8) << std::endl;
                     }
 
-                    this->imu_calibrated_ = true;
+                    this->state.q.normalize();
 
                     // Set initial KF state
                     this->init_iKFoM_state();
+
+                    // Set calib flag
+                    this->imu_calibrated_ = true;
 
                     // Initial attitude
                     auto euler = this->state.q.toRotationMatrix().eulerAngles(2, 1, 0);
@@ -574,13 +579,13 @@
                 IKFoM::h_share_model,
                 config.ikfom.MAX_NUM_ITERS,
                 config.ikfom.LIMITS
-                // std::vector<double> (23, 0.001) /*config.ikfom.LIMITS*/
             );
         }
 
         void Localizer::init_iKFoM_state() {
             state_ikfom init_state = this->_iKFoM.get_x();
             init_state.rot = this->state.q.cast<double> ();
+            init_state.pos = this->state.p.cast<double> ();
             init_state.grav = /*MTK::*/S2(Eigen::Vector3d(0., 0., -this->gravity_));
             init_state.bg = this->state.b.gyro.cast<double>();
             init_state.ba = this->state.b.accel.cast<double>();

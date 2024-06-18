@@ -1,72 +1,10 @@
-// Fast LIMO
-#include "fast_limo/Common.hpp"
-#include "fast_limo/Modules/Localizer.hpp"
-#include "fast_limo/Modules/Mapper.hpp"
-
-// ROS
-#include <ros/ros.h>
-
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/Imu.h>
-
-#include <nav_msgs/Odometry.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PoseArray.h>
-
-#include <tf2/convert.h>
-#include <Eigen/Geometry>
-#include <geometry_msgs/QuaternionStamped.h>
-#include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/PoseStamped.h>
-
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl_ros/impl/transforms.hpp>
-#include <pcl_ros/point_cloud.h>
-#include <pcl_ros/transforms.h> 
+#include "ROSutils.hpp"
 
 ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
 // debug
 ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub;
-
-void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out){
-    out.stamp = in->header.stamp.toSec();
-
-    out.ang_vel(0) = in->angular_velocity.x;
-    out.ang_vel(1) = in->angular_velocity.y;
-    out.ang_vel(2) = in->angular_velocity.z;
-
-    out.lin_accel(0) = in->linear_acceleration.x;
-    out.lin_accel(1) = in->linear_acceleration.y;
-    out.lin_accel(2) = in->linear_acceleration.z;
-
-    Eigen::Quaterniond qd;
-    tf2::fromMsg(in->orientation, qd);
-    out.q = qd.cast<float>();
-    // out.q = Eigen::Quaternionf::Identity();
-}
-
-void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
-    out.header.stamp = ros::Time::now();
-    out.header.frame_id = "limo_world";
-
-    // Pose/Attitude
-    Eigen::Vector3d pos = in.p.cast<double>();
-    out.pose.pose.position      = tf2::toMsg(pos);
-    out.pose.pose.orientation   = tf2::toMsg(in.q.cast<double>());
-
-    // Twist
-    Eigen::Vector3d lin_v = in.v.cast<double>();
-    out.twist.twist.linear.x  = lin_v(0);
-    out.twist.twist.linear.y  = lin_v(1);
-    out.twist.twist.linear.z  = lin_v(2);
-
-    Eigen::Vector3d ang_v = in.w.cast<double>();
-    out.twist.twist.angular.x = ang_v(0);
-    out.twist.twist.angular.y = ang_v(1);
-    out.twist.twist.angular.z = ang_v(2);
-}
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 
@@ -113,12 +51,13 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
 
     fast_limo::IMUmeas imu;
-    fromROStoLimo(msg, imu);
+    tf_limo::fromROStoLimo(msg, imu);
 
     loc.updateIMU(imu);
 
     nav_msgs::Odometry state_msg;
-    fromLimoToROS(loc.get_state(), state_msg);
+    tf_limo::fromLimoToROS(loc.get_state(), state_msg);
+    state_msg.header.frame_id = "limo_world";
     state_pub.publish(state_msg);
 
 }
@@ -158,10 +97,10 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("filters/voxelGrid/active", config->filters.voxel_active, true);
     nh_ptr->param<std::vector<float>>("filters/voxelGrid/leafSize", config->filters.leafSize, {0.25, 0.25, 0.25});
 
-    nh_ptr->param<bool>("filters/minDistance/active", config->filters.dist_active, true);
+    nh_ptr->param<bool>("filters/minDistance/active", config->filters.dist_active, false);
     nh_ptr->param<double>("filters/minDistance/value", config->filters.min_dist, 4.0);
 
-    nh_ptr->param<bool>("filters/rateSampling/active", config->filters.rate_active, true);
+    nh_ptr->param<bool>("filters/rateSampling/active", config->filters.rate_active, false);
     nh_ptr->param<int>("filters/rateSampling/value", config->filters.rate_value, 4);
 
     nh_ptr->param<int>("iKFoM/MAX_NUM_ITERS", config->ikfom.MAX_NUM_ITERS, 3);

@@ -10,16 +10,15 @@ num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
 sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
-debug: true     # save useful intermediate pcl (pc2match, deskewed...)
-verbose: true   # print debug/performance board
+debug: true      # save useful intermediate pcl (pc2match, deskewed...)
+verbose: true    # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
-time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
 
 calibration:    # automatic IMU calibration
-  gravity_align: true
-  accel: true
-  gyro: true
+  gravity_align: false
+  accel: false
+  gyro: false
   time: 3.0
 
 extrinsics:
@@ -36,12 +35,12 @@ extrinsics:
 
 intrinsics:
   accel:
-    bias: [ 0.0, 0.0, 0.0 ]
+    bias: [ 0.01, 0.01, 0.015 ]
     sm:   [ 1.,  0.,  0.,
             0.,  1.,  0.,
             0.,  0.,  1. ]
   gyro:
-    bias: [ 0.0, 0.0, 0.0 ]
+    bias: [ 0.01, 0.01, 0.01 ]
 
 filters:
   cropBox:
@@ -56,11 +55,11 @@ filters:
 
   minDistance:
     active: true
-    value: 3.0
-  
+    value: 4.0
+
   rateSampling:
     active: false
-    value: 4
+    value: 1
 
 iKFoM:
   MAX_NUM_ITERS: 3
@@ -73,3 +72,8 @@ iKFoM:
     accel: 0.01
     bias_gyro: 0.00001
     bias_accel: 0.0001
+
+onethread:
+  delay: 0.1
+  intervals: [0.5, 1.5]
+  deltas:    [0.1, 0.07, 0.05]
