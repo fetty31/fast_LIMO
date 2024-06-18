@@ -59,7 +59,7 @@ filters:
     value: 4.0
 
   rateSampling:
-    active: false
+    active: true
     value: 2
 
 iKFoM:

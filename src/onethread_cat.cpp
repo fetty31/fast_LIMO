@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
     stamp_buffer = boost::make_shared<std::deque<double>>();
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 100, lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
