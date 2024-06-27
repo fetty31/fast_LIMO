@@ -15,14 +15,11 @@
             this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
         }
 
-        void Localizer::init(Config& cfg, bool one_thread){
+        void Localizer::init(Config& cfg){
 
             // Save config
             this->config = cfg;
 
-            // Set One Threaded flag
-            this->one_thread_ = one_thread;
-            
             // Set num of threads
             this->num_threads_ = omp_get_max_threads();
             if(num_threads_ > config.num_threads) this->num_threads_ = config.num_threads;
@@ -449,10 +446,8 @@
                 this->imu_buffer.push_front(imu);
 
                 // iKFoM propagate state
-                if(not this->one_thread_){
-                    this->propagateImu(imu);
-                    this->cv_prop_stamp.notify_one(); // Notify PointCloud thread that propagated IMU data exists for this time
-                }
+                this->propagateImu(imu);
+                this->cv_prop_stamp.notify_one(); // Notify PointCloud thread that propagated IMU data exists for this time
 
             }
 
@@ -823,14 +818,12 @@
                                                 boost::circular_buffer<State>::reverse_iterator& end_prop_it) {
 
             if (this->propagated_buffer.empty() || this->propagated_buffer.front().time < end_time) {
-                if(not this->one_thread_){ // Wait for the latest IMU data
-                    std::cout << "PROPAGATE WAITING...\n";
-                    std::cout << "     - buffer time: " << propagated_buffer.front().time << std::endl;
-                    std::cout << "     - end scan time: " << end_time << std::endl;
-                    std::unique_lock<decltype(this->mtx_prop)> lock(this->mtx_prop);
-                    this->cv_prop_stamp.wait(lock, [this, &end_time]{ return this->propagated_buffer.front().time >= end_time; });
-                }else
-                    return false;
+                // Wait for the latest IMU data
+                std::cout << "PROPAGATE WAITING...\n";
+                std::cout << "     - buffer time: " << propagated_buffer.front().time << std::endl;
+                std::cout << "     - end scan time: " << end_time << std::endl;
+                std::unique_lock<decltype(this->mtx_prop)> lock(this->mtx_prop);
+                this->cv_prop_stamp.wait(lock, [this, &end_time]{ return this->propagated_buffer.front().time >= end_time; });
             }
 
             auto prop_it = this->propagated_buffer.begin();

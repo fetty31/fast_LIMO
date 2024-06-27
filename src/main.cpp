@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
     body_pub     = nh.advertise<nav_msgs::Odometry>("body_state", 1);
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
 
-    loc.init(config, false/*One thread*/);
+    loc.init(config);
 
     // Start spinning (async)
     ros::AsyncSpinner spinner(0);

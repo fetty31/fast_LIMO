@@ -56,7 +56,6 @@ class fast_limo::Localizer {
 
         // Flags
         bool imu_calibrated_;
-        bool one_thread_;
 
         // OpenMP max threads
         int num_threads_;
@@ -107,7 +106,7 @@ class fast_limo::Localizer {
 
     public:
         Localizer();
-        void init(Config& cfg, bool one_thread=true);
+        void init(Config& cfg);
 
         // Callbacks 
         void updateIMU(IMUmeas& raw_imu);
