@@ -32,10 +32,10 @@ ROS (Noetic) wrapper:
 git clone https://github.com/fetty31/fast_LIMO
 ```
 
-### 1. Build fast LIMO
+### 1. Building fast LIMO
 Use default `catkin_make` or `catkin build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
 
-### 2. Run fast LIMO
+### 2. Running fast LIMO
 ```sh
 roslaunch fast_limo fast_limo.launch
 ```
