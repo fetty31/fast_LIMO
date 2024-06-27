@@ -63,8 +63,12 @@ class fast_limo::Localizer {
 
         // IMU buffer
         boost::circular_buffer<IMUmeas> imu_buffer;
-        std::mutex mtx_imu; // mutex for avoiding multiple thread access to the buffer
-        std::condition_variable cv_imu_stamp;
+
+        // Propagated states buffer
+        boost::circular_buffer<State> propagated_buffer;
+        std::mutex mtx_prop; // mutex for avoiding multiple thread access to the buffer
+        std::condition_variable cv_prop_stamp;
+
 
         // IMU axis matrix 
         Eigen::Matrix3f imu_accel_sm_;
@@ -117,7 +121,8 @@ class fast_limo::Localizer {
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
 
-        State get_state();
+        State getWorldState();
+        State getBodyState();
         double get_propagate_time();
 
         // Status info
@@ -141,19 +146,14 @@ class fast_limo::Localizer {
 
         pcl::PointCloud<PointType>::Ptr deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time);
 
-        std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
-            integrateImu(double start_time, Eigen::Quaternionf q_init, Eigen::Vector3f p_init,
-                         Eigen::Vector3f v_init, const std::vector<double>& sorted_timestamps);
+        States integrateImu(double start_time, double end_time, State& state);
 
+        bool propagatedFromTimeRange(double start_time, double end_time,
+                                  boost::circular_buffer<State>::reverse_iterator& begin_prop_it,
+                                  boost::circular_buffer<State>::reverse_iterator& end_prop_it);
         bool imuMeasFromTimeRange(double start_time, double end_time,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& begin_imu_it,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it);
-
-        std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
-            integrateImuInternal(Eigen::Quaternionf q_init, Eigen::Vector3f p_init, Eigen::Vector3f v_init,
-                                 const std::vector<double>& sorted_timestamps,
-                                 boost::circular_buffer<IMUmeas>::reverse_iterator begin_imu_it,
-                                 boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it);
 
         void getCPUinfo();
         void debugVerbose();

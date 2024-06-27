@@ -128,5 +128,6 @@ typedef std::vector<PointType, Eigen::aligned_allocator<PointType>> LocPoints;
 
 typedef std::vector<fast_limo::Match> Matches;
 typedef std::vector<fast_limo::Plane> Planes;
+typedef std::vector<fast_limo::State> States;
 
 #endif

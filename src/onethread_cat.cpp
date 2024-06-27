@@ -71,10 +71,10 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
     imu_t2 = msg->header.stamp.toSec(); // last time imu buffer update
 
-    nav_msgs::Odometry state_msg;
-    tf_limo::fromLimoToROS(loc.get_state(), state_msg);
-    state_msg.header.frame_id = "limo_world";
-    state_pub.publish(state_msg);
+    // nav_msgs::Odometry state_msg;
+    // tf_limo::fromLimoToROS(loc.getWorldState(), state_msg);
+    // state_msg.header.frame_id = "limo_world";
+    // state_pub.publish(state_msg);
 
 }
 
@@ -96,10 +96,10 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("calibration/gyro", config->calibrate_gyro, true);
     nh_ptr->param<double>("calibration/time", config->imu_calib_time, 3.0);
 
-    nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/t", config->extrinsics.baselink2imu_t, {0.0, 0.0, 0.0});
-    nh_ptr->param<std::vector<float>>("extrinsics/baselink2imu/R", config->extrinsics.baselink2imu_R, std::vector<float> (9, 0.0));
-    nh_ptr->param<std::vector<float>>("extrinsics/baselink2lidar/t", config->extrinsics.baselink2lidar_t, {0.0, 0.0, 0.0});
-    nh_ptr->param<std::vector<float>>("extrinsics/baselink2lidar/R", config->extrinsics.baselink2lidar_R, std::vector<float> (9, 0.0));
+    nh_ptr->param<std::vector<float>>("extrinsics/imu/t", config->extrinsics.imu2baselink_t, {0.0, 0.0, 0.0});
+    nh_ptr->param<std::vector<float>>("extrinsics/imu/R", config->extrinsics.imu2baselink_R, std::vector<float> (9, 0.0));
+    nh_ptr->param<std::vector<float>>("extrinsics/lidar/t", config->extrinsics.lidar2baselink_t, {0.0, 0.0, 0.0});
+    nh_ptr->param<std::vector<float>>("extrinsics/lidar/R", config->extrinsics.lidar2baselink_R, std::vector<float> (9, 0.0));
 
     nh_ptr->param<std::vector<float>>("intrinsics/accel/bias", config->intrinsics.accel_bias, {0.0, 0.0, 0.0});
     nh_ptr->param<std::vector<float>>("intrinsics/gyro/bias", config->intrinsics.gyro_bias, {0.0, 0.0, 0.0});
@@ -118,10 +118,20 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("filters/rateSampling/active", config->filters.rate_active, false);
     nh_ptr->param<int>("filters/rateSampling/value", config->filters.rate_value, 4);
 
+    nh_ptr->param<int>("iKFoM/Mapping/NUM_MATCH_POINTS", config->ikfom.mapping.NUM_MATCH_POINTS, 5);
+    nh_ptr->param<int>("iKFoM/MAX_NUM_MATCHES",         config->ikfom.mapping.MAX_NUM_MATCHES, 2000);
+    nh_ptr->param<int>("iKFoM/MAX_NUM_PC2MATCH",        config->ikfom.mapping.MAX_NUM_PC2MATCH, 1.e+4);
+    nh_ptr->param<double>("iKFoM/Mapping/MAX_DIST_PLANE", config->ikfom.mapping.MAX_DIST_PLANE, 2.0);
+    nh_ptr->param<double>("iKFoM/Mapping/PLANES_THRESHOLD", config->ikfom.mapping.PLANE_THRESHOLD, 5.e-2);
+    nh_ptr->param<bool>("iKFoM/Mapping/LocalMapping",   config->ikfom.mapping.local_mapping, true);
+
+    nh_ptr->param<float>("iKFoM/iKDTree/balance", config->ikfom.mapping.ikdtree.balance_param, 0.6f);
+    nh_ptr->param<float>("iKFoM/iKDTree/delete", config->ikfom.mapping.ikdtree.delete_param, 0.3f);
+    nh_ptr->param<float>("iKFoM/iKDTree/voxel", config->ikfom.mapping.ikdtree.voxel_size, 0.2f);
+    nh_ptr->param<double>("iKFoM/iKDTree/bb_size", config->ikfom.mapping.ikdtree.cube_size, 300.0);
+    nh_ptr->param<double>("iKFoM/iKDTree/bb_range", config->ikfom.mapping.ikdtree.rm_range, 200.0);
+
     nh_ptr->param<int>("iKFoM/MAX_NUM_ITERS", config->ikfom.MAX_NUM_ITERS, 3);
-    nh_ptr->param<int>("iKFoM/NUM_MATCH_POINTS", config->ikfom.NUM_MATCH_POINTS, 5);
-    nh_ptr->param<double>("iKFoM/MAX_DIST_PLANE", config->ikfom.MAX_DIST_PLANE, 2.0);
-    nh_ptr->param<double>("iKFoM/PLANES_THRESHOLD", config->ikfom.PLANE_THRESHOLD, 5.e-2);
     nh_ptr->param<double>("iKFoM/covariance/gyro", config->ikfom.cov_gyro, 6.e-4);
     nh_ptr->param<double>("iKFoM/covariance/accel", config->ikfom.cov_acc, 1.e-2);
     nh_ptr->param<double>("iKFoM/covariance/bias_gyro", config->ikfom.cov_bias_gyro, 1.e-5);
@@ -165,8 +175,10 @@ int main(int argc, char** argv) {
     stamp_buffer = boost::make_shared<std::deque<double>>();
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1000, lidar_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, imu_callback, ros::TransportHints().tcpNoDelay());
+    // ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1000, &lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1000, &lidar_callback);
+    // ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback);
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
@@ -182,14 +194,12 @@ int main(int argc, char** argv) {
     double t1, t2;
     double last_t2;
 
-    double init_time = ros::Time::now().toSec();
-
     ros::Rate r(2000);
     while(ros::ok()){
 
+        ros::spinOnce();
+
         while(ros::ok()){
-            
-            ros::spinOnce();
 
             if(lidar_buffer->size() < 1) break;
 
@@ -232,15 +242,22 @@ int main(int argc, char** argv) {
                 loc.updatePointCloud(piepiece_pc, stamp); // VELODYNE
             }
 
+            // Publish odom
+            nav_msgs::Odometry state_msg;
+            tf_limo::fromLimoToROS(loc.getWorldState(), state_msg);
+            state_msg.header.frame_id = "limo_world";
+            state_pub.publish(state_msg);
+
+            // Clear buffer
             std::cout << "clear buffer before: " << lidar_buffer->size() << std::endl;
-            onethread::clearBuffer(t2 - config.time_delay, lidar_buffer, stamp_buffer);
+            onethread::clearBuffer(t2 - 3-0*config.time_delay, lidar_buffer, stamp_buffer);
             std::cout << "clear buffer after: " << lidar_buffer->size() << std::endl;
 
             last_t2 = t2;
-
-            // Rate sleep
-            r.sleep();
         }
+
+        // Rate sleep
+        r.sleep();
     }
 
     return 0;
