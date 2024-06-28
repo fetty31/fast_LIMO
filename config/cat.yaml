@@ -47,8 +47,8 @@ filters:
   cropBox: # prism crop
     active: true
     box:
-      min: [ -1.0, -1.0, -1.0 ]  # [m]
-      max: [ 1.0, 1.0, 1.0 ]     # [m]
+      min: [ -2.0, -2.0, -1.0 ]  # [m]
+      max: [ 2.0, 2.0, 1.0 ]     # [m]
 
   voxelGrid:
     active: true
@@ -56,7 +56,7 @@ filters:
 
   minDistance: # sphere crop
     active: true
-    value: 3.0  # [m]
+    value: 4.5  # [m]
   
   rateSampling: # quick downsample
     active: true

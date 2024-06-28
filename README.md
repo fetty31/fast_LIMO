@@ -1,4 +1,28 @@
 # Fast LIMO
+<details>
+    <summary>Table of Contents</summary>
+    <ol>
+        <li>
+        <a href="#disclaimer">Disclaimer</a>
+        </li>
+        <li><a href="#dependencies">Dependencies</a>
+        </li>
+        <li>
+        <a href="#quick-start">Quick Start</a>
+        </li>
+        <li>
+        <a href="#configuration">Configuration</a>
+        </li>
+        <li>
+        <a href="#approach">Approach</a>
+        </li>
+        <li>
+        <a href="#references">References</a>
+        </li>
+    </ol>
+</details>
+
+<br>
 
 A tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [IKFoM](https://github.com/hku-mars/IKFoM) and [ikd-Tree](https://github.com/hku-mars/ikd-Tree) _C++_ libraries. This project's implementation is based on the existing algorithms [FASTLIO2](https://github.com/hku-mars/FAST_LIO), [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry).
 
@@ -7,12 +31,7 @@ A tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [IKFoM](http
 Fast-LIMO stands for a multithreaded version of the approach _Localize Intensively Map Offline (LIMO)_ stated in [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) 's algorithm developed by [Huget57](https://github.com/Huguet57). 
 
 ## Disclaimer
-If you plan to use fast LIMO the only thing I ask for is to give some love to the [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) project, which greatly influenced this work.
-
-## References
-This project relies upon [HKU-Mars](https://github.com/hku-mars)' open-source _C++_ libraries:
-- Iterative Kalman Filters on Manifolds ([IKFoM](include/IKFoM/)) 
-- Incremental KD-Tree ([ikd-Tree](include/ikd-Tree/)) 
+If you plan to use fast LIMO please make sure to give some love to [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo), [FASTLIO2](https://github.com/hku-mars/FAST_LIO) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) projects, which greatly influenced this work.
 
 ## Dependencies
 _C++14_ library ([fast_limo](include/fast_limo/)):
@@ -42,7 +61,19 @@ roslaunch fast_limo fast_limo.launch
 
 Afterwards, you should be seeing this output _(if `verbose` param is set to true)_:
 
-to-do: add image of verbose output
+<div align="center">
+<a> <img src="doc/verbose.png" alt="Logo" width="555"> </a>
+<!-- <h3 align="center">Tailored MPC</h3> -->
+</div>
+<br />
 
 ## Configuration
 Here the config file for fast LIMO will be explained.
+
+## Approach
+Here the main differences between fast LIMO and LIMO velo will be explained.
+
+## References
+This project relies upon [HKU-Mars](https://github.com/hku-mars)' open-source _C++_ libraries:
+- Iterative Kalman Filters on Manifolds ([IKFoM](include/IKFoM/)) 
+- Incremental KD-Tree ([ikd-Tree](include/ikd-Tree/)) 
