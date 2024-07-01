@@ -101,7 +101,7 @@ Visualization Manager:
               Scale: 1
               Value: true
             Value: true
-          Enabled: true
+          Enabled: false
           Keep: 100
           Name: State
           Position Tolerance: 0.10000000149011612
@@ -118,7 +118,7 @@ Visualization Manager:
             Value: Arrow
           Topic: /fast_limo/state
           Unreliable: false
-          Value: true
+          Value: false
         - Alpha: 1
           Class: rviz/Axes
           Enabled: true
@@ -330,7 +330,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 34.60126876831055
+      Distance: 23.502309799194336
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -338,17 +338,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 7.593257904052734
-        Y: -1.0177148580551147
-        Z: 3.814697265625e-06
+        X: -0.31758952140808105
+        Y: -1.7230417728424072
+        Z: -0.07119423896074295
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.34039849042892456
-      Target Frame: <Fixed Frame>
-      Yaw: 3.025393486022949
+      Pitch: 0.5753984451293945
+      Target Frame: base_link
+      Yaw: 3.1203839778900146
     Saved: ~
 Window Geometry:
   Displays:
