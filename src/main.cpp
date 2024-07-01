@@ -18,36 +18,36 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     sensor_msgs::PointCloud2 pc_ros;
     pcl::toROSMsg(*loc.get_pointcloud(), pc_ros);
     pc_ros.header.stamp = msg->header.stamp;
-    pc_ros.header.frame_id = "limo_world";
+    pc_ros.header.frame_id = "map";
     pc_pub.publish(pc_ros);
 
     sensor_msgs::PointCloud2 orig_msg;
     pcl::toROSMsg(*loc.get_orig_pointcloud(), orig_msg);
     orig_msg.header.stamp = msg->header.stamp;
-    orig_msg.header.frame_id = "limo_world";
+    orig_msg.header.frame_id = "map";
     orig_pub.publish(orig_msg);
 
     sensor_msgs::PointCloud2 deskewed_msg;
     pcl::toROSMsg(*loc.get_deskewed_pointcloud(), deskewed_msg);
     deskewed_msg.header.stamp = msg->header.stamp;
-    deskewed_msg.header.frame_id = "limo_world";
+    deskewed_msg.header.frame_id = "map";
     desk_pub.publish(deskewed_msg);
 
     sensor_msgs::PointCloud2 match_msg;
     pcl::toROSMsg(*loc.get_pc2match_pointcloud(), match_msg);
     match_msg.header.stamp = msg->header.stamp;
-    match_msg.header.frame_id = "limo_world";
+    match_msg.header.frame_id = "map";
     match_pub.publish(match_msg);
 
     sensor_msgs::PointCloud2 finalraw_msg;
     pcl::toROSMsg(*loc.get_finalraw_pointcloud(), finalraw_msg);
     finalraw_msg.header.stamp = msg->header.stamp;
-    finalraw_msg.header.frame_id = "limo_world";
+    finalraw_msg.header.frame_id = "map";
     finalraw_pub.publish(finalraw_msg);
 
     fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
     visualization_msgs::Marker bb_marker = visualize_limo::getLocalMapMarker(map.get_local_map());
-    bb_marker.header.frame_id = "limo_world";
+    bb_marker.header.frame_id = "map";
     map_bb_pub.publish(bb_marker);
 
 }
@@ -59,15 +59,18 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     fast_limo::IMUmeas imu;
     tf_limo::fromROStoLimo(msg, imu);
 
+    // Propagate IMU measurement
     loc.updateIMU(imu);
 
+    // State publishing
     nav_msgs::Odometry state_msg, body_msg;
     tf_limo::fromLimoToROS(loc.getWorldState(), state_msg);
     tf_limo::fromLimoToROS(loc.getBodyState(),  body_msg);
-    state_msg.header.frame_id = "limo_world";
-    body_msg.header.frame_id = "limo_world";
     state_pub.publish(state_msg);
     body_pub.publish(body_msg);
+
+    // TF broadcasting
+    tf_limo::broadcastTF(loc.getWorldState(), "base_link");
 
 }
 

@@ -14,7 +14,7 @@ debug: true     # fill useful intermediate pcl (pc2match, deskewed...) for visua
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
-time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
+time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 
 calibration:  # automatic IMU calibration
   gravity_align: true     # estimate gravity vector
@@ -56,11 +56,11 @@ filters:
 
   minDistance: # sphere crop
     active: true
-    value: 4.5  # [m]
+    value: 3.5  # [m]
   
   rateSampling: # quick downsample
     active: true
-    value: 4
+    value: 2
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)

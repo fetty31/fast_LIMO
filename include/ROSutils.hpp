@@ -18,10 +18,12 @@
 #include <geometry_msgs/PoseArray.h>
 
 #include <tf2/convert.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <Eigen/Geometry>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/impl/transforms.hpp>
@@ -65,6 +67,26 @@ void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.twist.twist.angular.x = ang_v(0);
     out.twist.twist.angular.y = ang_v(1);
     out.twist.twist.angular.z = ang_v(2);
+}
+
+void broadcastTF(const fast_limo::State& in, std::string child_name){
+    static tf2_ros::TransformBroadcaster br;
+    geometry_msgs::TransformStamped tf_msg;
+
+    tf_msg.header.stamp = ros::Time::now();
+    tf_msg.header.frame_id = "map";
+    tf_msg.child_frame_id = child_name;
+
+    // Translation
+    Eigen::Vector3d pos = in.p.cast<double>();
+    tf_msg.transform.translation.x = pos(0);
+    tf_msg.transform.translation.y = pos(1);
+    tf_msg.transform.translation.z = pos(2);
+
+    // Rotation
+    tf_msg.transform.rotation = tf2::toMsg(in.q.cast<double>());
+
+    br.sendTransform(tf_msg);
 }
 
 }

@@ -371,13 +371,13 @@
 
                     if (this->config.gravity_align) {
 
-                        std::cout << " Acceleration mean: " << "[ " << accel_avg[0] << ", " << accel_avg[1] << ", " << accel_avg[2] << " ]";
+                        std::cout << " Accel mean: " << "[ " << accel_avg[0] << ", " << accel_avg[1] << ", " << accel_avg[2] << " ]\n";
 
                         // Estimate gravity vector - Only approximate if biases have not been pre-calibrated
                         grav_vec = (accel_avg - this->state.b.accel).normalized() * abs(this->gravity_);
                         Eigen::Quaternionf grav_q = Eigen::Quaternionf::FromTwoVectors(grav_vec, Eigen::Vector3f(0., 0., this->gravity_));
                         
-                        std::cout << " Gravity mean: " << "[ " << grav_vec[0] << ", " << grav_vec[1] << ", " << grav_vec[2] << " ]";
+                        std::cout << " Gravity mean: " << "[ " << grav_vec[0] << ", " << grav_vec[1] << ", " << grav_vec[2] << " ]\n";
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;
@@ -715,11 +715,10 @@
                 return boost::make_shared<pcl::PointCloud<PointType>>();
             }
 
-            // compute offset between sweep reference time and first point timestamp
+            // compute offset between sweep reference time and IMU data
             double offset = 0.0;
             if (config.time_offset) {
-                // offset = sweep_ref_time - extract_point_time(deskewed_scan_->points[0]);
-                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]); // cachopo
+                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]); // automatic sync (not precise)
             }
 
             std::cout << "Stamp offset: " << offset << std::endl;

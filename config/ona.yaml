@@ -14,7 +14,7 @@ debug: true     # save useful intermediate pcl (pc2match, deskewed...)
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
-time_offset: true           # whether to take into account the offset between sweep reference time and first point timestamp
+time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 
 calibration:  # automatic IMU calibration
   gravity_align: true     # estimate gravity vector
