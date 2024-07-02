@@ -14,6 +14,8 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 
 	auto start_match = chrono::system_clock::now();
 
+	std::cout << "BEFORE MATCHING...\n";
+
 	// Calculate matches
 	Matches matches = MAP.match(
 	    fast_limo::State (updated_state),

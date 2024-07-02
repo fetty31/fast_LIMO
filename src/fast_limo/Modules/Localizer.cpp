@@ -259,9 +259,10 @@
                     // Update current state estimate
                 corrected_state.b.gyro  = this->state.b.gyro;
                 corrected_state.b.accel = this->state.b.accel;
-                this->state    = corrected_state;
-                this->state.w  = this->last_imu.ang_vel;
-                this->state.a  = this->last_imu.lin_accel;
+                this->state      = corrected_state;
+                this->state.w    = this->last_imu.ang_vel;
+                this->state.a    = this->last_imu.lin_accel;
+                this->state.time = this->last_imu.stamp;
 
                 this->mtx_ikfom.unlock();
 
@@ -715,16 +716,20 @@
                 return boost::make_shared<pcl::PointCloud<PointType>>();
             }
 
+            std::cout << "DEBUGGING: imu_stamp: " << this->imu_stamp << std::endl;
+            std::cout << "DEBUGGING: last p stamp: " << extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) << std::endl;
+
             // compute offset between sweep reference time and IMU data
             double offset = 0.0;
             if (config.time_offset) {
-                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]); // automatic sync (not precise)
+                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]); // automatic sync (not precise!)
+                // if(offset > 0.0) offset = 0.0; // don't jump into future
             }
 
             std::cout << "Stamp offset: " << offset << std::endl;
 
             // Set scan_stamp for next iteration
-            this->scan_stamp = extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) + offset; 
+            this->scan_stamp = extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) + offset;
 
             // IMU prior & deskewing 
             States frames = this->integrateImu(this->prev_scan_stamp, this->scan_stamp, this->state); // baselink/body frames

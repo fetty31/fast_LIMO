@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz/Displays
-    Help Height: 78
+    Help Height: 70
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -9,8 +9,10 @@ Panels:
         - /Output1
         - /Debug1
         - /Map1
-      Splitter Ratio: 0.6205882430076599
-    Tree Height: 719
+        - /KITTI_dataset1/RGB1/Left1
+        - /KITTI_dataset1/RGB1/Right1
+      Splitter Ratio: 0.6323529481887817
+    Tree Height: 754
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -284,13 +286,13 @@ Visualization Manager:
     - Class: rviz/Group
       Displays:
         - Class: rviz/Marker
-          Enabled: true
+          Enabled: false
           Marker Topic: /fast_limo/map/bb
           Name: BoundingBox
           Namespaces:
-            fast_limo: true
+            {}
           Queue Size: 100
-          Value: true
+          Value: false
         - Alpha: 1
           Class: rviz/Axes
           Enabled: true
@@ -302,6 +304,135 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: Map
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: Intensity
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: RawPointcloud
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.009999999776482582
+          Style: Flat Squares
+          Topic: /kitti/velo/pointcloud
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
+          Class: rviz_plugin_tutorials/Imu
+          Color: 204; 51; 204
+          Enabled: false
+          History Length: 1
+          Name: Imu
+          Queue Size: 10
+          Topic: /kitti/oxts/imu
+          Unreliable: false
+          Value: false
+        - Alpha: 1
+          Angular Arrow Scale: 2
+          Angular Color: 204; 204; 51
+          Arrow Width: 0.5
+          Class: rviz/TwistStamped
+          Enabled: true
+          Hide Small Values: true
+          History Length: 1
+          Linear Arrow Scale: 2
+          Linear Color: 204; 51; 51
+          Name: GPS_Odom
+          Queue Size: 10
+          Topic: /kitti/oxts/gps/vel
+          Unreliable: false
+          Value: true
+        - Class: rviz/Group
+          Displays:
+            - Class: rviz/Group
+              Displays:
+                - Class: rviz/Image
+                  Enabled: true
+                  Image Topic: /kitti/camera_color_left/image_raw
+                  Max Value: 1
+                  Median window: 5
+                  Min Value: 0
+                  Name: Image
+                  Normalize Range: true
+                  Queue Size: 2
+                  Transport Hint: raw
+                  Unreliable: false
+                  Value: true
+              Enabled: true
+              Name: Left
+            - Class: rviz/Group
+              Displays:
+                - Class: rviz/Image
+                  Enabled: true
+                  Image Topic: /kitti/camera_color_right/image_raw
+                  Max Value: 1
+                  Median window: 5
+                  Min Value: 0
+                  Name: Image
+                  Normalize Range: true
+                  Queue Size: 2
+                  Transport Hint: raw
+                  Unreliable: true
+                  Value: true
+              Enabled: true
+              Name: Right
+          Enabled: false
+          Name: RGB
+        - Class: rviz/Group
+          Displays:
+            - Class: rviz/Group
+              Displays:
+                - Class: rviz/Image
+                  Enabled: true
+                  Image Topic: /kitti/camera_gray_left/image_raw
+                  Max Value: 1
+                  Median window: 5
+                  Min Value: 0
+                  Name: Image
+                  Normalize Range: true
+                  Queue Size: 2
+                  Transport Hint: raw
+                  Unreliable: false
+                  Value: true
+              Enabled: true
+              Name: Left
+            - Class: rviz/Group
+              Displays:
+                - Class: rviz/Image
+                  Enabled: true
+                  Image Topic: /kitti/camera_gray_right/image_raw
+                  Max Value: 1
+                  Median window: 5
+                  Min Value: 0
+                  Name: Image
+                  Normalize Range: true
+                  Queue Size: 2
+                  Transport Hint: raw
+                  Unreliable: false
+                  Value: true
+              Enabled: true
+              Name: Right
+          Enabled: false
+          Name: GrayScale
+      Enabled: true
+      Name: KITTI_dataset
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -330,7 +461,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 23.502309799194336
+      Distance: 20.747997283935547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -338,25 +469,27 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.31758952140808105
-        Y: -1.7230417728424072
-        Z: -0.07119423896074295
-      Focal Shape Fixed Size: true
+        X: 4.085421562194824
+        Y: 0.32267269492149353
+        Z: -0.33639049530029297
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5753984451293945
-      Target Frame: base_link
-      Yaw: 3.1203839778900146
+      Pitch: 0.440398633480072
+      Target Frame: <Fixed Frame>
+      Yaw: 2.930410623550415
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1016
+  Height: 1043
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001560000035afc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730200000780000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000035a000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f0000035afc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d0000035a000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007380000003efc0100000002fb0000000800540069006d0065010000000000000738000003bc00fffffffb0000000800540069006d00650100000000000004500000000000000000000005dc0000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Image:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd00000004000000000000015600000375fc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730200000780000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000375000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d006100670065000000022c000000b70000001600fffffffb0000000a0049006d00610067006500000002e9000000c90000001600fffffffb0000000a0049006d006100670065000000024c000000980000001600fffffffb0000000a0049006d00610067006500000002ea000000c80000001600ffffff000000010000010f00000375fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000375000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d0065010000000000000780000003bc00fffffffb0000000800540069006d00650100000000000004500000000000000000000006240000037500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -365,6 +498,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 1848
-  X: 1992
-  Y: 27
+  Width: 1920
+  X: 1920
+  Y: 0

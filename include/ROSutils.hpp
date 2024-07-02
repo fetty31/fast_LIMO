@@ -1,5 +1,8 @@
 #pragma once
 
+// Std utils
+#include <signal.h>
+
 // Fast LIMO
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
@@ -69,13 +72,17 @@ void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.twist.twist.angular.z = ang_v(2);
 }
 
-void broadcastTF(const fast_limo::State& in, std::string child_name){
+void broadcastTF(const fast_limo::State& in, std::string parent_name, std::string child_name, bool now){
     static tf2_ros::TransformBroadcaster br;
     geometry_msgs::TransformStamped tf_msg;
 
-    tf_msg.header.stamp = ros::Time::now();
-    tf_msg.header.frame_id = "map";
-    tf_msg.child_frame_id = child_name;
+    tf_msg.header.stamp    = (now) ? ros::Time::now() : ros::Time(in.time);
+    /* NOTE: depending on IMU sensor rate, the state's stamp could be too old, 
+        so a TF warning could be print out (really annoying!).
+        In order to avoid this, the "now" argument should be true.
+    */
+    tf_msg.header.frame_id = parent_name;
+    tf_msg.child_frame_id  = child_name;
 
     // Translation
     Eigen::Vector3d pos = in.p.cast<double>();
@@ -86,6 +93,7 @@ void broadcastTF(const fast_limo::State& in, std::string child_name){
     // Rotation
     tf_msg.transform.rotation = tf2::toMsg(in.q.cast<double>());
 
+    // Broadcast
     br.sendTransform(tf_msg);
 }
 

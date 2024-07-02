@@ -12,6 +12,13 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
+    std::cout << "LIDAR CALLBACK:\n";
+    std::cout << "x: " << pc_->points[10].x << std::endl;
+    std::cout << "y: " << pc_->points[10].y << std::endl;
+    std::cout << "z: " << pc_->points[10].z << std::endl;
+    std::cout << "i: " << pc_->points[10].intensity << std::endl;
+    std::cout << "t: " << pc_->points[10].time << std::endl;
+
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     loc.updatePointCloud(pc_, msg->header.stamp.toSec());
 
@@ -70,8 +77,12 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     body_pub.publish(body_msg);
 
     // TF broadcasting
-    tf_limo::broadcastTF(loc.getWorldState(), "base_link");
+    tf_limo::broadcastTF(loc.getWorldState(), "map", "base_link", true);
 
+}
+
+void mySIGhandler(int sig){
+    ros::shutdown();
 }
 
 void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
@@ -144,6 +155,8 @@ int main(int argc, char** argv) {
 
     ros::init(argc, argv, "fast_limo");
     ros::NodeHandle nh("~");
+
+    signal(SIGINT, mySIGhandler); // override default ros sigint signal
 
     // Declare the one and only Localizer and Mapper objects
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();

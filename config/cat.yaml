@@ -16,7 +16,7 @@ verbose: true   # print debug/performance board
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 
-calibration:  # automatic IMU calibration
+calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
   gravity_align: true     # estimate gravity vector
   accel: true             # estimate lin. accel. bias
   gyro: true              # estimate ang. vel. bias
