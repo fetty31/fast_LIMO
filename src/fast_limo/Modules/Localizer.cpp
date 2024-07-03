@@ -124,10 +124,13 @@
         }
 
         State Localizer::getWorldState(){
-            State out = this->state;
-            out.q *= out.qLI;                                      // attitude in body/base_link frame
-            // out.p += out.q.toRotationMatrix() * out.pLI;        // position in body/base_link frame
-            out.v = out.q.toRotationMatrix().transpose() * out.v;  // local velocity vector
+
+            State out = this->_iKFoM.get_x();
+            // State out = this->state;
+
+            out.time = this->imu_stamp;                             // set current time stamp 
+            out.q *= out.qLI;                                       // attitude in body/base_link frame
+            out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
             return out;
         }
 
@@ -262,7 +265,6 @@
                 this->state      = corrected_state;
                 this->state.w    = this->last_imu.ang_vel;
                 this->state.a    = this->last_imu.lin_accel;
-                this->state.time = this->last_imu.stamp;
 
                 this->mtx_ikfom.unlock();
 
@@ -516,7 +518,6 @@
             double dt = imu.dt;
             this->mtx_ikfom.lock();
             this->_iKFoM.predict(dt, Q, in);
-            this->mtx_ikfom.unlock();
 
             // Save propagated state for motion compensation
             this->mtx_prop.lock();
@@ -524,6 +525,7 @@
                                                                 imu.stamp, imu.lin_accel, imu.ang_vel)
                                                 );
             this->mtx_prop.unlock();
+            this->mtx_ikfom.unlock();
 
             this->last_propagate_time_ = imu.stamp;
         }
@@ -659,6 +661,7 @@
 
             // individual point timestamps should be relative to this time
             double sweep_ref_time = start_time;
+            bool end_of_sweep = this->config.end_of_sweep;
 
             // sort points by timestamp
             std::function<bool(const PointType&, const PointType&)> point_time_cmp;
@@ -666,30 +669,34 @@
 
             if (this->sensor == fast_limo::SensorType::OUSTER) {
 
-                point_time_cmp = [](const PointType& p1, const PointType& p2)
-                { return p1.t < p2.t; };
-                extract_point_time = [&sweep_ref_time](PointType& pt)
-                { return sweep_ref_time + pt.t * 1e-9f; };
+                point_time_cmp = [&end_of_sweep](const PointType& p1, const PointType& p2)
+                {   if (end_of_sweep) return p1.t > p2.t; 
+                    else return p1.t < p2.t; };
+                extract_point_time = [&sweep_ref_time, &end_of_sweep](PointType& pt)
+                {   if (end_of_sweep) return sweep_ref_time - pt.t * 1e-9f; 
+                    else return sweep_ref_time + pt.t * 1e-9f; };
 
             } else if (this->sensor == fast_limo::SensorType::VELODYNE) {
                 
-                point_time_cmp = [](const PointType& p1, const PointType& p2)
-                { return p1.time < p2.time; };
-                extract_point_time = [&sweep_ref_time](PointType& pt)
-                { return sweep_ref_time + pt.time; };
+                point_time_cmp = [&end_of_sweep](const PointType& p1, const PointType& p2)
+                {   if (end_of_sweep) return p1.time > p2.time; 
+                    else return p1.time < p2.time; };
+                extract_point_time = [&sweep_ref_time, &end_of_sweep](PointType& pt)
+                {   if (end_of_sweep) return sweep_ref_time - pt.time; 
+                    else return sweep_ref_time + pt.time; };
 
             } else if (this->sensor == fast_limo::SensorType::HESAI) {
 
                 point_time_cmp = [](const PointType& p1, const PointType& p2)
                 { return p1.timestamp < p2.timestamp; };
-                extract_point_time = [&sweep_ref_time](PointType& pt)
+                extract_point_time = [](PointType& pt)
                 { return pt.timestamp; };
 
             } else if (this->sensor == fast_limo::SensorType::LIVOX) {
                 
                 point_time_cmp = [](const PointType& p1, const PointType& p2)
                 { return p1.timestamp < p2.timestamp; };
-                extract_point_time = [&sweep_ref_time](PointType& pt)
+                extract_point_time = [](PointType& pt)
                 { return pt.timestamp * 1e-9f; };
             } else {
                 std::cout << "-------------------------------------------------------------------\n";
@@ -722,8 +729,8 @@
             // compute offset between sweep reference time and IMU data
             double offset = 0.0;
             if (config.time_offset) {
-                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]); // automatic sync (not precise!)
-                // if(offset > 0.0) offset = 0.0; // don't jump into future
+                offset = this->imu_stamp - extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) - 1.e-4; // automatic sync (not precise!)
+                if(offset > 0.0) offset = 0.0; // don't jump into future
             }
 
             std::cout << "Stamp offset: " << offset << std::endl;
@@ -751,6 +758,10 @@
             this->mtx_ikfom.unlock();
 
             std::cout << "Points to deskew: " << deskewed_scan_->points.size() << std::endl;
+
+            std::cout << "first point stamp: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[0])+offset << std::endl;
+            std::cout << "first frame stamp: " << std::setprecision(15) << frames[0].time << std::endl;
+            std::cout << "next frame stamp: "  << std::setprecision(15) << frames[1].time << std::endl;
 
             auto go_time = chrono::system_clock::now();
 

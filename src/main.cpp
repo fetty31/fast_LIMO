@@ -12,12 +12,12 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
-    std::cout << "LIDAR CALLBACK:\n";
-    std::cout << "x: " << pc_->points[10].x << std::endl;
-    std::cout << "y: " << pc_->points[10].y << std::endl;
-    std::cout << "z: " << pc_->points[10].z << std::endl;
-    std::cout << "i: " << pc_->points[10].intensity << std::endl;
-    std::cout << "t: " << pc_->points[10].time << std::endl;
+    // std::cout << "LIDAR CALLBACK:\n";
+    // std::cout << "x: " << pc_->points[100].x << std::endl;
+    // std::cout << "y: " << pc_->points[100].y << std::endl;
+    // std::cout << "z: " << pc_->points[100].z << std::endl;
+    // std::cout << "i: " << pc_->points[100].intensity << std::endl;
+    // std::cout << "t: " << std::setprecision(15) << pc_->points[100].time << std::endl;
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     loc.updatePointCloud(pc_, msg->header.stamp.toSec());
@@ -98,6 +98,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
 
     nh_ptr->param<bool>("estimate_extrinsics", config->ikfom.estimate_extrinsics, true);
     nh_ptr->param<bool>("time_offset", config->time_offset, true);
+    nh_ptr->param<bool>("end_of_sweep", config->end_of_sweep, false);
 
     nh_ptr->param<bool>("calibration/gravity_align", config->gravity_align, true);
     nh_ptr->param<bool>("calibration/accel", config->calibrate_accel, true);
@@ -167,7 +168,7 @@ int main(int argc, char** argv) {
     load_config(&nh, &config);
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 10, &lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);

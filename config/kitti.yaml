@@ -13,13 +13,14 @@ sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 debug: true     # save useful intermediate pcl (pc2match, deskewed...)
 verbose: true   # print debug/performance board
 
-estimate_extrinsics: false   # continuous estimation of LiDAR-IMU extrinsics 
+estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
+end_of_sweep: false          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
-  gravity_align: false     # estimate gravity vector
-  accel: false             # estimate lin. accel. bias
-  gyro: false              # estimate ang. vel. bias
+  gravity_align: true     # estimate gravity vector
+  accel: true             # estimate lin. accel. bias
+  gyro: true              # estimate ang. vel. bias
   time: 3.0               # [s] time to estimate (during this time, the robot must be at stand still)
 
 extrinsics: # w.r.t baselink [SI]

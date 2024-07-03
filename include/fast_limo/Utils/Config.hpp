@@ -66,6 +66,7 @@ struct fast_limo::Config{
     bool calibrate_accel;       // whether to estimate linear accel. bias
     bool calibrate_gyro;        // whether to estimate ang. velocity bias
     bool time_offset;           // whether to take into account the time offset
+    bool end_of_sweep;          // whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
     bool debug;         // whether to copy intermediate point clouds into aux variables (for visualization)
     bool verbose;       // whether to print debugging/performance board
@@ -74,7 +75,6 @@ struct fast_limo::Config{
     int sensor_type;        // LiDAR type
     int num_threads;        // num of threads to be used by OpenMP
     double imu_calib_time;  // time to be estimating IMU biases
-    double time_delay;      // time delay when using one thread mode
 
 };
 
