@@ -66,7 +66,6 @@
 
                 if(match.lisanAlGaib()) 
                     matches.push_back(match); // if match is chosen, push it
-
             }
 
             return matches;
@@ -129,7 +128,7 @@
             this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), this->config.NUM_MATCH_POINTS, near_points, pointSearchSqDis);
 
             // Construct a plane fitting between them
-            return Match(p.head(3), Plane (near_points, pointSearchSqDis, &config));
+            return Match( p.head(3), Plane (near_points, pointSearchSqDis, this->config) );
         }
 
         void Mapper::set_bb_dim(State& s){

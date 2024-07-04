@@ -9,7 +9,7 @@ class fast_limo::Plane{
     public:
 
         Plane(const MapPoints& p, const std::vector<float>& d, 
-              const Config::iKFoM::Mapping* config_ptr);
+              Config::iKFoM::Mapping &config);
 
         Eigen::Vector4f get_normal();
         bool good_fit();
@@ -28,7 +28,7 @@ class fast_limo::Plane{
         Eigen::Vector4f n_ABCD; // plane normal vector
         bool is_plane;
 
-        const Config::iKFoM::Mapping* cfg_ptr;
+        Config::iKFoM::Mapping cfg;
 
         void fit_plane(const MapPoints&);
 

@@ -1,4 +1,4 @@
-<launch>
+<launch> <!-- launch-prefix="gdb -ex run - -args" -->
 
     <arg name="rviz" default="false"/>
 

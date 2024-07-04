@@ -14,13 +14,13 @@ debug: true     # save useful intermediate pcl (pc2match, deskewed...)
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
-time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
+time_offset: false           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 end_of_sweep: false          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
-  gravity_align: true     # estimate gravity vector
-  accel: true             # estimate lin. accel. bias
-  gyro: true              # estimate ang. vel. bias
+  gravity_align: false     # estimate gravity vector
+  accel: false             # estimate lin. accel. bias
+  gyro: false              # estimate ang. vel. bias
   time: 3.0               # [s] time to estimate (during this time, the robot must be at stand still)
 
 extrinsics: # w.r.t baselink [SI]
@@ -80,7 +80,7 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
     delete: 0.3       # tree deletion param
     voxel: 0.2        # downsampling value
     bb_size: 300.0    # [m] Local Map's bounding box dimension
-    bb_range: 200.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
+    bb_range: 100.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
 
   covariance:
     gyro: 0.0001 

@@ -13,7 +13,7 @@ sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 debug: true     # save useful intermediate pcl (pc2match, deskewed...)
 verbose: true   # print debug/performance board
 
-estimate_extrinsics: false   # continuous estimation of LiDAR-IMU extrinsics 
+estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
@@ -82,8 +82,8 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
     balance: 0.6      # tree balancing param
     delete: 0.3       # tree deletion param
     voxel: 0.2        # downsampling value
-    bb_size: 30.0    # [m] Local Map's bounding box dimension
-    bb_range: 10.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
+    bb_size: 300.0    # [m] Local Map's bounding box dimension
+    bb_range: 50.0    # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
 
   covariance:
     gyro: 0.0001 

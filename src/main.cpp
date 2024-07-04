@@ -132,7 +132,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<int>("iKFoM/MAX_NUM_PC2MATCH",        config->ikfom.mapping.MAX_NUM_PC2MATCH, 1.e+4);
     nh_ptr->param<double>("iKFoM/Mapping/MAX_DIST_PLANE", config->ikfom.mapping.MAX_DIST_PLANE, 2.0);
     nh_ptr->param<double>("iKFoM/Mapping/PLANES_THRESHOLD", config->ikfom.mapping.PLANE_THRESHOLD, 5.e-2);
-    nh_ptr->param<bool>("iKFoM/Mapping/LocalMapping",   config->ikfom.mapping.local_mapping, true);
+    nh_ptr->param<bool>("iKFoM/Mapping/LocalMapping",   config->ikfom.mapping.local_mapping, false);
 
     nh_ptr->param<float>("iKFoM/iKDTree/balance", config->ikfom.mapping.ikdtree.balance_param, 0.6f);
     nh_ptr->param<float>("iKFoM/iKDTree/delete", config->ikfom.mapping.ikdtree.delete_param, 0.3f);
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
     load_config(&nh, &config);
 
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 10, &lidar_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);

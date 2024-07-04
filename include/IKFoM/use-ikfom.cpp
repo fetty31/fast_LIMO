@@ -8,6 +8,8 @@
 #include "use-ikfom.hpp"
 
 void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastruct<double> &ekfom_data) {
+
+	std::cout << "BEFORE LOC & MAP objs...\n";
 	
 	fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
 	fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();

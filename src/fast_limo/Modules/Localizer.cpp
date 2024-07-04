@@ -125,8 +125,8 @@
 
         State Localizer::getWorldState(){
 
-            State out = this->_iKFoM.get_x();
-            // State out = this->state;
+            // State out = this->_iKFoM.get_x();
+            State out = this->state;
 
             out.time = this->imu_stamp;                             // set current time stamp 
             out.q *= out.qLI;                                       // attitude in body/base_link frame
@@ -462,15 +462,18 @@
 
         void Localizer::calculate_H(const state_ikfom& s, const Matches& matches, Eigen::MatrixXd& H, Eigen::VectorXd& h){
             
-            int N0 = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? matches.size() - config.ikfom.mapping.MAX_NUM_MATCHES : 0;
+            int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
 
-            H = Eigen::MatrixXd::Zero(matches.size()-N0, 12);
-            h.resize(matches.size()-N0);
+            H = Eigen::MatrixXd::Zero(N, 12);
+            h.resize(N);
             State S(s);
+
+            std::cout << "calculate_H::N: " << N << std::endl;
+            std::cout << "calculate_H:: matches size: " << matches.size() << std::endl;
 
             // For each match, calculate its derivative and distance
             #pragma omp parallel for num_threads(this->num_threads_)
-            for (int i = N0; i < matches.size(); ++i) {
+            for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
                 Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_point();
                 Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
@@ -518,6 +521,7 @@
             double dt = imu.dt;
             this->mtx_ikfom.lock();
             this->_iKFoM.predict(dt, Q, in);
+            this->mtx_ikfom.unlock();
 
             // Save propagated state for motion compensation
             this->mtx_prop.lock();
@@ -525,7 +529,6 @@
                                                                 imu.stamp, imu.lin_accel, imu.ang_vel)
                                                 );
             this->mtx_prop.unlock();
-            this->mtx_ikfom.unlock();
 
             this->last_propagate_time_ = imu.stamp;
         }
@@ -723,8 +726,8 @@
                 return boost::make_shared<pcl::PointCloud<PointType>>();
             }
 
-            std::cout << "DEBUGGING: imu_stamp: " << this->imu_stamp << std::endl;
-            std::cout << "DEBUGGING: last p stamp: " << extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) << std::endl;
+            std::cout << "DEBUGGING: imu_stamp: " << std::setprecision(15) << this->imu_stamp << std::endl;
+            std::cout << "DEBUGGING: last p stamp: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) << std::endl;
 
             // compute offset between sweep reference time and IMU data
             double offset = 0.0;
@@ -753,9 +756,7 @@
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
-            this->mtx_ikfom.lock();
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
-            this->mtx_ikfom.unlock();
 
             std::cout << "Points to deskew: " << deskewed_scan_->points.size() << std::endl;
 
