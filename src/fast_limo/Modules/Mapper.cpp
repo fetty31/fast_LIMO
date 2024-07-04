@@ -50,8 +50,6 @@
             if(not this->exists()) return matches;
 
             int N0 = (pc->points.size() > config.MAX_NUM_PC2MATCH) ? pc->points.size() - config.MAX_NUM_PC2MATCH : 0;
-            std::cout << "DEBUGGING: N0: " << N0 << std::endl;
-            std::cout << "DEBUGGING: pc2match size: " << pc->points.size() << std::endl;
 
             matches.reserve(pc->points.size()-N0);
 

@@ -125,8 +125,8 @@
 
         State Localizer::getWorldState(){
 
-            // State out = this->_iKFoM.get_x();
-            State out = this->state;
+            State out = this->_iKFoM.get_x();
+            // State out = this->state;
 
             out.time = this->imu_stamp;                             // set current time stamp 
             out.q *= out.qLI;                                       // attitude in body/base_link frame
@@ -467,9 +467,6 @@
             H = Eigen::MatrixXd::Zero(N, 12);
             h.resize(N);
             State S(s);
-
-            std::cout << "calculate_H::N: " << N << std::endl;
-            std::cout << "calculate_H:: matches size: " << matches.size() << std::endl;
 
             // For each match, calculate its derivative and distance
             #pragma omp parallel for num_threads(this->num_threads_)
