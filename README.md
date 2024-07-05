@@ -11,10 +11,10 @@
         <a href="#quick-start">Quick Start</a>
         </li>
         <li>
-        <a href="#configuration">Configuration</a>
+        <a href="#approach">Approach</a>
         </li>
         <li>
-        <a href="#approach">Approach</a>
+        <a href="#configuration">Configuration</a>
         </li>
         <li>
         <a href="#references">References</a>
@@ -111,8 +111,15 @@ You can also run `Fast-LIMO` together with an rviz instance with:
 roslaunch fast_limo fast_limo rviz:=true
 ```
 
+## Approach
+If you are interested in truly understanding the working principle of this SLAM algorithm, please read the [FASTLIO paper](https://doi.org/10.48550/arXiv.2010.08196). _This project is merely an alternative implementation of this outstanding work, still relying upon [IKFoM](include/IKFoM/) and [ikd-Tree](include/ikd-Tree/) open-source projects._
+
+This project implements the same concept as [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) but without any accumulation procedure. Instead, `Fast-LIMO` operates with two concurrent threads. One thread handles the propagation of newly received IMU measurements through the iKFoM (prediction stage), while the other thread uses these propagated states to deskew the received point cloud, match the deskewed scan to the map, and update the iKFoM (measurement stage) by minimizing point-to-plane distances.
+
+`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately every 10 Hz. __However, optimal performance can be achieved with a modified LiDAR driver that sends each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
+
 ## Configuration
-Here the config file for `Fast-LIMO` will be explained.
+Here, the configuration file for `Fast-LIMO` is explained. _Note that some parameters relate to the __sensor type__ and __extrinsics__. The remaining parameters generally do not require modification for standard use, as they are associated with computational load limits or precision thresholds._
 
 | Parameter             | Units | Summary                           |
 | --------------        | ----- | --------------------------------- |
@@ -131,7 +138,7 @@ Here the config file for `Fast-LIMO` will be explained.
 | extrinsics/lidar          | SI | LiDAR pose with respect to base_link coord. frame.  |
 | intrinsics                | SI | IMU lin. + gyro. biases.  |
 | filters/cropBox           | m | Prismatic crop. Useful for removing LiDAR points that fall into the robot itself. Should be a 3D rectangle envolving the robot. |
-| filters/voxelGrid         | - | Voxel Grid filter. Pointcloud downsampling strategy. |
+| filters/voxelGrid         | m | Voxel Grid filter. Pointcloud downsampling strategy. |
 | filters/minDistance       | m | Could be interpreted as a sphere crop. Removes all points closer than its value. Useful for avoiding having too many ground points. |
 | filters/rateSampling      | - | Quick downsampling method. Only takes into account 1 in every _value_ points. _Useful for reducing the computational load._ |
 | iKFoM/MAX_NUM_ITERS       | - | The Extended Kalman Filter will do _MAX_NUM_ITERS_+1 iterations. _Useful for reducing the computational load._ |
@@ -147,10 +154,6 @@ Here the config file for `Fast-LIMO` will be explained.
 | iKFoM/iKDTree/bb_size           | m | Local Map's bounding box dimension (actually a cube). _When LocalMapping is active, the local map won't include points outside this cube. Note that the local map is always defined relative to the robot's current position._ |
 | iKFoM/iKDTree/bb_range          | m | Local Map's bounding box moving range (if the robot is closer than _bb_range_ to any local map's edge, the map will "move"). |
 | iKFoM/covariance                | m^2 | Covariance of IMU measurements. |
-
-
-## Approach
-Here the main differences between `Fast-LIMO` and LIMO-Velo will be explained.
 
 ## References
 This project relies upon [HKU-Mars](https://github.com/hku-mars)' open-source _C++_ libraries:
