@@ -38,13 +38,19 @@ A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [
 
 <p align="center">
   <img src="doc/kitti_0071.gif" alt="KITTI 0071 performance"  width="800"/>
-  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset. Dynamic objects being added to the map. Still robust enough. </small>
+  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0071). Dynamic objects being added to the map. Still robust enough. </small>
 </p>
 <br/>
 
 <p align="center">
   <img src="doc/xaloc.gif" alt="XALOC's performance"  width="800"/>
   <small>Formula Student race car <a href="https://youtu.be/ly_ax8w-T7E?si=sDFiMFtRN5jRwWKC">XALOC</a>. High velocity in straights (~15m/s) and tight turns (~80deg/s).</small>
+</p>
+<br/>
+
+<p align="center">
+  <img src="doc/kitti_0034.gif" alt="KITTI 0034 performance"  width="800"/>
+  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0034). High velocity (~20m/s), smooth turns (~35deg/s) </small>
 </p>
 
 ## Disclaimer

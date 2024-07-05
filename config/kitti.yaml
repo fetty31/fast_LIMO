@@ -30,7 +30,7 @@ extrinsics: # w.r.t baselink [SI]
           0.,  1.,  0.,
           0.,  0.,  1. ]
   lidar:
-    t: [ 8.086759e-01, -3.195559e-01, 7.997231e-01 ]
+    t: [ 8.086759e-01, -3.195559e-01, 7.997231e-01 ] 
     R: [ 9.999976e-01, -7.854027e-04, 2.024406e-03,
          7.553071e-04, 9.998898e-01, 1.482454e-02,
          -2.035826e-03, -1.482298e-02, 9.998881e-01 ]
@@ -61,7 +61,7 @@ filters:
   
   rateSampling: # quick downsample
     active: true
-    value: 4
+    value: 2
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
@@ -73,7 +73,7 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
     NUM_MATCH_POINTS: 5           # num of points that constitute a match
     MAX_DIST_PLANE: 2.0           # [m] max distance between points of every match
     PLANES_THRESHOLD: 5.0e-2      # [m] threshold to consider if match points are part of a plane 
-    LocalMapping: false            # whether to keep a fixed size map (moving with the robot) or a limitless map (when active, it limits the memory in use)
+    LocalMapping: true            # whether to keep a fixed size map (moving with the robot) or a limitless map (when active, it limits the memory in use)
     
   iKDTree: # Incremental KD Tree lib
     balance: 0.6      # tree balancing param

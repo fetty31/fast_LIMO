@@ -126,9 +126,11 @@
         State Localizer::getWorldState(){
 
             State out = this->_iKFoM.get_x();
-            // State out = this->state;
 
+            out.w    = this->last_imu.ang_vel;                      // set last IMU meas
+            out.a    = this->last_imu.lin_accel;                    // set last IMU meas
             out.time = this->imu_stamp;                             // set current time stamp 
+
             out.q *= out.qLI;                                       // attitude in body/base_link frame
             out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
             return out;
