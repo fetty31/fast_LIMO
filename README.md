@@ -30,23 +30,22 @@ A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [
 
 `Fast-LIMO` stands for a multithreaded version of the approach _Localize Intensively Map Offline (LIMO)_ stated in [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) 's algorithm developed by [Huget57](https://github.com/Huguet57). 
 
-<div align="center">
-<a> <img src="doc/cat15.gif" alt="Logo" width="800"> </a>
-<a href="https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM" align="center"><small>Formula Student race car CAT15X</small></a>
-</div>
-<br />
+<p align="center">
+  <img src="doc/cat15.gif" alt="CAT15X's performance"  width="800"/>
+  <small>Formula Student race car <a href="https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM">CAT15X</a>. Velocity in straights (~12m/s) and really tight turns (~100deg/s) </small>
+</p>
+<br/>
 
-<div align="center">
-<a> <img src="doc/kitti_0071.gif" alt="Logo" width="800"> </a>
-<a href="https://www.cvlibs.net/datasets/kitti/index.php" align="center"><small>KITTI dataset</small></a>
-</div>
-<br />
+<p align="center">
+  <img src="doc/kitti_0071.gif" alt="KITTI 0071 performance"  width="800"/>
+  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset. Dynamic objects being added to the map. Still robust enough. </small>
+</p>
+<br/>
 
-<div align="center">
-<a> <img src="doc/xaloc.gif" alt="Logo" width="800"> </a>
-<a href="https://youtu.be/ly_ax8w-T7E?si=sDFiMFtRN5jRwWKC" align="center"><small>Formula Student race car XALOC</small></a>
-</div>
-<br />
+<p align="center">
+  <img src="doc/xaloc.gif" alt="XALOC's performance"  width="800"/>
+  <small>Formula Student race car <a href="https://youtu.be/ly_ax8w-T7E?si=sDFiMFtRN5jRwWKC">XALOC</a>. High velocity in straights (~15m/s) and tight turns (~80deg/s).</small>
+</p>
 
 ## Disclaimer
 If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo), [FASTLIO2](https://github.com/hku-mars/FAST_LIO) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) projects, which greatly influenced this work.
@@ -108,8 +107,16 @@ Afterwards, you should be seeing this output _(if `verbose` param is set to true
 
 You can also run `Fast-LIMO` together with an rviz instance with:
 ```sh
-roslaunch fast_limo fast_limo rviz:=true
+roslaunch fast_limo fast_limo.launch rviz:=true
 ```
+
+### 4. Quickly check its performance
+[IN THIS FOLDER](https://www.dropbox.com/scl/fi/60u6xq0daav9enecluroh/cat15_trackdrive.bag?rlkey=jfjba58h8hohfi8b7kpi8zsvx&st=jck682n6&dl=0) you can find the rosbag file (___850.41 MB___) of [this CAT15X trackdrive](https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM). Download it and try it out!
+```sh
+roslaunch fast_limo cat.launch rviz:=true
+```
+
+_Note that this algorithm's precision greatly depends on the pointcloud & IMU timestamps, so remember to run the rosbag with __use_sim_time=true__ and __--clock__ flag._
 
 ## Approach
 If you are interested in truly understanding the working principle of this SLAM algorithm, please read the [FASTLIO paper](https://doi.org/10.48550/arXiv.2010.08196). _This project is merely an alternative implementation of this outstanding work, still relying upon [IKFoM](include/IKFoM/) and [ikd-Tree](include/ikd-Tree/) open-source projects._
