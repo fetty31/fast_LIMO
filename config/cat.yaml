@@ -15,7 +15,7 @@ verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
-end_of_sweep: true          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
+end_of_sweep: false          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
   gravity_align: true     # estimate gravity vector
