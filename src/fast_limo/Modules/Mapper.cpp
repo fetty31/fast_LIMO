@@ -176,16 +176,10 @@
                 }
             }
 
-            auto start_rm = chrono::system_clock::now();
-
             this->mtx_local_map.lock(); // lock local map
             this->local_map_bb = new_local_bb;
             this->mtx_local_map.unlock(); // unlock after finished writing local map
 
             if(cube2rm.size() > 0)
                 this->map->Delete_Point_Boxes(cube2rm);
-
-            auto end_rm = chrono::system_clock::now();
-            chrono::duration<double> time_rm = end_rm - start_rm;
-            std::cout << "TIME removing from map: " << time_rm.count()*1000.0 << std::endl;
         }

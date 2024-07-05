@@ -12,13 +12,6 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
-    // std::cout << "LIDAR CALLBACK:\n";
-    // std::cout << "x: " << pc_->points[100].x << std::endl;
-    // std::cout << "y: " << pc_->points[100].y << std::endl;
-    // std::cout << "z: " << pc_->points[100].z << std::endl;
-    // std::cout << "i: " << pc_->points[100].intensity << std::endl;
-    // std::cout << "t: " << std::setprecision(15) << pc_->points[100].time << std::endl;
-
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     loc.updatePointCloud(pc_, msg->header.stamp.toSec());
 

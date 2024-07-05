@@ -206,10 +206,6 @@
                 input_pc->points.push_back(it->value());
             }
 
-            auto end_preproc = chrono::system_clock::now();
-            chrono::duration<double> time_preproc = end_preproc - start_time;
-            std::cout << "TIME after preprocess: " << time_preproc.count()*1000.0 << std::endl;
-
             if(this->config.debug) // debug only
                 this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
 
@@ -217,10 +213,6 @@
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in LiDAR frame w.r.t last propagated state (Xt2) */
-
-            auto end_deskew = chrono::system_clock::now();
-            chrono::duration<double> time_deskew = end_deskew - start_time;
-            std::cout << "TIME after deskew: " << time_deskew.count()*1000.0 << std::endl;
 
             // Voxel Grid Filter
             if (this->config.filters.voxel_active) { 
@@ -235,10 +227,6 @@
 
             if(this->pc2match->points.size() > 1){
 
-                auto end_voxel = chrono::system_clock::now();
-                chrono::duration<double> time_voxel = end_voxel - start_time;
-                std::cout << "TIME after voxel: " << time_voxel.count()*1000.0 << std::endl;
-
                 // iKFoM observation stage
                 this->mtx_ikfom.lock();
 
@@ -246,20 +234,11 @@
                 double solve_time = 0.0;
                 this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
                                                                 solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
-
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
                 
-                std::cout << "TIME KF solve time: " << solve_time*1000.0 << std::endl;
-
-                auto end_solve = chrono::system_clock::now();
-                chrono::duration<double> time_solve = end_solve - start_time;
-                std::cout << "TIME after solving: " << time_solve.count()*1000.0 << std::endl;
-
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
-
-                // std::cout << "IKFOM measurment updated\n";
 
                     // Update current state estimate
                 corrected_state.b.gyro  = this->state.b.gyro;
@@ -291,8 +270,6 @@
                 if(this->config.debug) // save final scan without voxel grid
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
-                auto start_map = chrono::system_clock::now();
-
                 // Add scan to map
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
                 if(this->config.ikfom.mapping.local_mapping)
@@ -300,17 +277,11 @@
                 else 
                     map.add(mapped_scan, this->scan_stamp);
 
-                auto end_map = chrono::system_clock::now();
-                chrono::duration<double> time_map = end_map - start_map;
-                std::cout << "TIME mapping: " << time_map.count()*1000.0 << std::endl;
-
             }else
                 std::cout << "-------------- FAST_LIMO::NULL ITERATION --------------\n";
 
             auto end_time = chrono::system_clock::now();
             elapsed_time = end_time - start_time;
-
-            std::cout << "TIME global: " << elapsed_time.count()*1000.0 << std::endl;
 
             if(this->config.verbose){
                 // fill stats
@@ -711,22 +682,13 @@
             pcl::PointCloud<PointType>::Ptr deskewed_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_scan_->points.resize(pc->points.size());
             
-            auto gotime = chrono::system_clock::now();
-
             std::partial_sort_copy(pc->points.begin(), pc->points.end(),
                                     deskewed_scan_->points.begin(), deskewed_scan_->points.end(), point_time_cmp);
 
-            auto stopit = chrono::system_clock::now();
-            chrono::duration<double> hadurat = stopit - gotime;
-            std::cout << "TIME sorting: " << hadurat.count()*1000.0 << std::endl;
-            
             if(deskewed_scan_->points.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: failed to sort input pointcloud!\n";
                 return boost::make_shared<pcl::PointCloud<PointType>>();
             }
-
-            std::cout << "DEBUGGING: imu_stamp: " << std::setprecision(15) << this->imu_stamp << std::endl;
-            std::cout << "DEBUGGING: last p stamp: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) << std::endl;
 
             // compute offset between sweep reference time and IMU data
             double offset = 0.0;
@@ -735,15 +697,11 @@
                 if(offset > 0.0) offset = 0.0; // don't jump into future
             }
 
-            std::cout << "Stamp offset: " << offset << std::endl;
-
             // Set scan_stamp for next iteration
             this->scan_stamp = extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) + offset;
 
             // IMU prior & deskewing 
             States frames = this->integrateImu(this->prev_scan_stamp, this->scan_stamp, this->state); // baselink/body frames
-
-            std::cout << "IMU propagated states: " << frames.size() << std::endl;
 
             if(frames.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: No frames obtained from IMU propagation!\n";
@@ -756,14 +714,6 @@
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
-
-            std::cout << "Points to deskew: " << deskewed_scan_->points.size() << std::endl;
-
-            std::cout << "first point stamp: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[0])+offset << std::endl;
-            std::cout << "first frame stamp: " << std::setprecision(15) << frames[0].time << std::endl;
-            std::cout << "next frame stamp: "  << std::setprecision(15) << frames[1].time << std::endl;
-
-            auto go_time = chrono::system_clock::now();
 
             int k = 0;
             for (int i = 0; i < frames.size()-1; i++) {
@@ -792,10 +742,6 @@
                 }
             }
 
-            auto end_time = chrono::system_clock::now();
-            chrono::duration<double> elapsed = end_time - go_time;
-            std::cout << "TIME integrating: " << elapsed.count()*1000.0 << std::endl;
-
             this->deskew_size = k; 
 
             if(this->config.debug && this->deskew_size > 0) // debug only
@@ -808,8 +754,6 @@
 
             States imu_se3;
 
-            auto go_time = chrono::system_clock::now();
-
             boost::circular_buffer<State>::reverse_iterator begin_prop_it;
             boost::circular_buffer<State>::reverse_iterator end_prop_it;
             if (not this->propagatedFromTimeRange(start_time, end_time, begin_prop_it, end_prop_it)) {
@@ -820,10 +764,6 @@
 
             for(auto it = begin_prop_it; it != end_prop_it; it++)
                 imu_se3.push_back(*it);
-
-            auto stop_time = chrono::system_clock::now();
-            chrono::duration<double> elapsed = stop_time - go_time;
-            std::cout << "TIME propagating: " << elapsed.count()*1000.0 << std::endl;
 
             return imu_se3;
         }

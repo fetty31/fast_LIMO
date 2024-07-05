@@ -9,14 +9,8 @@
 
 void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastruct<double> &ekfom_data) {
 
-	std::cout << "BEFORE LOC & MAP objs...\n";
-	
 	fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
 	fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();
-
-	auto start_match = chrono::system_clock::now();
-
-	std::cout << "BEFORE MATCHING...\n";
 
 	// Calculate matches
 	Matches matches = MAP.match(
@@ -24,10 +18,6 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 	    LOC.pc2match
 	);
 
-	auto end_match = chrono::system_clock::now();
-	chrono::duration<double> time_match = end_match - start_match;
-	std::cout << "IKFOM TIME after matching: " << time_match.count()*1000.0 << std::endl;
-	
 	auto start_der = chrono::system_clock::now();
 
 	// // Calculate derivatives
@@ -40,10 +30,6 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 	    ekfom_data.h_x,
 	    ekfom_data.h
 	);
-
-	auto end_der = chrono::system_clock::now();
-	chrono::duration<double> time_der = end_der - start_der;
-	std::cout << "IKFOM TIME after Jacobian: " << time_der.count()*1000.0 << std::endl;
 }
 
 MTK::get_cov<process_noise_ikfom>::type process_noise_cov()
