@@ -72,7 +72,7 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
   Mapping:
     NUM_MATCH_POINTS: 5           # num of points that constitute a match
     MAX_DIST_PLANE: 2.0           # [m] max distance between points of every match
-    PLANES_THRESHOLD: 5.0e-2      # threshold to consider if match points are part of a plane (also used in deciding whether a point is part of a plane) 
+    PLANES_THRESHOLD: 5.0e-2      # [m] threshold to consider if match points are part of a plane 
     LocalMapping: false            # whether to keep a fixed size map (moving with the robot) or a limitless map (when active, it limits the memory in use)
     
   iKDTree: # Incremental KD Tree lib
