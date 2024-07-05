@@ -96,6 +96,8 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
 git clone https://github.com/fetty31/fast_LIMO
 ```
 
+_More than half of the storage space needed to clone this repo is due to the [README gifs](doc/). There's a branch updated with the `master` but without all this media files called `no_media`._
+
 ### 1. Building fast LIMO
 Use default `catkin_make` or `catkin build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
 
