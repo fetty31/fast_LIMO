@@ -30,6 +30,18 @@ A tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [IKFoM](http
 
 Fast-LIMO stands for a multithreaded version of the approach _Localize Intensively Map Offline (LIMO)_ stated in [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) 's algorithm developed by [Huget57](https://github.com/Huguet57). 
 
+<div align="center">
+<a> <img src="doc/xaloc.gif" alt="Logo" width="800"> </a>
+<p align="center"><small>Formula Student trackdrive</small></p>
+</div>
+<br />
+
+<div align="center">
+<a> <img src="doc/kitti_0071.gif" alt="Logo" width="800"> </a>
+<p align="center"><small>KITTI dataset</small></p>
+</div>
+<br />
+
 ## Disclaimer
 If you plan to use fast LIMO please make sure to give some love to [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo), [FASTLIO2](https://github.com/hku-mars/FAST_LIO) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) projects, which greatly influenced this work.
 
