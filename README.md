@@ -52,6 +52,12 @@ A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [
   <img src="doc/kitti_0034.gif" alt="KITTI 0034 performance"  width="800"/>
   <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0034). High velocity (~20m/s), smooth turns (~35deg/s) </small>
 </p>
+<br/>
+
+<p align="center">
+  <img src="doc/ona.gif" alt="ONA delivery robot"  width="800"/>
+  <small><a href="https://youtu.be/mElLMG7OPwo?feature=shared">ONA</a> delivery robot </small>
+</p>
 
 ## Disclaimer
 If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo), [FASTLIO2](https://github.com/hku-mars/FAST_LIO) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) projects, which greatly influenced this work.

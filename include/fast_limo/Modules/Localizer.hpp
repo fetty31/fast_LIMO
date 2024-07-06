@@ -7,6 +7,7 @@
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/Plane.hpp"
 #include "fast_limo/Utils/Config.hpp"
+#include "fast_limo/Utils/LowPassFilter.hpp"
 
 using namespace fast_limo;
 

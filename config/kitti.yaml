@@ -53,7 +53,7 @@ filters:
 
   voxelGrid:
     active: true
-    leafSize: [ 0.5, 0.5, 0.5 ]
+    leafSize: [ 0.6, 0.6, 0.6 ]
 
   minDistance: # sphere crop
     active: true
@@ -61,7 +61,7 @@ filters:
   
   rateSampling: # quick downsample
     active: true
-    value: 2
+    value: 4
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
