@@ -174,7 +174,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 255; 255; 255
@@ -189,7 +189,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: false
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -282,13 +282,13 @@ Visualization Manager:
           Unreliable: false
           Value: false
         - Class: rviz/MarkerArray
-          Enabled: false
+          Enabled: true
           Marker Topic: /fast_limo/match_points
           Name: Matches
           Namespaces:
-            {}
+            fast_limo_match: true
           Queue Size: 100
-          Value: false
+          Value: true
       Enabled: true
       Name: Debug
     - Class: rviz/Group
@@ -469,7 +469,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 21.514076232910156
+      Distance: 23.934282302856445
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -477,17 +477,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.6488075256347656
-        Y: -0.3007657527923584
+        X: 1.7781181335449219
+        Y: 0.6888932585716248
         Z: -1.0411527156829834
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6147968173027039
+      Pitch: 0.6797968149185181
       Target Frame: base_link
-      Yaw: 2.9472362995147705
+      Yaw: 3.072235345840454
     Saved: ~
 Window Geometry:
   Displays:

@@ -266,6 +266,7 @@
 
                 /*To DO:
                     - mapped_scan --> segmentation of dynamic objects
+                    - try to map only matches, not all pcl
                 */
 
                     // Get final scan to output (in world/global frame)
