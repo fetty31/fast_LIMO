@@ -28,7 +28,11 @@ class fast_limo::Localizer {
         SensorType sensor;
         IMUmeas last_imu;
 
+        // Config struct
         Config config;
+
+        // Matches (debug aux var.)
+        Matches matches;
 
         // PCL Filters
         pcl::CropBox<PointType> crop_filter;
@@ -120,6 +124,8 @@ class fast_limo::Localizer {
         pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
+
+        Matches& get_matches();
 
         State getWorldState();
         State getBodyState();

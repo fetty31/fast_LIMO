@@ -112,6 +112,10 @@
             return this->pc2match;
         }
 
+        Matches& Localizer::get_matches(){
+            return this->matches;
+        }
+
         bool Localizer::is_calibrated(){
             return this->imu_calibrated_;
         }
@@ -212,7 +216,7 @@
             // Motion compensation
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
-            /*NOTE: deskewed_Xt2_pc_ should be in LiDAR frame w.r.t last propagated state (Xt2) */
+            /*NOTE: deskewed_Xt2_pc_ should be in base_link/body frame w.r.t last propagated state (Xt2) */
 
             // Voxel Grid Filter
             if (this->config.filters.voxel_active) { 
@@ -445,7 +449,7 @@
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_point();
+                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
                 Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
@@ -470,6 +474,9 @@
                 // Measurement: distance to the closest plane
                 h(i) = -match.dist;
             }
+
+            if(this->config.debug) 
+                this->matches = matches;
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

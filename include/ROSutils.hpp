@@ -14,6 +14,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
 
+#include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
 #include <nav_msgs/Odometry.h>
@@ -133,6 +134,44 @@ visualization_msgs::Marker getLocalMapMarker(BoxPointType bb){
     m.pose.position.z = bb.vertex_min[2] + z_edge/2.0;
 
     return m;
+}
+
+visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string frame_id){
+    visualization_msgs::MarkerArray m_array;
+    visualization_msgs::Marker m;
+
+    m_array.markers.reserve(matches.size());
+
+    m.ns = "fast_limo_match";
+    m.type = visualization_msgs::Marker::SPHERE;
+    m.action = visualization_msgs::Marker::ADD;
+
+    m.color.r = 0.0f;
+    m.color.g = 0.0f;
+    m.color.b = 1.0f;
+    m.color.a = 1.0f;
+
+    m.lifetime = ros::Duration(0);
+    m.header.frame_id = frame_id;
+    m.header.stamp = ros::Time::now();
+
+    m.pose.orientation.w = 1.0;
+
+    m.scale.x = 0.2;
+    m.scale.y = 0.2;
+    m.scale.z = 0.2;
+
+    for(int i=0; i < matches.size(); i++){
+        m.id = i;
+        Eigen::Vector3f match_p = matches[i].get_point();
+        m.pose.position.x = match_p(0);
+        m.pose.position.y = match_p(1);
+        m.pose.position.z = match_p(2);
+
+        m_array.markers.push_back(m);
+    }
+
+    return m_array;
 }
 
 }

@@ -11,6 +11,10 @@
             return this->plane.good_fit();
         }
 
-        Eigen::Vector4f fast_limo::Match::get_point(){
+        Eigen::Vector4f fast_limo::Match::get_4Dpoint(){
             return Eigen::Vector4f(this->point(0), this->point(1), this->point(2), 1.0);
+        }
+
+        Eigen::Vector3f fast_limo::Match::get_point(){
+            return this->point;
         }

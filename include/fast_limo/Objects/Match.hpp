@@ -14,7 +14,8 @@ class fast_limo::Match{
 
         bool lisanAlGaib(); // whether is the chosen one :)
 
-        Eigen::Vector4f get_point();
+        Eigen::Vector4f get_4Dpoint();
+        Eigen::Vector3f get_point();
     
     private:
         Eigen::Vector3f point;
