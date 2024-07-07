@@ -30,34 +30,44 @@ A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [
 
 `Fast-LIMO` stands for a multithreaded version of the approach _Localize Intensively Map Offline (LIMO)_ stated in [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) 's algorithm developed by [Huget57](https://github.com/Huguet57). 
 
-<p align="center">
+<div align="center">
   <img src="doc/cat15.gif" alt="CAT15X's performance"  width="800"/>
-  <small>Formula Student race car <a href="https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM">CAT15X</a>. Velocity in straights (~12m/s) and really tight turns (~100deg/s) </small>
-</p>
+  <small>
+  <p> Formula Student race car <a href="https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM">CAT15X</a>. Velocity in straights (~12m/s) and really tight turns (~100deg/s). </p>
+  </small>
+</div>
 <br/>
 
-<p align="center">
+<div align="center">
   <img src="doc/kitti_0071.gif" alt="KITTI 0071 performance"  width="800"/>
-  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0071). Dynamic objects being added to the map. Still robust enough. </small>
-</p>
+  <small>
+  <p> <a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0071). Dynamic objects being added to the map. Still robust enough. </p>
+  </small>
+</div>
 <br/>
 
-<p align="center">
+<div align="center">
   <img src="doc/xaloc.gif" alt="XALOC's performance"  width="800"/>
-  <small>Formula Student race car <a href="https://youtu.be/ly_ax8w-T7E?si=sDFiMFtRN5jRwWKC">XALOC</a>. High velocity in straights (~15m/s) and tight turns (~80deg/s).</small>
-</p>
+  <small>
+  <p> Formula Student race car <a href="https://youtu.be/ly_ax8w-T7E?si=sDFiMFtRN5jRwWKC">XALOC</a>. High velocity in straights (~15m/s) and tight turns (~80deg/s). </p>
+  </small>
+</div>
 <br/>
 
-<p align="center">
+<div align="center">
   <img src="doc/kitti_0034.gif" alt="KITTI 0034 performance"  width="800"/>
-  <small><a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0034). High velocity (~20m/s), smooth turns (~35deg/s) </small>
-</p>
+  <small>
+  <p> <a href="https://www.cvlibs.net/datasets/kitti/index.php">KITTI</a> dataset (0034). High velocity (~20m/s), smooth turns (~35deg/s). </p>
+  </small>
+</div>
 <br/>
 
-<p align="center">
+<div align="center">
   <img src="doc/ona.gif" alt="ONA delivery robot"  width="800"/>
-  <small><a href="https://youtu.be/mElLMG7OPwo?feature=shared">ONA</a> delivery robot </small>
-</p>
+  <small>
+  <p> <a href="https://youtu.be/mElLMG7OPwo?feature=shared">ONA</a> delivery robot. </p>
+  </small>
+</div>
 
 ## Disclaimer
 If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo), [FASTLIO2](https://github.com/hku-mars/FAST_LIO) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) projects, which greatly influenced this work.
