@@ -47,8 +47,11 @@ class fast_limo::Mapper {
 
     private:
         void build(pcl::PointCloud<PointType>::Ptr&);
+
         void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
+
         void fov_segment(State&);
+        
         void set_bb_dim(State&);
 
         Match match_plane(Eigen::Vector4f& p);

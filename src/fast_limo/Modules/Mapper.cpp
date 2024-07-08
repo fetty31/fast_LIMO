@@ -68,7 +68,7 @@
 
             return matches;
         }
-
+        
         void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, State& s, double time, bool downsample){
 
             // Initialize local map dimensions 

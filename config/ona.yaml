@@ -6,11 +6,15 @@ topics:
     imu: /ona2/sensors/imu_front/imu
   # output:
 
+frames: # output frames (the transform between frames will be broadcasted)
+  world: map
+  body: base_link
+  
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
 sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
-debug: true     # save useful intermediate pcl (pc2match, deskewed...)
+debug: true     # fill useful intermediate pcl (deskewed, final_raw...) for visualizing purposes
 verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
