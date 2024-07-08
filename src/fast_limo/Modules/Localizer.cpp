@@ -849,7 +849,6 @@
             return true;
         }
 
-
         void Localizer::getCPUinfo(){ // CPU Specs
             char CPUBrandString[0x40];
             memset(CPUBrandString, 0, sizeof(CPUBrandString));

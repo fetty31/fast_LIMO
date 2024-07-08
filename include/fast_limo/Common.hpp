@@ -79,6 +79,7 @@ namespace fast_limo {
     // STRUCTURES
   struct Point {
     Point(): data{0.f, 0.f, 0.f, 1.f} {}
+    Point(float x, float y, float z): data{x, y, z, 1.f} {}
 
     PCL_ADD_POINT4D;
     float intensity;

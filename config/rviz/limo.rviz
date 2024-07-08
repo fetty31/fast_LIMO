@@ -30,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: FinalRaw
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -286,7 +286,7 @@ Visualization Manager:
           Marker Topic: /fast_limo/match_points
           Name: Matches
           Namespaces:
-            fast_limo_match: true
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -507,5 +507,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
+  X: 1992
   Y: 27
