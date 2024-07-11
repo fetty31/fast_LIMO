@@ -126,8 +126,8 @@ class fast_limo::Localizer {
 
         Matches& get_matches();
 
-        State getWorldState();
-        State getBodyState();
+        State getWorldState();  // get state in body/base_link frame
+        State getBodyState();   // get state in LiDAR frame
         double get_propagate_time();
 
         // Status info

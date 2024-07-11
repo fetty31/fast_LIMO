@@ -127,6 +127,20 @@
                 this->sensor = fast_limo::SensorType::UNKNOWN;
         }
 
+        State Localizer::getBodyState(){
+
+            State out = this->_iKFoM.get_x();
+
+            out.w    = this->last_imu.ang_vel;                      // set last IMU meas
+            out.a    = this->last_imu.lin_accel;                    // set last IMU meas
+            out.time = this->imu_stamp;                             // set current time stamp 
+
+            out.p += out.pLI;                                       // position in LiDAR frame
+            out.q *= out.qLI;                                       // attitude in LiDAR frame
+            out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
+            return out;
+        }
+
         State Localizer::getWorldState(){
 
             State out = this->_iKFoM.get_x();
@@ -135,13 +149,9 @@
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
             out.time = this->imu_stamp;                             // set current time stamp 
 
-            out.q *= out.qLI;                                       // attitude in body/base_link frame
             out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
-            return out;
-        }
 
-        State Localizer::getBodyState(){
-            return this->state;
+            return out;
         }
 
         double Localizer::get_propagate_time(){
