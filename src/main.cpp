@@ -76,8 +76,9 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
     // State publishing
     nav_msgs::Odometry state_msg, body_msg;
-    tf_limo::fromLimoToROS(loc.getWorldState(), state_msg);
-    tf_limo::fromLimoToROS(loc.getBodyState(),  body_msg);
+    tf_limo::fromLimoToROS(loc.getWorldState(), loc.getPoseCovariance(), loc.getTwistCovariance(), state_msg);
+    tf_limo::fromLimoToROS(loc.getBodyState(), loc.getPoseCovariance(), loc.getTwistCovariance(), body_msg);
+
     state_pub.publish(state_msg);
     body_pub.publish(body_msg);
 

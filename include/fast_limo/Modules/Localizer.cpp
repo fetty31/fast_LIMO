@@ -129,6 +129,9 @@
 
         State Localizer::getBodyState(){
 
+            if(not this->is_calibrated())
+                return State();
+
             State out = this->_iKFoM.get_x();
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
@@ -143,6 +146,9 @@
 
         State Localizer::getWorldState(){
 
+            if(not this->is_calibrated())
+                return State();
+
             State out = this->_iKFoM.get_x();
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
@@ -156,6 +162,38 @@
 
         double Localizer::get_propagate_time(){
             return this->last_propagate_time_;
+        }
+
+        std::vector<double> Localizer::getPoseCovariance(){
+            if(not this->is_calibrated())
+                return std::vector<double>(36, 0);
+
+            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
+            Eigen::Matrix<double, 6, 6> P_pose;
+            P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3);
+            P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0);
+            P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3);
+            P_pose.block<3, 3>(3, 3) = P.block<3, 3>(0, 0);
+
+            std::vector<double> cov(P_pose.size());
+            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_pose.rows(), P_pose.cols()) = P_pose;
+
+            return cov;
+        }
+
+        std::vector<double> Localizer::getTwistCovariance(){
+            if(not this->is_calibrated())
+                return std::vector<double>(36, 0);
+
+            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
+            Eigen::Matrix<double, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
+            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6);
+            P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
+
+            std::vector<double> cov(P_odom.size());
+            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_odom.rows(), P_odom.cols()) = P_odom;
+
+            return cov;
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

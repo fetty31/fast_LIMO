@@ -128,6 +128,10 @@ class fast_limo::Localizer {
 
         State getWorldState();  // get state in body/base_link frame
         State getBodyState();   // get state in LiDAR frame
+
+        std::vector<double> getPoseCovariance(); // get eKF covariances
+        std::vector<double> getTwistCovariance();// get eKF covariances
+        
         double get_propagate_time();
 
         // Status info
