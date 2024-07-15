@@ -160,7 +160,7 @@
 
             BoxPointType new_local_bb = this->local_map_bb;
             BoxPointType tmp_local_bb;
-            double move_dist = 0.5*this->config.ikdtree.rm_range;
+            double move_dist = 0.5*this->config.ikdtree.cube_size;
             for(unsigned int k=0; k < 3; k++){
                 tmp_local_bb = this->local_map_bb;
                 if(dist2edge[k][0] < this->config.ikdtree.rm_range){

@@ -57,7 +57,7 @@ filters:
 
   voxelGrid:
     active: true
-    leafSize: [ 0.6, 0.6, 0.6 ]
+    leafSize: [ 1.0, 1.0, 1.0 ]
 
   minDistance: # sphere crop
     active: true
@@ -65,10 +65,10 @@ filters:
   
   rateSampling: # quick downsample
     active: true
-    value: 4
+    value: 2
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
-  MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
+  MAX_NUM_ITERS: 3                # max num+1 of iterations of the KF (limits comp. load)
   MAX_NUM_MATCHES: 5000           # max num of matches to account for when computing Jacobians (limits comp. load)
   MAX_NUM_PC2MATCH: 1.e+4         # max num of points to consider when matching with map (limits comp. load)
   LIMITS: 0.001                     
@@ -83,11 +83,11 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
     balance: 0.6      # tree balancing param
     delete: 0.3       # tree deletion param
     voxel: 0.2        # downsampling value
-    bb_size: 1000.0    # [m] Local Map's bounding box dimension
-    bb_range: 200.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
+    bb_size: 2000.0    # [m] Local Map's bounding box dimension
+    bb_range: 500.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
 
   covariance:
-    gyro: 0.0001 
-    accel: 0.01
-    bias_gyro: 0.00001
-    bias_accel: 0.0001
+    gyro: 6.01e-4
+    accel: 1.53e-2
+    bias_gyro: 1.54e-5
+    bias_accel: 3.38e-4
