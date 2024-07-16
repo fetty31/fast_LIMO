@@ -65,7 +65,7 @@ A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [
 <div align="center">
   <img src="doc/ona.gif" alt="ONA delivery robot"  width="800"/>
   <small>
-  <p> <a href="https://youtu.be/mElLMG7OPwo?feature=shared">ONA</a> delivery robot. </p>
+  <p> <a href="https://youtu.be/mElLMG7OPwo?feature=shared">ONA</a> robot. Double-ackermann autonomous delivery device.</p>
   </small>
 </div>
 
