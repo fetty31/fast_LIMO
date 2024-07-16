@@ -766,7 +766,7 @@
 
             // deskewed pointcloud w.r.t last known state prediction
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
-            deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
+            deskewed_Xt2_scan_->points.reserve(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
 
@@ -789,9 +789,12 @@
                     pt.getVector4fMap() = T * pt.getVector4fMap(); // world/global frame
 
                     // Xt2 frame deskewed pc
-                    auto &pt2 = deskewed_Xt2_scan_->points[k];
+                    auto pt2 = deskewed_scan_->points[k];
                     pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
                     pt2.intensity = pt.intensity;
+
+                    if(this->isInRange(pt2)) 
+                        deskewed_Xt2_scan_->points.push_back(pt2);
 
                     ++k;
                 }
@@ -821,6 +824,11 @@
                 imu_se3.push_back(*it);
 
             return imu_se3;
+        }
+
+        bool Localizer::isInRange(PointType& p){
+            if(not this->config.filters.fov_active) return true;
+            return fabs(atan2(p.y, p.x)) < this->config.filters.fov_angle;
         }
 
         bool Localizer::propagatedFromTimeRange(double start_time, double end_time,

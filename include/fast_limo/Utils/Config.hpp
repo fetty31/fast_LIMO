@@ -33,6 +33,8 @@ struct fast_limo::Config{
         bool dist_active;               // norm/dist filter
         int rate_value;                 // time rate filter
         bool rate_active;               // time rate filter
+        float fov_angle;                // FoV filter
+        bool fov_active;                // FoV filter
     } filters;
 
     struct iKFoM{

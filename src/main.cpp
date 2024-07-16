@@ -133,6 +133,11 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<bool>("filters/rateSampling/active",  config->filters.rate_active,    false);
     nh_ptr->param<int>("filters/rateSampling/value",    config->filters.rate_value,     4);
 
+    float fov_deg;
+    nh_ptr->param<bool>("filters/FoV/active",  config->filters.fov_active,  false);
+    nh_ptr->param<float>("filters/FoV/value",  fov_deg,                     360.0f);
+    config->filters.fov_angle = fov_deg *M_PI/360.0; // half of FoV (bc. is divided by the x-axis)
+
     nh_ptr->param<int>("iKFoM/Mapping/NUM_MATCH_POINTS",    config->ikfom.mapping.NUM_MATCH_POINTS, 5);
     nh_ptr->param<int>("iKFoM/MAX_NUM_MATCHES",             config->ikfom.mapping.MAX_NUM_MATCHES,  2000);
     nh_ptr->param<int>("iKFoM/MAX_NUM_PC2MATCH",            config->ikfom.mapping.MAX_NUM_PC2MATCH, 1.e+4);
@@ -193,6 +198,7 @@ int main(int argc, char** argv) {
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);
 
+    // Set up fast_limo config
     loc.init(config);
 
     // Start spinning (async)

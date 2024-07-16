@@ -25,6 +25,7 @@
 #include <string>
 
 #include <climits>
+#include <cmath>
 
 #include <thread>
 #include <atomic>

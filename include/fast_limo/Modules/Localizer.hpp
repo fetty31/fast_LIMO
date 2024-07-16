@@ -163,6 +163,7 @@ class fast_limo::Localizer {
         bool imuMeasFromTimeRange(double start_time, double end_time,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& begin_imu_it,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it);
+        bool isInRange(PointType& p);
 
         void getCPUinfo();
         void debugVerbose();

@@ -68,6 +68,10 @@ filters:
   minDistance: # sphere crop
     active: true
     value: 3.0  # [m]
+
+  FoV: # crop field of view
+    active: false
+    value: 180  # [deg]
   
   rateSampling: # quick downsample
     active: true
