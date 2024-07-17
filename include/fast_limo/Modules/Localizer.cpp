@@ -3,8 +3,8 @@
 // class fast_limo::Localizer
     // public
 
-        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
-                                imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
+        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), propagated_size(0),
+                                numProcessors(0), imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
                                 last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
                             { 
 
@@ -800,7 +800,9 @@
                 }
             }
 
+            // debug info
             this->deskew_size = k; 
+            this->propagated_size = frames.size();
 
             if(this->config.debug && this->deskew_size > 0) // debug only
                 this->deskewed_scan = deskewed_scan_;
@@ -1133,6 +1135,8 @@
 
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
                 << "Deskewed points: " + std::to_string(this->deskew_size) << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Integrated states: " + std::to_string(this->propagated_size) << "|" << std::endl;
             std::cout << "|                                                                   |" << std::endl;
 
             std::cout << std::right << std::setprecision(2) << std::fixed;

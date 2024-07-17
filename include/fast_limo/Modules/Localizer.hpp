@@ -105,6 +105,7 @@ class fast_limo::Localizer {
             // Other
         chrono::duration<double> elapsed_time;  // pointcloud callback elapsed time
         int deskew_size;                        // steps taken to deskew (FoV discretization)
+        int propagated_size;                    // number of integrated states
 
     // FUNCTIONS
 
