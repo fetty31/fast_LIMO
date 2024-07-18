@@ -150,6 +150,9 @@ This project implements the same concept as [LIMO-Velo](https://github.com/Hugue
 `Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
 
 ## Future Work (To Do)
+### DevOps
+- [ ] ROS2 branch. _Coming soon!_
+### New Features
 - [ ] Take into account GPS data. _Low freq corrections of the iKFOM._
 - [ ] Add loop closure strategy. _Thinking in pose-graph optimization using [g2o](https://github.com/RainerKuemmerle/g2o)._
 - [ ] Relocalize in previously saved pcl map. _Probably ICP-based correction for initial pose._
