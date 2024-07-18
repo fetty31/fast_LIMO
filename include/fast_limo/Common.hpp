@@ -59,8 +59,6 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/surface/concave_hull.h>
-#include <pcl/surface/convex_hull.h>
 
 namespace fast_limo {
   enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };

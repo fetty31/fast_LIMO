@@ -147,7 +147,7 @@ If you are interested in truly understanding the working principle of this SLAM 
 
 This project implements the same concept as [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) but without any accumulation procedure. Instead, `Fast-LIMO` operates with two concurrent threads. One thread handles the propagation of newly received IMU measurements through the iKFoM (prediction stage), while the other thread uses these propagated states to deskew the received point cloud, match the deskewed scan to the map, and update the iKFoM (measurement stage) by minimizing point-to-plane distances.
 
-`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately every 10 Hz. __However, optimal performance can be achieved with a modified LiDAR driver that sends each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
+`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
 
 ## Configuration
 Here, the configuration file for `Fast-LIMO` is explained. _Note that some parameters relate to the __sensor type__ and __extrinsics__. The remaining parameters generally do not require modification for standard use, as they are associated with computational load limits or precision thresholds._
@@ -167,10 +167,11 @@ Here, the configuration file for `Fast-LIMO` is explained. _Note that some param
 | calibration/time          | s | Time at the beggining to estimate the quantities above. The robot MUST be at stand still. If all three flags above are set to false, no estimate will be done.  |
 | extrinsics/imu            | SI | IMU pose with respect to base_link coordinate frame. |
 | extrinsics/lidar          | SI | LiDAR pose with respect to base_link coord. frame.  |
-| intrinsics                | SI | IMU lin. + gyro. biases.  |
+| intrinsics                | SI | IMU lin. acc. + gyro. biases.  |
 | filters/cropBox           | m | Prismatic crop. Useful for removing LiDAR points that fall into the robot itself. Should be a 3D rectangle envolving the robot. |
 | filters/voxelGrid         | m | Voxel Grid filter. Pointcloud downsampling strategy. |
-| filters/minDistance       | m | Could be interpreted as a sphere crop. Removes all points closer than its value. Useful for avoiding having too many ground points. |
+| filters/minDistance       | m | Could be interpreted as a sphere crop. Removes all points closer than its value. _Useful for avoiding having too many ground points._ |
+| filters/FoV               | deg | Field of View (FoV) crop filter. Removes all points that are not inside the given angle. _Useful for reducing the number of points to account for._ |
 | filters/rateSampling      | - | Quick downsampling method. Only takes into account 1 in every _value_ points. _Useful for reducing the computational load._ |
 | iKFoM/MAX_NUM_ITERS       | - | The Extended Kalman Filter will do _MAX_NUM_ITERS_+1 iterations. _Useful for reducing the computational load._ |
 | iKFoM/MAX_NUM_MATCHES     | - | Max. number of matches to account for when computing the Jacobians. _Useful for reducing the computational load._|
