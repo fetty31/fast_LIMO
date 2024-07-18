@@ -62,10 +62,14 @@ filters:
   minDistance: # sphere crop
     active: true
     value: 3.0  # [m]
+
+  FoV: # crop field of view
+    active: false
+    value: 180  # [deg]
   
   rateSampling: # quick downsample
-    active: false
-    value: 4
+    active: true
+    value: 2
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
@@ -77,14 +81,14 @@ iKFoM:  # Iterative Kalman Filter on Manifolds lib
     NUM_MATCH_POINTS: 5           # num of points that constitute a match
     MAX_DIST_PLANE: 2.0           # [m] max distance between points of every match
     PLANES_THRESHOLD: 5.0e-2      # [m] threshold to consider if match points are part of a plane 
-    LocalMapping: true            # whether to keep a fixed size map (moving with the robot) or a limitless map (when active, it limits the memory in use)
+    LocalMapping: false            # whether to keep a fixed size map (moving with the robot) or a limitless map (when active, it limits the memory in use)
     
   iKDTree: # Incremental KD Tree lib
     balance: 0.6      # tree balancing param
     delete: 0.3       # tree deletion param
     voxel: 0.2        # downsampling value
-    bb_size: 300.0    # [m] Local Map's bounding box dimension
-    bb_range: 200.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
+    bb_size: 2000.0   # [m] Local Map's bounding box dimension
+    bb_range: 500.0   # [m] Local Map's bounding box moving range (if the robot is closer than bb_range to any local map edge, the BB will move)
 
   covariance:
     gyro: 0.0001 

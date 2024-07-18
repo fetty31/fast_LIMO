@@ -3,8 +3,8 @@
 // class fast_limo::Localizer
     // public
 
-        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), numProcessors(0),
-                                imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
+        Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), propagated_size(0),
+                                numProcessors(0), imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
                                 last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
                             { 
 
@@ -127,7 +127,10 @@
                 this->sensor = fast_limo::SensorType::UNKNOWN;
         }
 
-        State Localizer::getWorldState(){
+        State Localizer::getBodyState(){
+
+            if(not this->is_calibrated())
+                return State();
 
             State out = this->_iKFoM.get_x();
 
@@ -135,17 +138,62 @@
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
             out.time = this->imu_stamp;                             // set current time stamp 
 
-            out.q *= out.qLI;                                       // attitude in body/base_link frame
+            out.p += out.pLI;                                       // position in LiDAR frame
+            out.q *= out.qLI;                                       // attitude in LiDAR frame
             out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
             return out;
         }
 
-        State Localizer::getBodyState(){
-            return this->state;
+        State Localizer::getWorldState(){
+
+            if(not this->is_calibrated())
+                return State();
+
+            State out = this->_iKFoM.get_x();
+
+            out.w    = this->last_imu.ang_vel;                      // set last IMU meas
+            out.a    = this->last_imu.lin_accel;                    // set last IMU meas
+            out.time = this->imu_stamp;                             // set current time stamp 
+
+            out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
+
+            return out;
         }
 
         double Localizer::get_propagate_time(){
             return this->last_propagate_time_;
+        }
+
+        std::vector<double> Localizer::getPoseCovariance(){
+            if(not this->is_calibrated())
+                return std::vector<double>(36, 0);
+
+            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
+            Eigen::Matrix<double, 6, 6> P_pose;
+            P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3);
+            P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0);
+            P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3);
+            P_pose.block<3, 3>(3, 3) = P.block<3, 3>(0, 0);
+
+            std::vector<double> cov(P_pose.size());
+            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_pose.rows(), P_pose.cols()) = P_pose;
+
+            return cov;
+        }
+
+        std::vector<double> Localizer::getTwistCovariance(){
+            if(not this->is_calibrated())
+                return std::vector<double>(36, 0);
+
+            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
+            Eigen::Matrix<double, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
+            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6);
+            P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
+
+            std::vector<double> cov(P_odom.size());
+            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_odom.rows(), P_odom.cols()) = P_odom;
+
+            return cov;
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -718,7 +766,7 @@
 
             // deskewed pointcloud w.r.t last known state prediction
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
-            deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
+            deskewed_Xt2_scan_->points.reserve(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
 
@@ -741,15 +789,20 @@
                     pt.getVector4fMap() = T * pt.getVector4fMap(); // world/global frame
 
                     // Xt2 frame deskewed pc
-                    auto &pt2 = deskewed_Xt2_scan_->points[k];
+                    auto pt2 = deskewed_scan_->points[k];
                     pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
                     pt2.intensity = pt.intensity;
+
+                    if(this->isInRange(pt2)) 
+                        deskewed_Xt2_scan_->points.push_back(pt2);
 
                     ++k;
                 }
             }
 
+            // debug info
             this->deskew_size = k; 
+            this->propagated_size = frames.size();
 
             if(this->config.debug && this->deskew_size > 0) // debug only
                 this->deskewed_scan = deskewed_scan_;
@@ -773,6 +826,11 @@
                 imu_se3.push_back(*it);
 
             return imu_se3;
+        }
+
+        bool Localizer::isInRange(PointType& p){
+            if(not this->config.filters.fov_active) return true;
+            return fabs(atan2(p.y, p.x)) < this->config.filters.fov_angle;
         }
 
         bool Localizer::propagatedFromTimeRange(double start_time, double end_time,
@@ -1077,6 +1135,8 @@
 
             std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
                 << "Deskewed points: " + std::to_string(this->deskew_size) << "|" << std::endl;
+            std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+                << "Integrated states: " + std::to_string(this->propagated_size) << "|" << std::endl;
             std::cout << "|                                                                   |" << std::endl;
 
             std::cout << std::right << std::setprecision(2) << std::fixed;
