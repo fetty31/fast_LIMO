@@ -1,8 +1,16 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(fast_limo)
 
-add_compile_options(-std=c++14)
-set(CMAKE_BUILD_TYPE "Release")
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# set(CMAKE_BUILD_TYPE "Release")
 
 find_package( PCL REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
@@ -25,29 +33,27 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  pcl_ros
-  sensor_msgs
-  geometry_msgs
-  visualization_msgs
-  nav_msgs
-  tf2
-)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
-catkin_package(
- INCLUDE_DIRS include
- LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
- DEPENDS EIGEN3 PCL
-)
+# catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES ${PROJECT_NAME}
+#  CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
+#  DEPENDS EIGEN3 PCL
+# )
 
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INLCUDE_DIRS}
-  ${PCL_INLCUDE_DIRS}
-)
+# include_directories(
+#   include
+#   ${catkin_INCLUDE_DIRS}
+#   ${EIGEN3_INLCUDE_DIRS}
+#   ${PCL_INLCUDE_DIRS}
+# )
 
 # Not all machines have <cpuid.h> available
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
@@ -93,13 +99,14 @@ target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec
-              src/main.cpp
+              src/LimoWrapper.cpp
               )
-
-add_dependencies(${PROJECT_NAME}_multi_exec ${catkin_EXPORTED_TARGETS})
-
-target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+ament_target_dependencies(${PROJECT_NAME}_multi_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2)
+target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${PCL_LIBRARIES})
 
 # Binaries
-install( TARGETS ${PROJECT_NAME}_multi_exec
-         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
+install( TARGETS 
+  ${PROJECT_NAME}_multi_exec
+  DESTINATION lib/${PROJECT_NAME} )
+
+ament_package()
