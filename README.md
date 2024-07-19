@@ -102,6 +102,12 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         <li>
         <a href="https://wiki.ros.org/tf2">tf2</a>
         </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
+        </li>
     </ol>
 </details>
 
