@@ -86,12 +86,10 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
 </details>
 
 <details>
-    <summary>ROS (Noetic) wrapper:</summary>
+    <summary>ROS2 (Humble) wrapper:</summary>
     <ol>
         <li>
         <a href="./include/fast_limo/">fast_limo</a>
-        </li>
-        <li><a href="http://wiki.ros.org/pcl_ros">pcl_ros</a>
         </li>
         <li>
         <a href="http://wiki.ros.org/sensor_msgs">sensor_msgs</a>
@@ -101,6 +99,12 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         </li>
         <li>
         <a href="https://wiki.ros.org/tf2">tf2</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
         </li>
     </ol>
 </details>
