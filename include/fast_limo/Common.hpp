@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2024 Oriol Martínez @fetty31
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #ifndef __FASTLIMO_COMMON_HPP__
 #define __FASTLIMO_COMMON_HPP__
 
@@ -25,6 +42,7 @@
 #include <string>
 
 #include <climits>
+#include <cmath>
 
 #include <thread>
 #include <atomic>
@@ -58,8 +76,6 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/surface/concave_hull.h>
-#include <pcl/surface/convex_hull.h>
 
 namespace fast_limo {
   enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };

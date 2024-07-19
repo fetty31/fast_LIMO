@@ -1,11 +1,28 @@
+/*
+ Copyright (c) 2024 Oriol Martínez @fetty31
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "fast_limo/Objects/Plane.hpp"
 
 // class fast_limo::Plane
     // public
 
         fast_limo::Plane::Plane(const MapPoints& pts, const std::vector<float>& dts, 
-                                Config::iKFoM::Mapping &config) : is_plane(false),
-                                                                 cfg(config) { 
+                                Config::iKFoM::Mapping* config_ptr) : is_plane(false),
+                                                                 cfg_ptr(config_ptr) { 
             if(not enough_points(pts)) return;
             if(not close_enough(dts)) return;
 
@@ -22,12 +39,12 @@
         }
 
         bool fast_limo::Plane::enough_points(const MapPoints& pts){
-            return this->is_plane = pts.size() >= cfg.NUM_MATCH_POINTS;
+            return this->is_plane = pts.size() >= cfg_ptr->NUM_MATCH_POINTS;
         }
 
         bool fast_limo::Plane::close_enough(const std::vector<float>& dts){
             if(dts.size() < 1) return this->is_plane = false;
-            return this->is_plane = dts.back() < cfg.MAX_DIST_PLANE;
+            return this->is_plane = dts.back() < cfg_ptr->MAX_DIST_PLANE;
         }
 
         float fast_limo::Plane::dist2plane(const Eigen::Vector3f& p) const {
@@ -40,12 +57,12 @@
 
         bool fast_limo::Plane::on_plane(const Eigen::Vector3f& p) {
             if(not this->is_plane) return false;
-            return std::fabs(this->dist2plane(p)) < cfg.PLANE_THRESHOLD;
+            return std::fabs(this->dist2plane(p)) < cfg_ptr->PLANE_THRESHOLD;
         }
 
         bool fast_limo::Plane::on_plane(const PointType& p) {
             if(not this->is_plane) return false;
-            return std::fabs(this->dist2plane(p)) < cfg.PLANE_THRESHOLD;
+            return std::fabs(this->dist2plane(p)) < cfg_ptr->PLANE_THRESHOLD;
         }
     
     // private
@@ -53,7 +70,7 @@
         void fast_limo::Plane::fit_plane(const MapPoints& pts){
             // Estimate plane
             this->n_ABCD   = this->estimate_plane(pts);
-            this->is_plane = this->plane_eval(n_ABCD, pts, cfg.PLANE_THRESHOLD);
+            this->is_plane = this->plane_eval(n_ABCD, pts, cfg_ptr->PLANE_THRESHOLD);
 
             if(this->is_plane)
                 this->centroid = this->get_centroid(pts);

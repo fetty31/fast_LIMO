@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2024 Oriol Martínez @fetty31
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 // Std utils
@@ -71,6 +88,34 @@ void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.twist.twist.angular.x = ang_v(0);
     out.twist.twist.angular.y = ang_v(1);
     out.twist.twist.angular.z = ang_v(2);
+}
+
+void fromLimoToROS(const fast_limo::State& in, const std::vector<double>& cov_pose,
+                    const std::vector<double>& cov_twist, nav_msgs::Odometry& out){
+    out.header.stamp = ros::Time::now();
+    out.header.frame_id = "map";
+
+    // Pose/Attitude
+    Eigen::Vector3d pos = in.p.cast<double>();
+    out.pose.pose.position      = tf2::toMsg(pos);
+    out.pose.pose.orientation   = tf2::toMsg(in.q.cast<double>());
+
+    // Twist
+    Eigen::Vector3d lin_v = in.v.cast<double>();
+    out.twist.twist.linear.x  = lin_v(0);
+    out.twist.twist.linear.y  = lin_v(1);
+    out.twist.twist.linear.z  = lin_v(2);
+
+    Eigen::Vector3d ang_v = in.w.cast<double>();
+    out.twist.twist.angular.x = ang_v(0);
+    out.twist.twist.angular.y = ang_v(1);
+    out.twist.twist.angular.z = ang_v(2);
+
+    // Covariances
+    for(int i=0; i<cov_pose.size(); i++){
+        out.pose.covariance[i]  = cov_pose[i];
+        out.twist.covariance[i] = cov_twist[i];
+    }
 }
 
 void broadcastTF(const fast_limo::State& in, std::string parent_name, std::string child_name, bool now){

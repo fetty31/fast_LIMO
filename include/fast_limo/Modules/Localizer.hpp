@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2024 Oriol Martínez @fetty31
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #ifndef __FASTLIMO_LOCALIZER_HPP__
 #define __FASTLIMO_LOCALIZER_HPP__
 
@@ -105,6 +122,7 @@ class fast_limo::Localizer {
             // Other
         chrono::duration<double> elapsed_time;  // pointcloud callback elapsed time
         int deskew_size;                        // steps taken to deskew (FoV discretization)
+        int propagated_size;                    // number of integrated states
 
     // FUNCTIONS
 
@@ -126,8 +144,12 @@ class fast_limo::Localizer {
 
         Matches& get_matches();
 
-        State getWorldState();
-        State getBodyState();
+        State getWorldState();  // get state in body/base_link frame
+        State getBodyState();   // get state in LiDAR frame
+
+        std::vector<double> getPoseCovariance(); // get eKF covariances
+        std::vector<double> getTwistCovariance();// get eKF covariances
+        
         double get_propagate_time();
 
         // Status info
@@ -159,6 +181,7 @@ class fast_limo::Localizer {
         bool imuMeasFromTimeRange(double start_time, double end_time,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& begin_imu_it,
                                   boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it);
+        bool isInRange(PointType& p);
 
         void getCPUinfo();
         void debugVerbose();

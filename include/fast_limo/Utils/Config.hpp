@@ -1,5 +1,22 @@
-#ifndef _FAST_LIMO_CONFIG_HPP_
-#define _FAST_LIMO_CONFIG_HPP_
+/*
+ Copyright (c) 2024 Oriol Martínez @fetty31
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef _FASTLIMO_CONFIG_HPP_
+#define _FASTLIMO_CONFIG_HPP_
 
 #include "fast_limo/Common.hpp"
 
@@ -33,6 +50,8 @@ struct fast_limo::Config{
         bool dist_active;               // norm/dist filter
         int rate_value;                 // time rate filter
         bool rate_active;               // time rate filter
+        float fov_angle;                // FoV filter
+        bool fov_active;                // FoV filter
     } filters;
 
     struct iKFoM{

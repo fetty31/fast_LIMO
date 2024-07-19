@@ -15,28 +15,23 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __FASTLIMO_MATCH_HPP__
-#define __FASTLIMO_MATCH_HPP__
+#include "fast_limo/Objects/Match.hpp"
 
-#include "fast_limo/Common.hpp"
-#include "fast_limo/Objects/Plane.hpp"
+// class fast_limo::Match
+    // public
 
-class fast_limo::Match{
+        fast_limo::Match::Match(const Eigen::Vector3f& p, const fast_limo::Plane& H) : point(p), plane(H){
+            this->dist = this->plane.dist2plane(p);
+        }
 
-    public:
-        fast_limo::Plane plane;
-        float dist;
+        bool fast_limo::Match::lisanAlGaib(){
+            return this->plane.good_fit();
+        }
 
-        Match(const Eigen::Vector3f& p, const fast_limo::Plane& H);
+        Eigen::Vector4f fast_limo::Match::get_4Dpoint(){
+            return Eigen::Vector4f(this->point(0), this->point(1), this->point(2), 1.0);
+        }
 
-        bool lisanAlGaib(); // whether is the chosen one :)
-
-        Eigen::Vector4f get_4Dpoint();
-        Eigen::Vector3f get_point();
-    
-    private:
-        Eigen::Vector3f point;
-
-};
-
-#endif
+        Eigen::Vector3f fast_limo::Match::get_point(){
+            return this->point;
+        }
