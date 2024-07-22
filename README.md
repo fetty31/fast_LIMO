@@ -111,6 +111,35 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
     </ol>
 </details>
 
+<details>
+    <summary>ROS2 (Humble) wrapper:</summary>
+    <ol>
+        <li>
+        <a href="./include/fast_limo/">fast_limo</a>
+        </li>
+        <li><a href="http://wiki.ros.org/pcl_conversions">pcl_conversions</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/sensor_msgs">sensor_msgs</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/geometry_msgs">geometry_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2">tf2</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2_ros">tf2_ros</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
+        </li>
+    </ol>
+</details>
+
 
 ## Quick Start
 ### 0. Cloning the repo
@@ -122,6 +151,8 @@ _More than half of the storage space needed to clone this repo is due to the [RE
 
 ### 1. Building fast LIMO
 Use default `catkin_make` or `catkin build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
+
+For `ros2-humble` branch, use default `colcon build`.
 
 ### 2. Running fast LIMO
 ```sh
