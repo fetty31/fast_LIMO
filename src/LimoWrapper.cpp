@@ -541,7 +541,7 @@ int main(int argc, char * argv[])
 
     rclcpp::Node::SharedPtr limo = std::make_shared<ros2wrap::LimoWrapper>();
 
-    rclcpp::executors::MultiThreadedExecutor executor;
+    rclcpp::executors::MultiThreadedExecutor executor; // by default using all available cores
     executor.add_node(limo);
     executor.spin();
 
