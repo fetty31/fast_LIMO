@@ -4,10 +4,12 @@ project(fast_limo)
 add_compile_options(-std=c++14)
 set(CMAKE_BUILD_TYPE "Release")
 
-find_package( PCL REQUIRED )
+find_package( PCL 1.8 REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_directories(${PCL_LIBRARY_DIRS})
+
+message("PCL version: ${PCL_VERSION}")
 
 find_package( Eigen3 REQUIRED )
 include_directories(${EIGEN3_INCLUDE_DIR})
