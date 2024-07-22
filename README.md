@@ -148,7 +148,7 @@ git clone https://github.com/fetty31/fast_LIMO
 _More than half of the storage space needed to clone this repo is due to the [README gifs](doc/). There's a branch updated with the `master` but without all this media files called `no_media`._
 
 ### 1. Building fast LIMO
-Use default `colcon build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
+Use `colcon build --symlink-install` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
 
 ### 2. Running fast LIMO
 ```sh
@@ -164,13 +164,13 @@ Afterwards, you should be seeing this output _(if `verbose` param is set to true
 
 You can also run `Fast-LIMO` together with an rviz instance with:
 ```sh
-ros2 launch fast_limo fast_limo.launch.py rviz:=true
+ros2 launch fast_limo fast_limo.launch.py rviz:=True
 ```
 
 ### 4. Quickly check its performance
 [IN THIS FOLDER](https://www.dropbox.com/scl/fi/60u6xq0daav9enecluroh/cat15_trackdrive.bag?rlkey=jfjba58h8hohfi8b7kpi8zsvx&st=jck682n6&dl=0) you can find the rosbag file (___850.41 MB___) of [this CAT15X trackdrive](https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM). Download it and try it out!
 ```sh
-ros2 launch fast_limo cat.launch.py rviz:=true
+ros2 launch fast_limo cat.launch.py rviz:=True
 ```
 
 _Note that this algorithm's precision greatly depends on the pointcloud & IMU timestamps, so remember to run the rosbag with __use_sim_time=true__ and __--clock__ flag._

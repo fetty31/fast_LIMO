@@ -11,7 +11,7 @@ def generate_launch_description():
 
     rviz_config_arg = DeclareLaunchArgument(
         'rviz',
-        default_value='True',
+        default_value='False',
         description = 'Whether to run an rviz instance'
     )
 
