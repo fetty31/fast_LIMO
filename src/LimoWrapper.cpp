@@ -208,7 +208,7 @@ namespace ros2wrap {
 
                 this->declare_parameter("iKFoM.MAX_NUM_ITERS", 2);
                 this->declare_parameter("iKFoM.MAX_NUM_MATCHES", 5000);
-                this->declare_parameter("iKFoM.MAX_NUM_PC2MATCH", 1e+4);
+                this->declare_parameter("iKFoM.MAX_NUM_PC2MATCH", 10000);
                 this->declare_parameter("iKFoM.LIMITS", 0.001);
 
                 this->declare_parameter("iKFoM.Mapping.NUM_MATCH_POINTS", 5);
@@ -334,7 +334,7 @@ namespace ros2wrap {
                 config->ikfom.mapping.MAX_NUM_PC2MATCH = max_pc_p.as_int();
                 rclcpp::Parameter limits_p = this->get_parameter("iKFoM.LIMITS");
                 config->ikfom.LIMITS = std::vector<double>(23, limits_p.as_double());
-                
+
                     // Mapping
                 rclcpp::Parameter match_point_p = this->get_parameter("iKFoM.Mapping.NUM_MATCH_POINTS");
                 config->ikfom.mapping.NUM_MATCH_POINTS = match_point_p.as_int();
