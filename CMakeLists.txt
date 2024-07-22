@@ -10,9 +10,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release")
 
-find_package( PCL REQUIRED )
+find_package( PCL 1.12 REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_directories(${PCL_LIBRARY_DIRS})
@@ -40,20 +40,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
-# catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES ${PROJECT_NAME}
-#  CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
-#  DEPENDS EIGEN3 PCL
-# )
-
-# include_directories(
-#   include
-#   ${catkin_INCLUDE_DIRS}
-#   ${EIGEN3_INLCUDE_DIRS}
-#   ${PCL_INLCUDE_DIRS}
-# )
+include_directories(
+  include
+  ${EIGEN3_INLCUDE_DIRS}
+  ${PCL_INLCUDE_DIRS}
+)
 
 # Not all machines have <cpuid.h> available
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
@@ -63,6 +57,8 @@ file(REMOVE ${CMAKE_BINARY_DIR}/test_cpuid.cpp)
 if(HAS_CPUID)
   add_compile_definitions(HAS_CPUID)
 endif()
+
+message("PCL version: ${PCL_VERSION}")
 
 # IKD_TREE
 add_library(ikd_tree 
@@ -101,7 +97,7 @@ target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_
 add_executable(${PROJECT_NAME}_multi_exec
               src/LimoWrapper.cpp
               )
-ament_target_dependencies(${PROJECT_NAME}_multi_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2)
+ament_target_dependencies(${PROJECT_NAME}_multi_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros pcl_conversions)
 target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${PCL_LIBRARIES})
 
 # Binaries

@@ -25,11 +25,11 @@
                                 last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
                             { 
 
-            this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
+            this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
+            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
+            this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (std::make_shared<pcl::PointCloud<PointType>>());
+            this->final_scan     = pcl::PointCloud<PointType>::Ptr (std::make_shared<pcl::PointCloud<PointType>>());
         }
 
         void Localizer::init(Config& cfg){
@@ -270,23 +270,23 @@
                         | boost::adaptors::indexed()
                         | boost::adaptors::filtered(filter_f);
 
-            pcl::PointCloud<PointType>::Ptr input_pc (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr input_pc (std::make_shared<pcl::PointCloud<PointType>>());
             for (auto it = filtered_pc.begin(); it != filtered_pc.end(); it++) {
                 input_pc->points.push_back(it->value());
             }
 
             if(this->config.debug) // debug only
-                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
+                this->original_scan = std::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
 
             // Motion compensation
-            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (std::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in base_link/body frame w.r.t last propagated state (Xt2) */
 
             // Voxel Grid Filter
             if (this->config.filters.voxel_active) { 
                 pcl::PointCloud<PointType>::Ptr current_scan_
-                    (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
+                    (std::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
                 this->voxel_filter.setInputCloud(current_scan_);
                 this->voxel_filter.filter(*current_scan_);
                 this->pc2match = current_scan_;
@@ -323,7 +323,7 @@
 
                 // Transform deskewed pc 
                     // Get deskewed scan to add to map
-                pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
+                pcl::PointCloud<PointType>::Ptr mapped_scan (std::make_shared<pcl::PointCloud<PointType>>());
                 pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
                 /*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
                         mapped_scan is in world/global frame.
@@ -702,7 +702,7 @@
         Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time){
 
             if(pc->points.size() < 1) 
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return std::make_shared<pcl::PointCloud<PointType>>();
 
             // individual point timestamps should be relative to this time
             double sweep_ref_time = start_time;
@@ -747,11 +747,11 @@
                 std::cout << "-------------------------------------------------------------------\n";
                 std::cout << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n";
                 std::cout << "-------------------------------------------------------------------\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return std::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // copy points into deskewed_scan_ in order of timestamp
-            pcl::PointCloud<PointType>::Ptr deskewed_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr deskewed_scan_ (std::make_shared<pcl::PointCloud<PointType>>());
             deskewed_scan_->points.resize(pc->points.size());
             
             std::partial_sort_copy(pc->points.begin(), pc->points.end(),
@@ -759,7 +759,7 @@
 
             if(deskewed_scan_->points.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: failed to sort input pointcloud!\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return std::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // compute offset between sweep reference time and IMU data
@@ -778,11 +778,11 @@
             if(frames.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: No frames obtained from IMU propagation!\n";
                 std::cout << "           Returning null deskewed pointcloud!\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return std::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // deskewed pointcloud w.r.t last known state prediction
-            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (std::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_scan_->points.reserve(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
