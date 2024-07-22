@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+DOCKER_IMG="fastlimo-noetic-image"
+PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
+
+echo "----- Building Docker image from ${PROJECT_ROOT}/Dockerfile -----"
+docker build -t ${DOCKER_IMG} ${PROJECT_ROOT}
+echo "----- Finished -----"
