@@ -91,6 +91,35 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         <li>
         <a href="./include/fast_limo/">fast_limo</a>
         </li>
+        <li><a href="http://wiki.ros.org/pcl_conversions">pcl_conversions</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/sensor_msgs">sensor_msgs</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/geometry_msgs">geometry_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2">tf2</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2_ros">tf2_ros</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
+        </li>
+    </ol>
+</details>
+
+<details>
+    <summary>ROS2 (Humble) wrapper:</summary>
+    <ol>
+        <li>
+        <a href="./include/fast_limo/">fast_limo</a>
+        </li>
         <li>
         <a href="http://wiki.ros.org/sensor_msgs">sensor_msgs</a>
         </li>
@@ -119,11 +148,11 @@ git clone https://github.com/fetty31/fast_LIMO
 _More than half of the storage space needed to clone this repo is due to the [README gifs](doc/). There's a branch updated with the `master` but without all this media files called `no_media`._
 
 ### 1. Building fast LIMO
-Use default `catkin_make` or `catkin build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
+Use default `colcon build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
 
 ### 2. Running fast LIMO
 ```sh
-roslaunch fast_limo fast_limo.launch
+ros2 launch fast_limo fast_limo.launch.py
 ```
 
 Afterwards, you should be seeing this output _(if `verbose` param is set to true)_:
@@ -135,13 +164,13 @@ Afterwards, you should be seeing this output _(if `verbose` param is set to true
 
 You can also run `Fast-LIMO` together with an rviz instance with:
 ```sh
-roslaunch fast_limo fast_limo.launch rviz:=true
+ros2 launch fast_limo fast_limo.launch.py rviz:=true
 ```
 
 ### 4. Quickly check its performance
 [IN THIS FOLDER](https://www.dropbox.com/scl/fi/60u6xq0daav9enecluroh/cat15_trackdrive.bag?rlkey=jfjba58h8hohfi8b7kpi8zsvx&st=jck682n6&dl=0) you can find the rosbag file (___850.41 MB___) of [this CAT15X trackdrive](https://youtu.be/mk9U0lRWr-0?si=j4mM6e5dzihfCLJM). Download it and try it out!
 ```sh
-roslaunch fast_limo cat.launch rviz:=true
+ros2 launch fast_limo cat.launch.py rviz:=true
 ```
 
 _Note that this algorithm's precision greatly depends on the pointcloud & IMU timestamps, so remember to run the rosbag with __use_sim_time=true__ and __--clock__ flag._
