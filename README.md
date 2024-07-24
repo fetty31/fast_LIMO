@@ -7,11 +7,16 @@
         </li>
         <li><a href="#dependencies">Dependencies</a>
         </li>
+        <li><a href="#future-work">Future Work</a>
+        </li>
         <li>
         <a href="#quick-start">Quick Start</a>
         </li>
         <li>
         <a href="#approach">Approach</a>
+        </li>
+        <li>
+        <a href="#docker">Docker</a>
         </li>
         <li>
         <a href="#configuration">Configuration</a>
@@ -102,9 +107,53 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         <li>
         <a href="https://wiki.ros.org/tf2">tf2</a>
         </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
+        </li>
     </ol>
 </details>
 
+<details>
+    <summary>ROS2 (Humble) wrapper:</summary>
+    <ol>
+        <li>
+        <a href="./include/fast_limo/">fast_limo</a>
+        </li>
+        <li><a href="http://wiki.ros.org/pcl_conversions">pcl_conversions</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/sensor_msgs">sensor_msgs</a>
+        </li>
+        <li>
+        <a href="http://wiki.ros.org/geometry_msgs">geometry_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2">tf2</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/tf2_ros">tf2_ros</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/visualization_msgs">visualization_msgs</a>
+        </li>
+        <li>
+        <a href="https://wiki.ros.org/nav_msgs">nav_msgs</a>
+        </li>
+    </ol>
+</details>
+
+## Future Work (To Do)
+### DevOps
+- [X] ROS2 branch. 
+### New Features
+- [ ] Take into account GPS data. _Low freq corrections of the iKFOM._
+- [ ] Add loop closure strategy. _Thinking in pose-graph optimization using [g2o](https://github.com/RainerKuemmerle/g2o)._
+- [ ] Relocalize in previously saved pcl map. _Probably ICP-based correction for initial pose._
+
+:envelope_with_arrow: _Feel free to reach out for new ideas or questions!_ :envelope_with_arrow:
 
 ## Quick Start
 ### 0. Cloning the repo
@@ -116,6 +165,8 @@ _More than half of the storage space needed to clone this repo is due to the [RE
 
 ### 1. Building fast LIMO
 Use default `catkin_make` or `catkin build` to build the code. By default it will compile under the `CMAKE_BUILD_TYPE="Release"` flag.
+
+For `ros2-humble` branch, use default `colcon build`.
 
 ### 2. Running fast LIMO
 ```sh
@@ -142,22 +193,38 @@ roslaunch fast_limo cat.launch rviz:=true
 
 _Note that this algorithm's precision greatly depends on the pointcloud & IMU timestamps, so remember to run the rosbag with __use_sim_time=true__ and __--clock__ flag._
 
+## Docker
+A [Dockerfile](docker/Dockerfile) is provided in order to build a `Fast-LIMO` image on top of `ros2-humble` or `ros-noetic` desktop image.
+
+Note that some bash scripts are given in order to quickly build & run the ROS docker container (__also enabling GUI applications__).
+```sh
+cd docker/
+chmod +x build run
+./build # build fastlimo docker image
+./run   # deploy a fastlimo container
+```
+
+Finally, once inside the docker container run:
+```sh
+# ROS2 Humble
+cd /home/colcon_ws/
+colcon build --symlink-install
+```
+
+```sh
+# ROS Noetic
+cd /home/catkin_ws/
+catkin_make
+```
+
 ## Approach
 If you are interested in truly understanding the working principle of this SLAM algorithm, please read the [FASTLIO paper](https://doi.org/10.48550/arXiv.2010.08196). _This project is merely an alternative implementation of this outstanding work, still relying upon [IKFoM](include/IKFoM/) and [ikd-Tree](include/ikd-Tree/) open-source projects._
 
 This project implements the same concept as [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) but without any accumulation procedure. Instead, `Fast-LIMO` operates with two concurrent threads. One thread handles the propagation of newly received IMU measurements through the iKFoM (prediction stage), while the other thread uses these propagated states to deskew the received point cloud, match the deskewed scan to the map, and update the iKFoM (measurement stage) by minimizing point-to-plane distances.
 
-`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
+`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__ 
 
-## Future Work (To Do)
-### DevOps
-- [ ] ROS2 branch. _Coming soon!_
-### New Features
-- [ ] Take into account GPS data. _Low freq corrections of the iKFOM._
-- [ ] Add loop closure strategy. _Thinking in pose-graph optimization using [g2o](https://github.com/RainerKuemmerle/g2o)._
-- [ ] Relocalize in previously saved pcl map. _Probably ICP-based correction for initial pose._
-
-:envelope_with_arrow: _Feel free to reach out for new ideas or questions!_ :envelope_with_arrow:
+_NOTE: for a modified Velodyne driver, check [this fork](https://github.com/fetty31/velodyne)._
 
 ## Configuration
 Here, the configuration file for `Fast-LIMO` is explained. _Note that some parameters relate to the __sensor type__ and __extrinsics__. The remaining parameters generally do not require modification for standard use, as they are associated with computational load limits or precision thresholds._

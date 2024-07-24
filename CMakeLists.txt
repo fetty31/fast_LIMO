@@ -4,10 +4,12 @@ project(fast_limo)
 add_compile_options(-std=c++14)
 set(CMAKE_BUILD_TYPE "Release")
 
-find_package( PCL REQUIRED )
+find_package( PCL 1.8 REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_directories(${PCL_LIBRARY_DIRS})
+
+message("PCL version: ${PCL_VERSION}")
 
 find_package( Eigen3 REQUIRED )
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -30,13 +32,15 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   sensor_msgs
   geometry_msgs
+  visualization_msgs
+  nav_msgs
   tf2
 )
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2
+ CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
  DEPENDS EIGEN3 PCL
 )
 
