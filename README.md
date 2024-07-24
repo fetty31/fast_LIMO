@@ -222,7 +222,9 @@ If you are interested in truly understanding the working principle of this SLAM 
 
 This project implements the same concept as [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) but without any accumulation procedure. Instead, `Fast-LIMO` operates with two concurrent threads. One thread handles the propagation of newly received IMU measurements through the iKFoM (prediction stage), while the other thread uses these propagated states to deskew the received point cloud, match the deskewed scan to the map, and update the iKFoM (measurement stage) by minimizing point-to-plane distances.
 
-`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__
+`Fast-LIMO` supports the standard IMU-LiDAR configuration, where the IMU provides new measurements at a rate of 100-500 Hz and the LiDAR sends a new point cloud approximately at 10 Hz. __However, Fast-LIMO has been developed with the purpose to be used with a modified LiDAR driver capable of sending each scan packet as soon as it is ready, instead of waiting for the LiDAR to complete a full rotation.__ 
+
+_NOTE: for a modified Velodyne driver, check [this fork](https://github.com/fetty31/velodyne)._
 
 ## Configuration
 Here, the configuration file for `Fast-LIMO` is explained. _Note that some parameters relate to the __sensor type__ and __extrinsics__. The remaining parameters generally do not require modification for standard use, as they are associated with computational load limits or precision thresholds._
