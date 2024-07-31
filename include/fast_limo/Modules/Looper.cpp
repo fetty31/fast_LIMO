@@ -24,5 +24,33 @@
 
         }
 
+        void Looper::update(State s, pcl::PointCloud<PointType>::Ptr& pc){
+
+            // To DO: if conditions are met, add keyframe
+            
+            this->kf_mtx.lock();
+            this->keyframes.push_back(std::make_pair(s, pc));
+            this->kf_mtx.unlock();
+        }
+
+        State Looper::get_state(){
+            State s;
+            s.p = Eigen::Vector3f(this->out_estimate.translation().x(),
+                                  this->out_estimate.translation().y(),
+                                  this->out_estimate.translation().z()
+                                  );
+            s.q = this->out_estimate.rotation().toQuaternion(); // may fail type conversion
+            return s;
+        }
+
+        void Looper::get_state(State& s){
+            s.p = Eigen::Vector3f(this->out_estimate.translation().x(),
+                                  this->out_estimate.translation().y(),
+                                  this->out_estimate.translation().z()
+                                  );
+            s.q = this->out_estimate.rotation().toQuaternion(); // may fail type conversion
+            return s;
+        }
+
 
     // private

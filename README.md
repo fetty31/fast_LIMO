@@ -85,7 +85,13 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         <a href="https://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen3</a>
         </li>
         <li>
-        <a href="https://pointclouds.org/">PCL (1.8)</a>
+        <a href="https://pointclouds.org/">PCL</a> (1.8)
+        </li>
+        <li>
+        <a href="https://gtsam.org/">GTSAM</a> (4.0.2)
+        </li>
+        <li>
+        <a href="https://geographiclib.sourceforge.io/C++/doc/index.html">GeographicLib</a> (2.4)
         </li>
     </ol>
 </details>

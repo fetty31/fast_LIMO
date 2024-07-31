@@ -21,22 +21,53 @@
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Config.hpp"
 
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/Marginals.h>
+#include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/ISAM2.h>
+
+#include <GeographicLib/LocalCartesian.hpp>
+
 using namespace fast_limo;
 
 class fast_limo::Looper {
 
     // VARIABLES
 
-    public:
-
     private:
+            // GTSAM
+        gtsam::NonlinearFactorGraph graph;
+        gtsam::Values init_estimates;
+        gtsam::ISAM2* iSAM_;
+        gtsam::Values out_estimate;
+
+        std::mutex graph_mtx;
+        std::mutex isam_mtx;
+
+        noiseModel::Diagonal::shared_ptr prior_noise;
+        noiseModel::Diagonal::shared_ptr odom_noise;
+
+            // Keyframes
+        std::vector<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
+        std::mutex kf_mtx;
 
     // FUNCTIONS
 
     public:
         Looper();
 
+        State get_state();
+        void get_state(State& s);
+
+        void update(State s, pcl::PointCloud<PointType>::Ptr&);
+
     private:
+
 
     // SINGLETON 
 

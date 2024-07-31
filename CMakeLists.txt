@@ -27,6 +27,9 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
+find_package(GTSAM REQUIRED)
+find_package(GeographicLib REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   pcl_ros
@@ -41,7 +44,7 @@ catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
  CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
- DEPENDS EIGEN3 PCL
+ DEPENDS EIGEN3 PCL GTSAM
 )
 
 include_directories(
@@ -49,6 +52,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INLCUDE_DIRS}
   ${PCL_INLCUDE_DIRS}
+  ${GTSAM_INCLUDE_DIR}
+  ${GeographicLib_INCLUDE_DIRS}
 )
 
 # Not all machines have <cpuid.h> available
@@ -85,13 +90,14 @@ target_include_directories(ikfom
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
             include/fast_limo/Modules/Mapper.cpp
+            # include/fast_limo/Modules/Looper.cpp
 
             include/fast_limo/Objects/State.cpp
             include/fast_limo/Objects/Plane.cpp
             include/fast_limo/Objects/Match.cpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree gtsam ${GeographicLib_LIBRARIES})
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec
