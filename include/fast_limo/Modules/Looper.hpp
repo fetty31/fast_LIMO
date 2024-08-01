@@ -19,19 +19,19 @@
 #define __FASTLIMO_LOOPER_HPP__
 
 #include "fast_limo/Common.hpp"
-#include "fast_limo/Config.hpp"
+#include "fast_limo/Objects/State.hpp"
+#include "fast_limo/Utils/Config.hpp"
+#include "fast_limo/Utils/GNSStf.hpp"
 
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/PriorFactor.h>
+#include <gtsam/navigation/GPSFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/ISAM2.h>
-
-#include <GeographicLib/LocalCartesian.hpp>
 
 using namespace fast_limo;
 
@@ -44,30 +44,48 @@ class fast_limo::Looper {
         gtsam::NonlinearFactorGraph graph;
         gtsam::Values init_estimates;
         gtsam::ISAM2* iSAM_;
-        gtsam::Values out_estimate;
+        gtsam::Pose3 out_estimate;
+
+        bool priorAdded;
+        uint64_t global_idx;
 
         std::mutex graph_mtx;
         std::mutex isam_mtx;
 
-        noiseModel::Diagonal::shared_ptr prior_noise;
-        noiseModel::Diagonal::shared_ptr odom_noise;
+        gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
+        gtsam::noiseModel::Diagonal::shared_ptr odom_noise;
+        gtsam::noiseModel::Base::shared_ptr gnss_noise;
 
             // Keyframes
-        std::vector<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
+        boost::circular_buffer<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
         std::mutex kf_mtx;
+
+            // GNSS transformer
+        GNSStf gnss_tf;
+
+            // Aux var.
+        bool initFlag;
 
     // FUNCTIONS
 
     public:
         Looper();
+        ~Looper();
+
+        void init(); // To DO: add config struct as input
 
         State get_state();
         void get_state(State& s);
 
+        void solve();
+
         void update(State s, pcl::PointCloud<PointType>::Ptr&);
+        void update(State s);
+        void update(double lat, double lng, double alt);
 
     private:
-
+        void update(gtsam::Pose3 pose);
+        gtsam::Pose3 fromLIMOtoGTSAM(const State& s);
 
     // SINGLETON 
 

@@ -84,6 +84,7 @@ namespace fast_limo {
     // MODULES
   class Localizer;
   class Mapper;
+  class Looper;
 
     // OBJECTS
   class State;
@@ -92,6 +93,7 @@ namespace fast_limo {
 
     // UTILS
   struct Config;
+  class GNSStf;
 
     // STRUCTURES
   struct Point {

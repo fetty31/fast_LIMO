@@ -4,6 +4,9 @@
 ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
+// loop closure publishers
+ros::Publisher loop_pub;
+
 // debugging publishers
 ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, map_bb_pub, match_points_pub;
 
@@ -62,6 +65,14 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
                                                                                     );
     match_points_pub.publish(match_markers);
 
+    // Publish iSAM estimated state
+    fast_limo::Looper& loop = fast_limo::Looper::getInstance();
+    loop.solve();
+
+    nav_msgs::Odometry state_msg;
+    tf_limo::fromLimoToROS(loop.get_state(), state_msg);
+    loop_pub.publish(state_msg);
+
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
@@ -84,6 +95,17 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
     // TF broadcasting
     tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+
+    // Update iSAM
+    fast_limo::Looper& loop = fast_limo::Looper::getInstance();
+    loop.update(loc.getWorldState());
+
+}
+
+void gnss_callback(const sensor_msgs::NavSatFix::ConstPtr& msg){
+
+    fast_limo::Looper& loop = fast_limo::Looper::getInstance();
+    // loop.update(msg->latitude, msg->longitude, msg->altitude);
 
 }
 
@@ -171,8 +193,9 @@ int main(int argc, char** argv) {
     signal(SIGINT, mySIGhandler); // override default ros sigint signal
 
     // Declare the one and only Localizer and Mapper objects
-    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
-    fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+    fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
+    fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();
+    fast_limo::Looper& LOOP = fast_limo::Looper::getInstance();
 
     // Setup config parameters
     fast_limo::Config config;
@@ -185,9 +208,13 @@ int main(int argc, char** argv) {
     // Define subscribers & publishers
     ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber gnss_sub  = nh.subscribe("/kitti/oxts/gps/fix", 10, &gnss_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);
+
+        // loop
+    loop_pub   = nh.advertise<nav_msgs::Odometry>("loop/state", 1);
 
         // debug
     orig_pub     = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
@@ -198,8 +225,10 @@ int main(int argc, char** argv) {
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);
 
+
     // Set up fast_limo config
-    loc.init(config);
+    LOC.init(config);
+    LOOP.init(/*To DO: config as arg*/);
 
     // Start spinning (async)
     ros::AsyncSpinner spinner(0);

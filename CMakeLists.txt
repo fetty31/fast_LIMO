@@ -27,7 +27,7 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-find_package(GTSAM REQUIRED)
+find_package(GTSAM REQUIRED QUIET)
 find_package(GeographicLib REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -90,7 +90,7 @@ target_include_directories(ikfom
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
             include/fast_limo/Modules/Mapper.cpp
-            # include/fast_limo/Modules/Looper.cpp
+            include/fast_limo/Modules/Looper.cpp
 
             include/fast_limo/Objects/State.cpp
             include/fast_limo/Objects/Plane.cpp

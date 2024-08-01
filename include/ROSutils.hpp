@@ -24,12 +24,14 @@
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
+#include "fast_limo/Modules/Looper.hpp"
 
 // ROS
 #include <ros/ros.h>
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
 
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
