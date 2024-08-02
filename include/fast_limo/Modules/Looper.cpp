@@ -65,12 +65,12 @@
 
         void Looper::solve(){
             if(not this->initFlag) return;
-            if(this->init_estimates.size() < 1) return;
+            if(this->init_estimates.size() < 10 /*config.min_number_states*/) return;
 
             this->isam_mtx.lock();
             this->iSAM_->update(this->graph, this->init_estimates);
             gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
-            this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
+            // this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
             this->isam_mtx.unlock();
 
 
