@@ -105,7 +105,7 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 void gnss_callback(const sensor_msgs::NavSatFix::ConstPtr& msg){
 
     fast_limo::Looper& loop = fast_limo::Looper::getInstance();
-    // loop.update(msg->latitude, msg->longitude, msg->altitude);
+    loop.update(msg->latitude, msg->longitude, msg->altitude);
 
 }
 

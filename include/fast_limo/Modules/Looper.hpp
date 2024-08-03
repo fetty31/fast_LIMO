@@ -50,7 +50,6 @@ class fast_limo::Looper {
         uint64_t global_idx;
 
         std::mutex graph_mtx;
-        std::mutex isam_mtx;
 
         gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
         gtsam::noiseModel::Diagonal::shared_ptr odom_noise;

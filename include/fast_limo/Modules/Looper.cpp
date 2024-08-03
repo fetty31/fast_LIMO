@@ -67,15 +67,19 @@
             if(not this->initFlag) return;
             if(this->init_estimates.size() < 10 /*config.min_number_states*/) return;
 
-            this->isam_mtx.lock();
+            this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
+
             this->iSAM_->update(this->graph, this->init_estimates);
             gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
-            // this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
-            this->isam_mtx.unlock();
+            this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
 
+            std::cout << isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1) << std::endl;
 
             this->graph.resize(0);
             this->init_estimates.clear();
+
+            this->graph_mtx.unlock();
+
         }
 
         void Looper::update(State s, pcl::PointCloud<PointType>::Ptr& pc){
