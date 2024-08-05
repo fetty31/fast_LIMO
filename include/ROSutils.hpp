@@ -72,6 +72,26 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
     out.q = qd.cast<float>();
 }
 
+void fromROStoLimo(const nav_msgs::Odometry::ConstPtr& in, fast_limo::State& out){
+    out.time = in->header.stamp.toSec();
+
+    out.p(0) = in->pose.pose.position.x;
+    out.p(1) = in->pose.pose.position.y;
+    out.p(2) = in->pose.pose.position.z;
+
+    Eigen::Quaterniond qd;
+    tf2::fromMsg(in->pose.pose.orientation, qd);
+    out.q = qd.cast<float>();
+
+    out.v(0) = in->twist.twist.linear.x;
+    out.v(1) = in->twist.twist.linear.y;
+    out.v(2) = in->twist.twist.linear.z;
+
+    out.w(0) = in->twist.twist.angular.x;
+    out.w(1) = in->twist.twist.angular.y;
+    out.w(2) = in->twist.twist.angular.z;
+}
+
 void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
     out.header.frame_id = "map";

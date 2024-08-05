@@ -70,6 +70,9 @@
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
             this->iSAM_->update(this->graph, this->init_estimates);
+            this->iSAM_->update();
+            this->iSAM_->update();
+            this->iSAM_->update();
             gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
             this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
 

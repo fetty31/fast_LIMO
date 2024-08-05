@@ -103,11 +103,18 @@ target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_
 add_executable(${PROJECT_NAME}_multi_exec
               src/main.cpp
               )
+add_executable(${PROJECT_NAME}_loop_exec
+              src/loop.cpp
+              )
 
 add_dependencies(${PROJECT_NAME}_multi_exec ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_loop_exec ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_loop_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # Binaries
 install( TARGETS ${PROJECT_NAME}_multi_exec
+         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
+install( TARGETS ${PROJECT_NAME}_loop_exec
          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
