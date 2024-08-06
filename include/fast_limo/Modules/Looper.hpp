@@ -53,7 +53,8 @@ class fast_limo::Looper {
 
         gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
         gtsam::noiseModel::Diagonal::shared_ptr odom_noise;
-        gtsam::noiseModel::Base::shared_ptr gnss_noise;
+        gtsam::noiseModel::Diagonal::shared_ptr gnss_noise;
+        // gtsam::noiseModel::Base::shared_ptr gnss_noise;
 
             // Keyframes
         boost::circular_buffer<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;

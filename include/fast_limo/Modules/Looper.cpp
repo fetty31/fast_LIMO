@@ -56,16 +56,17 @@
 
             gtsam::Vector gnss_cov(3);
             gnss_cov << 1.e9, 1.e9, 250.0; // GNSS latitude and longitude are not taken into account, we only correct altitude
-            gnss_noise = gtsam::noiseModel::Robust::Create(
-                        gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
-                        gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
+            // gnss_noise = gtsam::noiseModel::Robust::Create(
+            //             gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
+            //             gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
+            gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
 
             this->initFlag = true;
         }
 
         void Looper::solve(){
             if(not this->initFlag) return;
-            if(this->init_estimates.size() < 10 /*config.min_number_states*/) return;
+            if(this->init_estimates.size() < 2 /*config.min_number_states*/) return;
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
@@ -75,8 +76,10 @@
             this->iSAM_->update();
             gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
             this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
-
+            
+            std::cout << "------------------------ optimzed state -------------------------\n";
             std::cout << isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1) << std::endl;
+            std::cout << "-----------------------------------------------------------------\n";
 
             this->graph.resize(0);
             this->init_estimates.clear();
@@ -106,10 +109,13 @@
                 return;
             } 
 
-            if(this->init_estimates.size() < 2) return; // do not include GNSS if there aren't any betweenFactor estimates
+            if(this->init_estimates.size() < 1) return; // do not include GNSS if there aren't any betweenFactor estimates
 
             double alt_offset = alt - this->gnss_tf.getInitPose()(2);
             gtsam::Point3 gnss_state(out_estimate.x(), out_estimate.y(), alt_offset);
+
+            std::cout << "altitude offset\n";
+            std::cout << alt_offset << std::endl;
 
             graph_mtx.lock();
             graph.add(gtsam::GPSFactor(global_idx-1, gnss_state, gnss_noise));
@@ -122,7 +128,7 @@
                                   this->out_estimate.translation().y(),
                                   this->out_estimate.translation().z()
                                   );
-            s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); // may fail type conversion
+            s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); 
             return s;
         }
 
@@ -131,7 +137,7 @@
                                   this->out_estimate.translation().y(),
                                   this->out_estimate.translation().z()
                                   );
-            s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); // may fail type conversion
+            s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); 
         }
 
 
@@ -151,6 +157,15 @@
                 init_estimates.insert(global_idx, pose);
             }
             graph_mtx.unlock();
+
+            std::cout << "out estimate\n";
+            std::cout << out_estimate << std::endl;
+
+            std::cout << "input estimate\n";
+            std::cout << pose << std::endl;
+
+            std::cout << "between pose:\n";
+            std::cout << out_estimate.between(pose) << std::endl;
 
             if(global_idx < UINT64_MAX) global_idx++;
             else{

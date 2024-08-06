@@ -94,7 +94,7 @@
 
                     K << 0.0, -r[2], r[1],
                          r[2], 0.0, -r[0],
-                         -r[1], r[0], 0.0;
+                         -r[1], r[0], 0.0; // skew matrix
 
                     float r_ang = w_norm * dt;
 

@@ -17,7 +17,7 @@ void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
 void gnss_callback(const sensor_msgs::NavSatFix::ConstPtr& msg){
 
     fast_limo::Looper& loop = fast_limo::Looper::getInstance();
-    loop.update(msg->latitude, msg->longitude, msg->altitude);
+    // loop.update(msg->latitude, msg->longitude, msg->altitude);
 
 }
 
@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
     fast_limo::Looper& LOOP = fast_limo::Looper::getInstance();
 
     // Define subscribers & publishers
-    ros::Subscriber state_sub = nh.subscribe("/fast_limo/state", 10, &state_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber gnss_sub  = nh.subscribe("/kitti/oxts/gps/fix", 10, &gnss_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber state_sub = nh.subscribe("/fast_limo/state", 1, &state_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber gnss_sub  = nh.subscribe("/kitti/oxts/gps/fix", 1, &gnss_callback, ros::TransportHints().tcpNoDelay());
 
     loop_pub = nh.advertise<nav_msgs::Odometry>("loop/state", 1);
 
