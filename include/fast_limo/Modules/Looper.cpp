@@ -34,8 +34,8 @@
 
             // Set up incremental Smoothing And Mapping (iSAM)
             gtsam::ISAM2Params param;
-            param.relinearizeThreshold = 0.01;
-            param.relinearizeSkip = 1;
+            // param.relinearizeThreshold = 0.01;
+            // param.relinearizeSkip = 1;
             this->iSAM_ = new gtsam::ISAM2(param);
 
             std::cout << "iSAM2 defined\n";
@@ -72,8 +72,7 @@
 
             this->iSAM_->update(this->graph, this->init_estimates);
             this->iSAM_->update();
-            this->iSAM_->update();
-            this->iSAM_->update();
+
             gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
             this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
             

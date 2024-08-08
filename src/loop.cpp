@@ -27,7 +27,7 @@ void mySIGhandler(int sig){
 
 int main(int argc, char** argv) {
 
-    ros::init(argc, argv, "fast_limo");
+    ros::init(argc, argv, "fast_limo_looper");
     ros::NodeHandle nh("~");
 
     signal(SIGINT, mySIGhandler); // override default ros sigint signal
