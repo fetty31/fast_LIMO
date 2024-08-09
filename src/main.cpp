@@ -87,6 +87,16 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
 }
 
+void looper_callback(const nav_msgs::Odometry::ConstPtr& msg){
+
+    fast_limo::State st;
+    tf_limo::fromROStoLimo(msg, st);
+
+    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
+    loc.setWorldState(st);
+
+}
+
 void mySIGhandler(int sig){
     ros::shutdown();
 }
@@ -185,6 +195,7 @@ int main(int argc, char** argv) {
     // Define subscribers & publishers
     ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber imu_sub   = nh.subscribe(config.topics.imu, 1000, &imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber loop_sub  = nh.subscribe("/fast_limo_looper/state", 1, &looper_callback, ros::TransportHints().tcpNoDelay());
 
     pc_pub      = nh.advertise<sensor_msgs::PointCloud2>("pointcloud", 1);
     state_pub   = nh.advertise<nav_msgs::Odometry>("state", 1);

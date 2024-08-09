@@ -55,7 +55,7 @@
             odom_noise = gtsam::noiseModel::Diagonal::Variances(odom_cov);
 
             gtsam::Vector gnss_cov(3);
-            gnss_cov << 1.e9, 1.e9, 250.0; // GNSS latitude and longitude are not taken into account, we only correct altitude
+            gnss_cov << 1.e9, 1.e9, 1e-6; // GNSS latitude and longitude are not taken into account, we only correct altitude
             // gnss_noise = gtsam::noiseModel::Robust::Create(
             //             gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
             //             gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
@@ -66,14 +66,14 @@
 
         void Looper::solve(){
             if(not this->initFlag) return;
-            if(this->init_estimates.size() < 2 /*config.min_number_states*/) return;
+            if(this->init_estimates.size() < 3 /*config.min_number_states*/) return;
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
             this->iSAM_->update(this->graph, this->init_estimates);
             this->iSAM_->update();
 
-            gtsam::Values isam_estimates = this->iSAM_->calculateEstimate();
+            gtsam::Values isam_estimates = this->iSAM_->calculateBestEstimate();
             this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
             
             std::cout << "------------------------ optimzed state -------------------------\n";
@@ -111,7 +111,8 @@
             if(this->init_estimates.size() < 1) return; // do not include GNSS if there aren't any betweenFactor estimates
 
             double alt_offset = alt - this->gnss_tf.getInitPose()(2);
-            gtsam::Point3 gnss_state(out_estimate.x(), out_estimate.y(), alt_offset);
+            gtsam::Pose3 last_estimate = init_estimates.at<gtsam::Pose3>(global_idx-1);
+            gtsam::Point3 gnss_state(last_estimate.x(), last_estimate.y(), alt_offset);
 
             std::cout << "altitude offset\n";
             std::cout << alt_offset << std::endl;

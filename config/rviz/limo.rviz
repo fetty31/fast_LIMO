@@ -12,7 +12,7 @@ Panels:
         - /Map1
         - /KITTI_dataset1/RGB1/Left1
         - /KITTI_dataset1/RGB1/Right1
-      Splitter Ratio: 0.7712609767913818
+      Splitter Ratio: 0.7536656856536865
     Tree Height: 794
   - Class: rviz/Selection
     Name: Selection
@@ -163,7 +163,7 @@ Visualization Manager:
             Shaft Length: 1
             Shaft Radius: 0.05000000074505806
             Value: Axes
-          Topic: /fast_limo_looper/loop/state
+          Topic: /fast_limo_looper/state
           Unreliable: false
           Value: true
       Enabled: true
@@ -505,7 +505,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 47.28742599487305
+      Distance: 43.16158676147461
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -521,9 +521,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5797973871231079
+      Pitch: 0.29979777336120605
       Target Frame: base_link
-      Yaw: 3.120961904525757
+      Yaw: 3.115945339202881
     Saved: ~
 Window Geometry:
   Displays:

@@ -90,8 +90,8 @@
 
             // Initial calibration
             if( not (config.gravity_align || config.calibrate_accel || config.calibrate_gyro) ){ // no need for automatic calibration
-                this->imu_calibrated_ = true;
                 this->init_iKFoM_state();
+                this->imu_calibrated_ = true;
             }
 
             // Calibration time
@@ -175,6 +175,21 @@
             out.v = out.q.toRotationMatrix().transpose() * out.v;   // local velocity vector
 
             return out;
+        }
+
+        void Localizer::setWorldState(State& s){
+
+            if(not this->is_calibrated())
+                return;
+
+            state_ikfom current_state = this->_iKFoM.get_x();
+            current_state.rot = s.q.cast<double> ();
+            current_state.pos = s.p.cast<double> ();
+            // current_state.pos(2) = static_cast<double>(s.p(2));
+
+            this->mtx_ikfom.lock();
+            this->_iKFoM.change_x(current_state); // set new state
+            this->mtx_ikfom.unlock();
         }
 
         double Localizer::get_propagate_time(){
