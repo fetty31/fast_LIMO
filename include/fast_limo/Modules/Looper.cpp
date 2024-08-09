@@ -62,7 +62,7 @@
 
         void Looper::solve(){
             if(not this->initFlag) return;
-            if(this->init_estimates.size() < 3 /*config.min_number_states*/) return;
+            if(this->init_estimates.size() < 13 /*config.min_number_states*/) return;
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
@@ -74,10 +74,10 @@
             this->out_estimate = result.at<gtsam::Pose3>(static_cast<int>(result.size())-1);
 
             // Compute marginals
-            // gtsam::Marginals marginals(this->graph, result);
-            // for(int i=1; i < result.size(); i++){
-            //     std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
-            // }
+            gtsam::Marginals marginals(this->graph, result);
+            for(int i=0; i < result.size(); i++){
+                std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
+            }
             
             std::cout << "------------------------ optimzed state -------------------------\n";
             std::cout << result.at<gtsam::Pose3>(static_cast<int>(result.size())-1) << std::endl;

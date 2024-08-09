@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
 
     ros::Duration(10.0).sleep();
 
-    ros::Rate r(100.0);
+    ros::Rate r(10.0);
     while(ros::ok()){
         ros::spinOnce();
 
