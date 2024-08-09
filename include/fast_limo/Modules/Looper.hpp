@@ -53,8 +53,8 @@ class fast_limo::Looper {
 
         gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
         gtsam::noiseModel::Diagonal::shared_ptr odom_noise;
-        gtsam::noiseModel::Diagonal::shared_ptr gnss_noise;
-        // gtsam::noiseModel::Base::shared_ptr gnss_noise;
+        // gtsam::noiseModel::Diagonal::shared_ptr gnss_noise;
+        gtsam::noiseModel::Base::shared_ptr gnss_noise;
 
             // Keyframes
         boost::circular_buffer<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
@@ -76,6 +76,9 @@ class fast_limo::Looper {
 
         State get_state();
         void get_state(State& s);
+
+        std::vector<double> getPoseCovariance(); // get iSAM covariances
+        std::vector<double> getTwistCovariance();// get iSAM covariances
 
         void solve();
 

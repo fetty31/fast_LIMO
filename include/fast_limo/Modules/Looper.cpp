@@ -38,12 +38,8 @@
             // param.relinearizeSkip = 1;
             this->iSAM_ = new gtsam::ISAM2(param);
 
-            std::cout << "iSAM2 defined\n";
-
             // Set buffers capacity
             this->keyframes.set_capacity(10000);
-
-            std::cout << "kf buffer defined\n";
 
             // Define noise models
             gtsam::Vector prior_cov(6);
@@ -56,10 +52,10 @@
 
             gtsam::Vector gnss_cov(3);
             gnss_cov << 1.e9, 1.e9, 1e-6; // GNSS latitude and longitude are not taken into account, we only correct altitude
-            // gnss_noise = gtsam::noiseModel::Robust::Create(
-            //             gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
-            //             gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
-            gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
+            gnss_noise = gtsam::noiseModel::Robust::Create(
+                        gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
+                        gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
+            // gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
 
             this->initFlag = true;
         }
@@ -73,11 +69,18 @@
             this->iSAM_->update(this->graph, this->init_estimates);
             this->iSAM_->update();
 
-            gtsam::Values isam_estimates = this->iSAM_->calculateBestEstimate();
-            this->out_estimate = isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1);
+            // Compute estimate
+            gtsam::Values result = this->iSAM_->calculateEstimate();
+            this->out_estimate = result.at<gtsam::Pose3>(static_cast<int>(result.size())-1);
+
+            // Compute marginals
+            // gtsam::Marginals marginals(this->graph, result);
+            // for(int i=1; i < result.size(); i++){
+            //     std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
+            // }
             
             std::cout << "------------------------ optimzed state -------------------------\n";
-            std::cout << isam_estimates.at<gtsam::Pose3>(static_cast<int>(isam_estimates.size())-1) << std::endl;
+            std::cout << result.at<gtsam::Pose3>(static_cast<int>(result.size())-1) << std::endl;
             std::cout << "-----------------------------------------------------------------\n";
 
             this->graph.resize(0);
@@ -140,6 +143,13 @@
             s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); 
         }
 
+        std::vector<double> Looper::getPoseCovariance(){
+
+        }
+
+        std::vector<double> Looper::getTwistCovariance(){
+
+        }
 
     // private
 
