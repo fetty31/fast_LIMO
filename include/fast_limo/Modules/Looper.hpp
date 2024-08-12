@@ -66,6 +66,7 @@ class fast_limo::Looper {
             // Aux var.
         bool initFlag;
         State last_kf;
+        Eigen::Vector3d last_enu;
 
     // FUNCTIONS
 
@@ -92,6 +93,7 @@ class fast_limo::Looper {
         gtsam::Pose3 fromLIMOtoGTSAM(const State& s);
 
         bool time2update(const State& s);
+        bool time2update(Eigen::Vector3d& enu);
 
     // SINGLETON 
 

@@ -23,6 +23,7 @@
         Looper::Looper() : priorAdded(false),
                            initFlag(false),
                            global_idx(0),
+                           last_enu(Eigen::Vector3d::Zero()),
                            out_estimate(gtsam::Pose3( gtsam::Rot3(gtsam::Rot3::Quaternion(1., 0., 0., 0.)), 
                                                       gtsam::Point3(0., 0., 0.) )) { }
 
@@ -109,6 +110,10 @@
         }
 
         void Looper::update(double lat, double lng, double alt){
+            /*To DO:
+                - define logic for GNSS data update (LLA to UTM/ENU in order to define update discretization)
+            */
+
             if(not this->gnss_tf.hasLocalAxis()){
                 gnss_tf.setInitPose(lat, lng, alt);
                 return;
@@ -116,7 +121,11 @@
 
             if(this->init_estimates.size() < 1) return; // do not include GNSS if there aren't any betweenFactor estimates
 
-            double alt_offset = alt - this->gnss_tf.getInitPose()(2);
+            // Tranform from LLA to ENU
+            Eigen::Vector3d ENU = gnss_tf.getENUpose(lat, lng, alt);
+            if(not time2update(ENU)) return;
+
+            double alt_offset = alt - gnss_tf.getInitPose()(2);
             gtsam::Pose3 last_estimate = init_estimates.at<gtsam::Pose3>(global_idx-1);
             gtsam::Point3 gnss_state(last_estimate.x(), last_estimate.y(), alt_offset);
 
@@ -147,11 +156,11 @@
         }
 
         std::vector<double> Looper::getPoseCovariance(){
-
+            return std::vector<double>(36, 0.0);
         }
 
         std::vector<double> Looper::getTwistCovariance(){
-
+            return std::vector<double>(36, 0.0);
         }
 
     // private
@@ -165,9 +174,21 @@
 
             Eigen::Vector3f rpy = q_diff.toRotationMatrix().eulerAngles(0, 1, 2);
 
-            if(rpy(2) > 0.25 || p_diff.norm() > 0.5){
+            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 1.5){
                 std::cout << "TIME TO UPDATE iSAM\n";
                 this->last_kf = s;
+                return true;
+            }else
+                return false;
+        }
+
+        bool Looper::time2update(Eigen::Vector3d& enu){
+            Eigen::Vector3d p_diff = enu - this->last_enu;
+            if(p_diff.norm() > 2.5){
+                std::cout << "TIME TO UPDATE GNSS\n";
+                std::cout << "last ENU: " << last_enu << std::endl;
+                std::cout << "ENU: " << enu << std::endl;
+                this->last_enu = enu;
                 return true;
             }else
                 return false;
