@@ -60,9 +60,9 @@
             this->initFlag = true;
         }
 
-        void Looper::solve(){
-            if(not this->initFlag) return;
-            if(this->init_estimates.size() < 13 /*config.min_number_states*/) return;
+        bool Looper::solve(){
+            if(not this->initFlag) return false;
+            if(this->init_estimates.size() < 3 /*config.min_number_states*/) return false;
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
@@ -74,10 +74,10 @@
             this->out_estimate = result.at<gtsam::Pose3>(static_cast<int>(result.size())-1);
 
             // Compute marginals
-            gtsam::Marginals marginals(this->graph, result);
-            for(int i=0; i < result.size(); i++){
-                std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
-            }
+            // gtsam::Marginals marginals(this->graph, result);
+            // for(int i=0; i < result.size(); i++){
+            //     std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
+            // }
             
             std::cout << "------------------------ optimzed state -------------------------\n";
             std::cout << result.at<gtsam::Pose3>(static_cast<int>(result.size())-1) << std::endl;
@@ -88,6 +88,7 @@
 
             this->graph_mtx.unlock();
 
+            return true;
         }
 
         void Looper::update(State s, pcl::PointCloud<PointType>::Ptr& pc){
@@ -98,10 +99,12 @@
             // this->keyframes.push_front(std::make_pair(s, pc));
             // this->kf_mtx.unlock();
 
+            if(not time2update(s)) return;
             this->update(s);
         }
 
         void Looper::update(State s){
+            if(not time2update(s)) return;
             this->update(this->fromLIMOtoGTSAM(s));
         }
 
@@ -153,7 +156,25 @@
 
     // private
 
+        bool Looper::time2update(const State& s){ 
+            /* To DO: 
+                - pass gtsam::Pose as arg, use gtsam::between function for diff computation
+            */
+            Eigen::Vector3f    p_diff = s.p - last_kf.p;
+            Eigen::Quaternionf q_diff = s.q * last_kf.q.inverse(); 
+
+            Eigen::Vector3f rpy = q_diff.toRotationMatrix().eulerAngles(0, 1, 2);
+
+            if(rpy(2) > 0.25 || p_diff.norm() > 0.5){
+                std::cout << "TIME TO UPDATE iSAM\n";
+                this->last_kf = s;
+                return true;
+            }else
+                return false;
+        }
+
         void Looper::update(gtsam::Pose3 pose){
+
             graph_mtx.lock();
             if(not this->priorAdded)
             {
@@ -163,7 +184,12 @@
             }
             else
             {
-                graph.add(gtsam::BetweenFactor<gtsam::Pose3>(global_idx-1, global_idx, out_estimate.between(pose), this->odom_noise));
+                if(init_estimates.size() > 0)
+                    graph.add(gtsam::BetweenFactor<gtsam::Pose3>(global_idx-1, global_idx, 
+                                                                init_estimates.at<gtsam::Pose3>(global_idx-1).between(pose), 
+                                                                this->odom_noise) );
+                else 
+                    graph.add(gtsam::BetweenFactor<gtsam::Pose3>(global_idx-1, global_idx, out_estimate.between(pose), this->odom_noise));
                 init_estimates.insert(global_idx, pose);
             }
             graph_mtx.unlock();

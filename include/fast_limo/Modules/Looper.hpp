@@ -65,6 +65,7 @@ class fast_limo::Looper {
 
             // Aux var.
         bool initFlag;
+        State last_kf;
 
     // FUNCTIONS
 
@@ -80,7 +81,7 @@ class fast_limo::Looper {
         std::vector<double> getPoseCovariance(); // get iSAM covariances
         std::vector<double> getTwistCovariance();// get iSAM covariances
 
-        void solve();
+        bool solve();
 
         void update(State s, pcl::PointCloud<PointType>::Ptr&);
         void update(State s);
@@ -89,6 +90,8 @@ class fast_limo::Looper {
     private:
         void update(gtsam::Pose3 pose);
         gtsam::Pose3 fromLIMOtoGTSAM(const State& s);
+
+        bool time2update(const State& s);
 
     // SINGLETON 
 

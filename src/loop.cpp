@@ -17,7 +17,7 @@ void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
 void gnss_callback(const sensor_msgs::NavSatFix::ConstPtr& msg){
 
     fast_limo::Looper& loop = fast_limo::Looper::getInstance();
-    loop.update(msg->latitude, msg->longitude, msg->altitude);
+    // loop.update(msg->latitude, msg->longitude, msg->altitude);
 
 }
 
@@ -43,17 +43,19 @@ int main(int argc, char** argv) {
 
     LOOP.init(/*To DO: config as arg*/);
 
-    ros::Duration(10.0).sleep();
+    ros::Duration(5.0).sleep();
 
-    ros::Rate r(10.0);
+    bool new_it = false;
+
+    ros::Rate r(5.0);
     while(ros::ok()){
         ros::spinOnce();
 
-        LOOP.solve();
+        new_it = LOOP.solve();
 
         nav_msgs::Odometry state_msg;
         tf_limo::fromLimoToROS(LOOP.get_state(), state_msg);
-        loop_pub.publish(state_msg);
+        if(new_it) loop_pub.publish(state_msg);
 
         r.sleep();
     }
