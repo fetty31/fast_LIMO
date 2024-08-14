@@ -35,7 +35,7 @@ namespace ros2wrap {
 
                 // main publishers
             rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_pub;
-            rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr state_pub;
+            rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr       state_pub;
 
                 // debug publishers
             rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr orig_pub;
@@ -73,16 +73,16 @@ namespace ros2wrap {
                                     config.topics.imu, 1000, std::bind(&LimoWrapper::imu_callback, this, std::placeholders::_1));
                     
                     // Set up publishers
-                    pc_pub      = this->create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud", 1);
-                    state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("state", 1);
+                    pc_pub      = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/pointcloud", 1);
+                    state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/state", 1);
 
-                    orig_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("original", 1);
-                    desk_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("deskewed", 1);
-                    match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("match", 1);
-                    finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("final_raw", 1);
-                    body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("body", 1);
-                    map_bb_pub   = this->create_publisher<visualization_msgs::msg::Marker>("map/bb", 1);
-                    match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("match_points", 1);
+                    orig_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/original", 1);
+                    desk_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/deskewed", 1);
+                    match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/match", 1);
+                    finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/final_raw", 1);
+                    body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body", 1);
+                    map_bb_pub   = this->create_publisher<visualization_msgs::msg::Marker>("/fast_limo/map/bb", 1);
+                    match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
 
                     // Init TF broadcaster
                     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);

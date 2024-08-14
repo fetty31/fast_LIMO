@@ -62,7 +62,8 @@
             return this->local_map_bb;
         }
 
-        Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
+        Matches Mapper::match(State s, pcl::PointCloud<PointType>::Ptr& pc){
+
             Matches matches;
             if(not this->exists()) return matches;
 

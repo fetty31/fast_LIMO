@@ -17,7 +17,7 @@ fast_limo:
     sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
     debug: true     # fill useful intermediate pcl (deskewed, final_raw...) for visualizing purposes
-    verbose: true   # print debug/performance board
+    verbose: false   # print debug/performance board
 
     estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
     time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
@@ -31,7 +31,7 @@ fast_limo:
 
     extrinsics: # w.r.t baselink [SI]
       imu:
-        t: [ 0.0, 0.0, 0.0 ]
+        t: [ 0., 0., 0. ]
         R: [ 1.,  0.,  0.,
               0.,  1.,  0.,
               0.,  0.,  1. ]
@@ -67,7 +67,7 @@ fast_limo:
 
       FoV: # crop field of view
         active: false
-        value: 180  # [deg]
+        value: 180.0  # [deg]
       
       rateSampling: # quick downsample
         active: true
@@ -76,7 +76,7 @@ fast_limo:
     iKFoM:  # Iterative Kalman Filter on Manifolds lib
       MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
       MAX_NUM_MATCHES: 5000           # max num of matches to account for when computing Jacobians (limits comp. load)
-      MAX_NUM_PC2MATCH: 1.e+4         # max num of points to consider when matching with map (limits comp. load)
+      MAX_NUM_PC2MATCH: 10000         # max num of points to consider when matching with map (limits comp. load)
       LIMITS: 0.001                     
 
       Mapping:

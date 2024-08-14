@@ -26,6 +26,7 @@ def generate_launch_description():
                 'config',
                 'cat.yaml'
             ])]
+        # prefix='gdb -ex run --args'
     )
 
     rviz_conditioned = ExecuteProcess(

@@ -27,7 +27,7 @@
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
             this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
-            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (std::make_shared<pcl::PointCloud<PointType>>());
+            this->pc2match       = pcl::PointCloud<PointType>::Ptr (std::make_shared<pcl::PointCloud<PointType>>());
             this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (std::make_shared<pcl::PointCloud<PointType>>());
             this->final_scan     = pcl::PointCloud<PointType>::Ptr (std::make_shared<pcl::PointCloud<PointType>>());
         }
@@ -125,7 +125,7 @@
             return this->deskewed_scan;
         }
 
-        pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
+        pcl::PointCloud<PointType>::Ptr Localizer::get_pc2match_pointcloud(){
             return this->pc2match;
         }
 
@@ -305,7 +305,7 @@
                                                                 solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
-                
+
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
 
@@ -324,20 +324,40 @@
                 // Transform deskewed pc 
                     // Get deskewed scan to add to map
                 pcl::PointCloud<PointType>::Ptr mapped_scan (std::make_shared<pcl::PointCloud<PointType>>());
-                pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
-                /*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
+                mapped_scan->points.resize(pc2match->points.size());
+
+                // pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT()); // Not working for PCL 1.12
+                #pragma omp parallel for num_threads(this->num_threads_)
+                for(int i=0; i<pc2match->points.size(); i++){
+                    PointType pt = pc2match->points[i];
+                    pt.getVector4fMap()[3] = 1.;
+                    pt.getVector4fMap() = this->state.get_RT() * pt.getVector4fMap(); 
+                    mapped_scan->points[i] = pt;
+                    /*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
                         mapped_scan is in world/global frame.
-                */
+                    */
+                }
 
                 /*To DO:
                     - mapped_scan --> segmentation of dynamic objects
                 */
 
                     // Get final scan to output (in world/global frame)
-                pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // mapped_scan = final_scan (for now)
+                this->final_scan = mapped_scan; // mapped_scan = final_scan (for now)
+                // pcl::transformPointCloud (*this->pc2match, *this->final_scan, this->state.get_RT()); // Not working for PCL 1.12
 
-                if(this->config.debug) // save final scan without voxel grid
-                    pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
+                if(this->config.debug){ // save final scan without voxel grid
+                    final_raw_scan->points.clear();
+                    final_raw_scan->points.resize(deskewed_Xt2_pc_->points.size());
+                    #pragma omp parallel for num_threads(this->num_threads_)
+                    for(int i=0; i<deskewed_Xt2_pc_->points.size(); i++){
+                        PointType pt = deskewed_Xt2_pc_->points[i];
+                        pt.getVector4fMap()[3] = 1.;
+                        pt.getVector4fMap() = this->state.get_RT() * pt.getVector4fMap(); 
+                        final_raw_scan->points[i] = pt;
+                    }
+                    // pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT()); // Not working for PCL 1.12
+                }
 
                 // Add scan to map
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
@@ -493,7 +513,6 @@
                 // iKFoM propagate state
                 this->propagateImu(imu);
                 this->cv_prop_stamp.notify_one(); // Notify PointCloud thread that propagated IMU data exists for this time
-
             }
 
         }
@@ -969,10 +988,10 @@
                 std::accumulate(this->cpu_times.begin(), this->cpu_times.end(), 0.0) / this->cpu_times.size();
 
             // Average sensor rates
-            double avg_imu_rate =
-                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size();
-            double avg_lidar_rate =
-                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size();
+            double avg_imu_rate = (this->imu_rates.size() > 0) ?
+                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size() : 0.0;
+            double avg_lidar_rate = (this->lidar_rates.size() > 0) ?
+                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size() : 0.0;
 
             // RAM Usage
             double vm_usage = 0.0;

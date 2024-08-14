@@ -57,7 +57,7 @@ class fast_limo::Mapper {
 
         BoxPointType get_local_map();
 
-        Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
+        Matches match(State, pcl::PointCloud<PointType>::Ptr&);
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
