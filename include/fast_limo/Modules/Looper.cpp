@@ -35,8 +35,8 @@
 
             // Set up incremental Smoothing And Mapping (iSAM)
             gtsam::ISAM2Params param;
-            // param.relinearizeThreshold = 0.01;
-            // param.relinearizeSkip = 1;
+            param.relinearizeThreshold = 0.01;
+            param.relinearizeSkip = 1;
             this->iSAM_ = new gtsam::ISAM2(param);
 
             // Set buffers capacity
@@ -52,7 +52,7 @@
             odom_noise = gtsam::noiseModel::Diagonal::Variances(odom_cov);
 
             gtsam::Vector gnss_cov(3);
-            gnss_cov << 1.e9, 1.e9, 1e-6; // GNSS latitude and longitude are not taken into account, we only correct altitude
+            gnss_cov << 1.e9, 1.e9, 1e-12; // GNSS latitude and longitude are not taken into account, we only correct altitude
             gnss_noise = gtsam::noiseModel::Robust::Create(
                         gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
                         gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
@@ -174,7 +174,7 @@
 
             Eigen::Vector3f rpy = q_diff.toRotationMatrix().eulerAngles(0, 1, 2);
 
-            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 1.5){
+            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 0.5){
                 std::cout << "TIME TO UPDATE iSAM\n";
                 this->last_kf = s;
                 return true;
@@ -184,7 +184,7 @@
 
         bool Looper::time2update(Eigen::Vector3d& enu){
             Eigen::Vector3d p_diff = enu - this->last_enu;
-            if(p_diff.norm() > 2.5){
+            if(p_diff.norm() > 0.5){
                 std::cout << "TIME TO UPDATE GNSS\n";
                 std::cout << "last ENU: " << last_enu << std::endl;
                 std::cout << "ENU: " << enu << std::endl;

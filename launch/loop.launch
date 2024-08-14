@@ -1,5 +1,5 @@
 <launch> <!-- launch-prefix="gdb -ex run - -args" -->
 
-    <node pkg="fast_limo" type="fast_limo_loop_exec" name="fast_limo_looper" output="screen" launch-prefix="gdb -ex run - -args"/>
+    <node pkg="fast_limo" type="fast_limo_loop_exec" name="fast_limo_looper" output="screen" launch-prefix="gdb -ex run --args"/>
 
 </launch>
