@@ -65,7 +65,6 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 // Boost
 #include <boost/format.hpp>
 #include <boost/circular_buffer.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/range/adaptor/indexed.hpp>
 #include <boost/range/adaptor/adjacent_filtered.hpp>
