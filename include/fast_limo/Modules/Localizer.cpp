@@ -834,15 +834,19 @@
             //         }
             // }
 
-            std::cout << "frames[0].time: " << frames[0].time << std::endl;
-            std::cout << "frames[0].time: " << frames[0].time << std::endl;
-            std::cout << "first point time: " << extract_point_time(deskewed_scan_->points[0]) << std::endl;
+            std::cout << "frames[0].time: " << std::setprecision(15) << frames[0].time << std::endl;
+            std::cout << "frames[1].time: " << std::setprecision(15) << frames[1].time << std::endl;
+            std::cout << "frames[N].time: " << std::setprecision(15) << frames[frames.size()-1].time << std::endl;
+            std::cout << "first point time: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[0]) << std::endl;
+            std::cout << "last point time: " << std::setprecision(15) << extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) << std::endl;
             std::cout << "offset: " << offset << std::endl;
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int k = 0; k < deskewed_scan_->points.size(); k++) {
 
                 int i_f = algorithms::binary_search_tailored(frames, extract_point_time(deskewed_scan_->points[k])+offset);
+
+                std::cout << "frame id: " << i_f << std::endl;
 
                 State X0 = frames[i_f];
                 X0.update(extract_point_time(deskewed_scan_->points[k]) + offset);
