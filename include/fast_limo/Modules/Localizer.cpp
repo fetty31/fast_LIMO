@@ -834,6 +834,11 @@
             //         }
             // }
 
+            std::cout << "frames[0].time: " << frames[0].time << std::endl;
+            std::cout << "frames[0].time: " << frames[0].time << std::endl;
+            std::cout << "first point time: " << extract_point_time(deskewed_scan_->points[0]) << std::endl;
+            std::cout << "offset: " << offset << std::endl;
+
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int k = 0; k < deskewed_scan_->points.size(); k++) {
 
