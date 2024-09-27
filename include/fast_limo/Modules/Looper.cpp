@@ -52,11 +52,27 @@
             odom_noise = gtsam::noiseModel::Diagonal::Variances(odom_cov);
 
             gtsam::Vector gnss_cov(3);
-            gnss_cov << 1.e9, 1.e9, 1e-12; // GNSS latitude and longitude are not taken into account, we only correct altitude
+            gnss_cov << 1.e9, 1.e9, 200.0; // GNSS latitude and longitude are not taken into account, we only correct altitude
             gnss_noise = gtsam::noiseModel::Robust::Create(
                         gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
                         gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
             // gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
+
+            gtsam::Vector loop_cov(6);
+            loop_cov << 0.5, 0.5, 0.5, 0.5, 0.5, 0.5;
+            loop_noise = gtsam::noiseModel::Robust::Create(
+                        gtsam::noiseModel::mEstimator::Cauchy::Create(1),
+                        gtsam::noiseModel::Diagonal::Variances(loop_cov) );
+
+            // ICP setup
+            icp.setMaxCorrespondenceDistance(150);
+            icp.setMaximumIterations(100);
+            icp.setTransformationEpsilon(1e-6);
+            icp.setEuclideanFitnessEpsilon(1e-6);
+            icp.setRANSACIterations(0);
+
+            // Scan Context
+            this->sc_ptr_ = std::make_unique<ScanContext>();
 
             this->initFlag = true;
         }
@@ -64,6 +80,10 @@
         bool Looper::solve(){
             if(not this->initFlag) return false;
             if(this->init_estimates.size() < 3 /*config.min_number_states*/) return false;
+
+            // Check loop closure (To-DO: call loop check at different rate)
+            this->check_loop();
+            this->process_icp();
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
@@ -73,6 +93,11 @@
             // Compute estimate
             gtsam::Values result = this->iSAM_->calculateEstimate();
             this->out_estimate = result.at<gtsam::Pose3>(static_cast<int>(result.size())-1);
+
+            // Update Key Frames clouds
+            this->updateKeyFrames(&result);
+
+            std::cout << "iSAM result size: " << result.size() << std::endl;
 
             // Compute marginals
             // gtsam::Marginals marginals(this->graph, result);
@@ -92,27 +117,68 @@
             return true;
         }
 
+        void Looper::check_loop(){
+
+            if(this->keyframes.size() < this->sc_ptr_->NUM_EXCLUDE_RECENT) return; // avoid checking too early
+
+            auto lc_ids = sc_ptr_->detectLoopClosureID(); // loop closure indexes
+            int closest_id = lc_ids.first;
+            if(closest_id != -1){
+                const int prev_idx = closest_id;
+                const int curr_idx = this->keyframes.size()-1;
+
+                // std::cout << "FAST_LIMO::LOOPER loop detected!!\n";
+                // std::cout << "                  from: " << prev_idx << " to: " << curr_idx << std::endl;
+
+                this->icp_mtx.lock();
+                this->icp_candidates.push_front(std::make_pair(prev_idx, curr_idx));
+                this->icp_mtx.unlock();
+            }
+
+        }
+
+        void Looper::process_icp(){
+
+            while(not this->icp_candidates.empty()){
+                auto loop_idxs = icp_candidates.back();
+
+                this->icp_mtx.lock();
+                icp_candidates.pop_back();
+                this->icp_mtx.unlock();
+
+                auto pose_correction = run_icp(loop_idxs.first, loop_idxs.second);
+
+                if( not pose_correction.equals(gtsam::Pose3::identity()) )
+                    this->updateLoopClosure(pose_correction, loop_idxs.first, loop_idxs.second);
+            }
+        }
+
         void Looper::update(State s, pcl::PointCloud<PointType>::Ptr& pc){
 
-            // To DO: if conditions are met, add keyframe
-            
-            // this->kf_mtx.lock();
-            // this->keyframes.push_front(std::make_pair(s, pc));
-            // this->kf_mtx.unlock();
-
             if(not time2update(s)) return;
-            this->update(s);
+            if(pc->points.size() <= 0) return;
+
+            this->kf_mtx.lock();
+            this->keyframes.push_front(std::make_pair(s, pc));
+            this->kf_mtx.unlock();
+
+            pcl::PointCloud<pcl::PointXYZ>::Ptr sc_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+            pcl::copyPointCloud(*pc, *sc_cloud); // change cloud type
+
+            pcl::PointCloud<pcl::PointXYZ>::Ptr bl_cloud(new pcl::PointCloud<pcl::PointXYZ>()); // base link cloud
+            pcl::transformPointCloud(*sc_cloud, *bl_cloud, s.get_RT_inv());
+
+            sc_ptr_->makeAndSaveScanContextAndKeys(*bl_cloud);
+
+            this->updateGraph(this->fromLIMOtoGTSAM(s));
         }
 
         void Looper::update(State s){
             if(not time2update(s)) return;
-            this->update(this->fromLIMOtoGTSAM(s));
+            this->updateGraph(this->fromLIMOtoGTSAM(s));
         }
 
         void Looper::update(double lat, double lng, double alt){
-            /*To DO:
-                - define logic for GNSS data update (LLA to UTM/ENU in order to define update discretization)
-            */
 
             if(not this->gnss_tf.hasLocalAxis()){
                 gnss_tf.setInitPose(lat, lng, alt);
@@ -129,8 +195,7 @@
             gtsam::Pose3 last_estimate = init_estimates.at<gtsam::Pose3>(global_idx-1);
             gtsam::Point3 gnss_state(last_estimate.x(), last_estimate.y(), alt_offset);
 
-            std::cout << "altitude offset\n";
-            std::cout << alt_offset << std::endl;
+            std::cout << "GNSS ALTITUDE offset: " << alt_offset << std::endl;
 
             graph_mtx.lock();
             graph.add(gtsam::GPSFactor(global_idx-1, gnss_state, gnss_noise));
@@ -163,6 +228,23 @@
             return std::vector<double>(36, 0.0);
         }
 
+        std::vector< std::pair<State, 
+                    pcl::PointCloud<PointType>::Ptr> > Looper::getKeyFrames(){
+
+            std::vector<std::pair<State, pcl::PointCloud<PointType>::Ptr>> output;
+            output.resize(this->keyframes.size());
+
+            int num_threads = 10; // To-DO: make config param
+            this->kf_mtx.lock();
+            #pragma omp parallel for num_threads(num_threads)
+            for(int i=0; i < this->keyframes.size(); i++){
+                output[i] = this->keyframes[i];
+            }
+            this->kf_mtx.unlock();
+
+            return output;
+        }
+
     // private
 
         bool Looper::time2update(const State& s){ 
@@ -174,7 +256,7 @@
 
             Eigen::Vector3f rpy = q_diff.toRotationMatrix().eulerAngles(0, 1, 2);
 
-            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 0.5){
+            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 1.5){
                 std::cout << "TIME TO UPDATE iSAM\n";
                 this->last_kf = s;
                 return true;
@@ -184,17 +266,15 @@
 
         bool Looper::time2update(Eigen::Vector3d& enu){
             Eigen::Vector3d p_diff = enu - this->last_enu;
-            if(p_diff.norm() > 0.5){
+            if(p_diff.norm() > 2.5){
                 std::cout << "TIME TO UPDATE GNSS\n";
-                std::cout << "last ENU: " << last_enu << std::endl;
-                std::cout << "ENU: " << enu << std::endl;
                 this->last_enu = enu;
                 return true;
             }else
                 return false;
         }
 
-        void Looper::update(gtsam::Pose3 pose){
+        void Looper::updateGraph(gtsam::Pose3 pose){
 
             graph_mtx.lock();
             if(not this->priorAdded)
@@ -234,7 +314,83 @@
 
         }
 
+        void Looper::updateLoopClosure(gtsam::Pose3 pose, int idN, int id0){
+            graph_mtx.lock();
+            graph.add(gtsam::BetweenFactor<gtsam::Pose3>(idN, id0, pose, this->loop_noise));
+            graph_mtx.unlock();
+        }
+
         gtsam::Pose3 Looper::fromLIMOtoGTSAM(const State& s){
             return gtsam::Pose3( gtsam::Rot3(gtsam::Rot3::Quaternion(s.q.w(), s.q.x(), s.q.y(), s.q.z())), 
                                  gtsam::Point3(s.p(0), s.p(1), s.p(2)) );
+        }
+
+        void Looper::updateKeyFrames(gtsam::Values* graph_estimate){
+            
+            this->kf_mtx.lock();
+
+            auto kf_it = this->keyframes.begin();
+
+            int idx = graph_estimate->size()-1;
+            while( kf_it != this->keyframes.end() || idx > 0) {
+
+                Eigen::Matrix4d Td = graph_estimate->at<gtsam::Pose3>(idx).matrix();
+                fast_limo::State st(Td);
+
+                Eigen::Matrix4f Tdiff = kf_it->first.get_RT_inv()*st.get_RT();
+
+                // Update key pairs
+                kf_it->first = st;
+
+                pcl::PointCloud<PointType> updated_cloud;
+                pcl::transformPointCloud (*(kf_it->second), updated_cloud, Tdiff);
+
+                kf_it++;
+                idx--;
+            }
+
+            this->kf_mtx.unlock();
+
+        }
+
+        gtsam::Pose3 Looper::run_icp(int id0, int idN){
+
+            pcl::PointCloud<PointType>::Ptr currentKeyFrameCloud(this->keyframes[idN].second);
+            pcl::PointCloud<PointType>::Ptr targetKeyFrameCloud(new pcl::PointCloud<PointType>());
+            pcl::PointCloud<PointType>::Ptr correctedCloud(new pcl::PointCloud<PointType>());
+
+            // Fill target cloud with near frames
+            int kf_size = this->keyframes.size();
+            for (int i = -20 /*config.window_size*/; i <= 25/*config.window_size*/; ++i)
+            {
+                int idx = id0 + i;
+                if (idx < 0 || idx >= kf_size )
+                    continue;
+
+                this->kf_mtx.lock(); 
+                *targetKeyFrameCloud += *this->keyframes[idx].second;
+                this->kf_mtx.unlock();
+            }
+
+            // Align pointclouds
+            this->icp.setInputSource(currentKeyFrameCloud);
+            this->icp.setInputTarget(targetKeyFrameCloud);
+            this->icp.align(*correctedCloud);
+
+            if (icp.hasConverged() == false || icp.getFitnessScore() > 0.3) {
+                std::cout << "FAST_LIMO::LOOPER ICP correction failed (" << icp.getFitnessScore() << " > " << 0.3 << "). Rejecting this SC loop." << std::endl;
+                return gtsam::Pose3::identity();
+            } else {
+                std::cout << "FAST_LIMO::LOOPER ICP fitness test passed (" << icp.getFitnessScore() << " < " << 0.3 << "). Adding this SC loop." << std::endl;
+            }
+
+            // Get pose transformation
+            Eigen::Matrix4f icp_tf = icp.getFinalTransformation();
+            Eigen::Matrix4f current_tf = this->keyframes[idN].first.get_RT();
+            Eigen::Matrix4f correct_tf = icp_tf * current_tf;
+
+            gtsam::Pose3 poseFrom = this->fromLIMOtoGTSAM(fast_limo::State(correct_tf));
+            gtsam::Pose3 poseTo = this->fromLIMOtoGTSAM(this->keyframes[id0].first);
+
+            return poseFrom.between(poseTo);
         }

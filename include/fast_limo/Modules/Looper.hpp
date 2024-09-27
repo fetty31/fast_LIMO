@@ -33,6 +33,8 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/ISAM2.h>
 
+#include "Scancontext/scancontext.hpp"
+
 using namespace fast_limo;
 
 class fast_limo::Looper {
@@ -46,6 +48,13 @@ class fast_limo::Looper {
         gtsam::ISAM2* iSAM_;
         gtsam::Pose3 out_estimate;
 
+            // Loop Closure
+        std::unique_ptr<ScanContext> sc_ptr_;
+
+        pcl::IterativeClosestPoint<PointType, PointType> icp;
+        boost::circular_buffer<std::pair<int,int>> icp_candidates;
+        std::mutex icp_mtx;
+
         bool priorAdded;
         uint64_t global_idx;
 
@@ -55,6 +64,7 @@ class fast_limo::Looper {
         gtsam::noiseModel::Diagonal::shared_ptr odom_noise;
         // gtsam::noiseModel::Diagonal::shared_ptr gnss_noise;
         gtsam::noiseModel::Base::shared_ptr gnss_noise;
+        gtsam::noiseModel::Base::shared_ptr loop_noise;
 
             // Keyframes
         boost::circular_buffer<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
@@ -82,18 +92,29 @@ class fast_limo::Looper {
         std::vector<double> getPoseCovariance(); // get iSAM covariances
         std::vector<double> getTwistCovariance();// get iSAM covariances
 
+        std::vector< std::pair<State, 
+                    pcl::PointCloud<PointType>::Ptr> > getKeyFrames();
+
         bool solve();
+        void check_loop();
+        void process_icp();
 
         void update(State s, pcl::PointCloud<PointType>::Ptr&);
         void update(State s);
         void update(double lat, double lng, double alt);
 
     private:
-        void update(gtsam::Pose3 pose);
+        void updateGraph(gtsam::Pose3 pose);
+        void updateLoopClosure(gtsam::Pose3 pose, int idN, int id0);
+
         gtsam::Pose3 fromLIMOtoGTSAM(const State& s);
 
         bool time2update(const State& s);
         bool time2update(Eigen::Vector3d& enu);
+
+        void updateKeyFrames(gtsam::Values* graph_estimate);
+
+        gtsam::Pose3 run_icp(int id0, int idN);
 
     // SINGLETON 
 
