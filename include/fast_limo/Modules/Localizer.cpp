@@ -267,20 +267,21 @@
             std::function<bool(boost::range::index_value<PointType&, long>)> filter_f;
             
             if(this->config.filters.dist_active && this->config.filters.rate_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
                     { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist)
-                                && (p.index()%rate_value == 0); };
+                                && (p.index()%rate_value == 0) && this->isInRange(p.value()); };
             }
             else if(this->config.filters.dist_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist) &&
+                                this->isInRange(p.value()); };
             }
             else if(this->config.filters.rate_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return p.index()%rate_value == 0; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return (p.index()%rate_value == 0) && this->isInRange(p.value()); };
             }else{
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return true; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return this->isInRange(p.value()); };
             }
             auto filtered_pc = raw_pc->points 
                         | boost::adaptors::indexed()
@@ -823,9 +824,7 @@
                 pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
                 pt2.intensity = pt.intensity;
 
-                // if(this->isInRange(pt2)) // To DO: add FoV filtering somewhere else
                 deskewed_Xt2_scan_->points[k] = pt2;
-
             }
 
             // debug info
