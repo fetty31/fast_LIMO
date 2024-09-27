@@ -28,7 +28,11 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
 find_package(GTSAM REQUIRED QUIET)
+include_directories(${GTSAM_INCLUDE_DIR})
+message("GTSAM version: ${GTSAM_VERSION}")
+
 find_package(GeographicLib REQUIRED)
+message("GeographicLib VERSION: ${GeographicLib_VERSION}")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -86,6 +90,15 @@ target_include_directories(ikfom
   PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit 
 )
 
+# Scan Context
+add_library(scan_context
+            include/Scancontext/scancontext.cpp
+          )
+target_link_libraries(scan_context ${PCL_LIBRARIES} ${OpenMP_LIBS})
+target_include_directories(scan_context
+  PUBLIC include/Scancontext/
+)
+
 # Fast LIMO
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
@@ -97,7 +110,13 @@ add_library(${PROJECT_NAME}
             include/fast_limo/Objects/Match.cpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree gtsam ${GeographicLib_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} 
+                                      ${OpenMP_LIBS} 
+                                      ikfom 
+                                      ikd_tree 
+                                      scan_context
+                                      gtsam 
+                                      ${GeographicLib_LIBRARIES})
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec

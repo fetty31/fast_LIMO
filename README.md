@@ -88,7 +88,7 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
         <a href="https://pointclouds.org/">PCL</a> (1.8)
         </li>
         <li>
-        <a href="https://gtsam.org/">GTSAM</a> (4.0.2)
+        <a href="https://gtsam.org/">GTSAM</a> (4.2)
         </li>
         <li>
         <a href="https://geographiclib.sourceforge.io/C++/doc/index.html">GeographicLib</a> (2.4)

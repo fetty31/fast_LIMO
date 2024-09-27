@@ -50,6 +50,7 @@ class fast_limo::State{
         State(const state_ikfom& s, double t);
         State(const state_ikfom& s, double t, Eigen::Vector3f a, Eigen::Vector3f w);
         State(Eigen::Matrix4f& s);
+        State(Eigen::Matrix4d& s);
 
         void operator+=(const State& s);
 
