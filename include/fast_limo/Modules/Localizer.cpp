@@ -310,9 +310,11 @@
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
 
-                    // Update current state estimate
-                corrected_state.b.gyro  = this->state.b.gyro;
-                corrected_state.b.accel = this->state.b.accel;
+                // Set estimated biases & gravity to constant
+                if(this->config.calibrate_gyro)  corrected_state.b.gyro  = this->state.b.gyro;
+                if(this->config.calibrate_accel) corrected_state.b.accel = this->state.b.accel;
+                if(this->config.gravity_align)   corrected_state.g       = this->state.g;
+
                 this->state      = corrected_state;
                 this->state.w    = this->last_imu.ang_vel;
                 this->state.a    = this->last_imu.lin_accel;
@@ -427,6 +429,9 @@
 
                         // set gravity aligned orientation
                         this->state.q = grav_q;
+
+                        // set estimated gravity vector
+                        this->state.g = grav_vec;
 
                     }
 

@@ -79,6 +79,12 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     tf_limo::fromLimoToROS(loc.getWorldState(), loc.getPoseCovariance(), loc.getTwistCovariance(), state_msg);
     tf_limo::fromLimoToROS(loc.getBodyState(), loc.getPoseCovariance(), loc.getTwistCovariance(), body_msg);
 
+    // Fill frame id's
+    state_msg.header.frame_id = world_frame;
+    state_msg.child_frame_id  = body_frame;
+    body_msg.header.frame_id  = world_frame;
+    body_msg.child_frame_id   = body_frame;
+
     state_pub.publish(state_msg);
     body_pub.publish(body_msg);
 
