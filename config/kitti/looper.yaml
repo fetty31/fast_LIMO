@@ -1,0 +1,44 @@
+# Kitti config
+
+topics:
+  input:
+    GPSfix: /kitti/oxts/gps/fix
+
+frames: # output frames (the transform between frames will be broadcasted)
+  world: map
+  body: base_link
+  tf_pub: false
+
+ScanContext:
+  NUM_EXCLUDE_RECENT: 50
+  NUM_CANDIDATES_FROM_TREE: 10
+  PC_NUM_RING: 20
+  PC_NUM_SECTOR: 60
+  PC_MAX_RADIUS: 80.0
+  SEARCH_RATIO: 0.1
+  SC_THRESHOLD: 0.3
+
+PoseGraph:
+  MinNumStates: 3  # min number of received states in order to solve pose-graph optimization
+
+  Covariances: # noise covariance for each type of edge factors
+    Prior: [ 1.e-12, 1.e-12, 1.e-12, 1.e-12, 1.e-12, 1.e-12 ]
+    Odom:  [ 1.e-6,  1.e-6,  1.e-6,  1.e-4,  1.e-4,  1.e-4 ]
+    GPS:   [ 1.e+9,  1.e+9,  200.0 ]
+    Loop:  [ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+
+ICP:
+  MAX_DIST: 150.0
+  MAX_ITERS: 100
+  TF_EPSILON: 1.e-6
+  EUC_FIT_EPSILON: 1.e-6
+  RANSAC_ITERS: 0
+  FIT_SCORE: 0.3    # threshold to consider the current ICP solution as good (if score < FIT_SCORE the ICP solution will be used)
+  WINDOW_SIZE: 20   # number of previous pointcloud keyframes to take into account for the ICP correction
+  
+KeyFrames:
+  Odom:
+    DIFF_NORM: 1.5  # if (norm(pos_{t} - pos_{t-1}) > DIFF_NORM) a new keyframe will be added (state + pointcloud)
+    DIFF_YAW: 0.5   # if (norm(yaw_{t} - yaw_{t-1}) > DIFF_YAW) a new keyframe will be added
+  GPS:
+    DIFF_NORM: 2.5  # if (norm(posGPS_{t} - posGPS_{t-1}) > DIFF_NORM) a new GPS landmark will be added

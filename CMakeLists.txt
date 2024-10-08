@@ -29,7 +29,7 @@ find_package(Threads REQUIRED)
 
 find_package(GTSAM REQUIRED QUIET)
 include_directories(${GTSAM_INCLUDE_DIR})
-message("GTSAM version: ${GTSAM_VERSION}")
+message("GTSAM VERSION: ${GTSAM_VERSION}")
 
 find_package(GeographicLib REQUIRED)
 message("GeographicLib VERSION: ${GeographicLib_VERSION}")
@@ -42,13 +42,14 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   nav_msgs
   tf2
+  std_msgs
 )
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
- DEPENDS EIGEN3 PCL GTSAM
+ CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs std_msgs
+ DEPENDS EIGEN3 PCL
 )
 
 include_directories(
@@ -109,12 +110,14 @@ add_library(${PROJECT_NAME}
             include/fast_limo/Objects/Plane.cpp
             include/fast_limo/Objects/Match.cpp
             )
+            
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
+
 target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} 
                                       ${OpenMP_LIBS} 
                                       ikfom 
                                       ikd_tree 
-                                      scan_context
+                                      scan_context 
                                       gtsam 
                                       ${GeographicLib_LIBRARIES})
 

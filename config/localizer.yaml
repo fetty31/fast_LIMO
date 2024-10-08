@@ -2,8 +2,8 @@
 
 topics:
   input:
-    lidar: /points_raw
-    imu: /imu_raw
+    lidar: /lidar/points
+    imu: /sensors/imu
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
@@ -12,7 +12,7 @@ frames: # output frames (the transform between frames will be broadcasted)
 
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
-sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
+sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
 debug: true     # fill useful intermediate pcl (deskewed, final_raw...) for visualizing purposes
 verbose: true   # print debug/performance board

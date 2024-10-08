@@ -46,7 +46,7 @@
   *  \tparam Distance The distance metric to use: nanoflann::metric_L1, nanoflann::metric_L2, nanoflann::metric_L2_Simple, etc.
   *  \tparam IndexType The type for indices in the KD-tree index (typically, size_t of int)
   */
-template <class VectorOfVectorsType, typename num_t = double, int DIM = -1, class Distance = nanoflann::metric_L2, typename IndexType = size_t>
+template <class VectorOfVectorsType, typename num_t = float, int DIM = -1, class Distance = nanoflann::metric_L2, typename IndexType = size_t>
 struct KDTreeVectorOfVectorsAdaptor
 {
 	typedef KDTreeVectorOfVectorsAdaptor<VectorOfVectorsType,num_t,DIM,Distance> self_t;

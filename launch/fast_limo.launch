@@ -3,7 +3,7 @@
     <arg name="rviz" default="true"/>
 
     <node pkg="fast_limo" type="fast_limo_multi_exec" name="fast_limo" output="screen">
-        <rosparam file="$(find fast_limo)/config/params.yaml" />
+        <rosparam file="$(find fast_limo)/config/localizer.yaml" />
     </node>
 
     <node pkg="rviz" name="rviz_limo" type="rviz" args="-d $(find fast_limo)/config/rviz/limo.rviz" if="$(arg rviz)"/>
