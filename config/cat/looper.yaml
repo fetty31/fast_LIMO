@@ -37,7 +37,7 @@ ICP:
   
 KeyFrames:
   Odom:
-    DIFF_NORM: 1.5  # if (norm(pos_{t} - pos_{t-1}) > DIFF_NORM) a new keyframe will be added (state + pointcloud)
+    DIFF_NORM: 0.5  # if (norm(pos_{t} - pos_{t-1}) > DIFF_NORM) a new keyframe will be added (state + pointcloud)
     DIFF_YAW: 0.5   # if (norm(yaw_{t} - yaw_{t-1}) > DIFF_YAW) a new keyframe will be added
   GPS:
-    DIFF_NORM: 2.5  # if (norm(posGPS_{t} - posGPS_{t-1}) > DIFF_NORM) a new GPS landmark will be added
+    DIFF_NORM: 1.5  # if (norm(posGPS_{t} - posGPS_{t-1}) > DIFF_NORM) a new GPS landmark will be added

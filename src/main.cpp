@@ -9,6 +9,7 @@ ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, map_bb_pub
 
 // output frames
 std::string world_frame, body_frame;
+bool tf_pub;
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 
@@ -83,7 +84,8 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     body_pub.publish(body_msg);
 
     // TF broadcasting
-    tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+    if(tf_pub)
+        tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
 
 }
 
@@ -191,6 +193,7 @@ int main(int argc, char** argv) {
     // Read frames names
     nh.param<std::string>("frames/world", world_frame, "map");
     nh.param<std::string>("frames/body", body_frame, "base_link");
+    nh.param<bool>("frames/tf_pub", tf_pub, true);
 
     // Define subscribers & publishers
     ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());

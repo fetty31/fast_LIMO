@@ -11,7 +11,6 @@ fast_limo::State st;
 
 // output frames
 std::string world_frame, body_frame;
-bool tf_pub;
 
 void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
 
@@ -96,8 +95,6 @@ int main(int argc, char** argv) {
     // Read frames names
     nh.param<std::string>("frames/world", world_frame, "map");
     nh.param<std::string>("frames/body", body_frame, "base_link");
-
-    nh.param<bool>("frames/tf_pub", tf_pub, true);
 
     // Define subscribers & publishers
     ros::Subscriber state_sub = nh.subscribe("/fast_limo/state", 1, &state_callback, ros::TransportHints().tcpNoDelay());

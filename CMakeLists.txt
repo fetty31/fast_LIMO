@@ -31,6 +31,7 @@ find_package(GTSAM REQUIRED QUIET)
 include_directories(${GTSAM_INCLUDE_DIR})
 message("GTSAM VERSION: ${GTSAM_VERSION}")
 
+set(CMAKE_MODULE_PATH /usr/local/share/cmake/GeographicLib)
 find_package(GeographicLib REQUIRED)
 message("GeographicLib VERSION: ${GeographicLib_VERSION}")
 

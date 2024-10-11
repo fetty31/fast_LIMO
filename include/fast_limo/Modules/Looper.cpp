@@ -31,7 +31,9 @@
             delete iSAM_;
         }
 
-        void Looper::init(){
+        void Looper::init(LoopConfig& cfg){
+
+            this->config = cfg;
 
             // Set up incremental Smoothing And Mapping (iSAM)
             gtsam::ISAM2Params param;
@@ -44,42 +46,50 @@
 
             // Define noise models
             gtsam::Vector prior_cov(6);
-            prior_cov << 1e-12, 1e-12, 1e-12, 1e-12, 1e-12, 1e-12;
+            prior_cov << cfg.posegraph.prior_cov[0], cfg.posegraph.prior_cov[1], cfg.posegraph.prior_cov[2], 
+                         cfg.posegraph.prior_cov[3], cfg.posegraph.prior_cov[4], cfg.posegraph.prior_cov[5];
             prior_noise = gtsam::noiseModel::Diagonal::Variances(prior_cov);
 
             gtsam::Vector odom_cov(6);
-            odom_cov << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4;
+            odom_cov << cfg.posegraph.odom_cov[0], cfg.posegraph.odom_cov[1], cfg.posegraph.odom_cov[2], 
+                        cfg.posegraph.odom_cov[3], cfg.posegraph.odom_cov[4], cfg.posegraph.odom_cov[5];
             odom_noise = gtsam::noiseModel::Diagonal::Variances(odom_cov);
 
             gtsam::Vector gnss_cov(3);
-            gnss_cov << 1.e9, 1.e9, 200.0; // GNSS latitude and longitude are not taken into account, we only correct altitude
+            gnss_cov << cfg.posegraph.gnss_cov[0], cfg.posegraph.gnss_cov[1], cfg.posegraph.gnss_cov[2];
+                // GNSS latitude and longitude are not taken into account, we only correct altitude
             gnss_noise = gtsam::noiseModel::Robust::Create(
                         gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
                         gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
             // gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
 
             gtsam::Vector loop_cov(6);
-            loop_cov << 0.5, 0.5, 0.5, 0.5, 0.5, 0.5;
+            loop_cov << cfg.posegraph.loop_cov[0], cfg.posegraph.loop_cov[1], cfg.posegraph.loop_cov[2], 
+                        cfg.posegraph.loop_cov[3], cfg.posegraph.loop_cov[4], cfg.posegraph.loop_cov[5];
             loop_noise = gtsam::noiseModel::Robust::Create(
                         gtsam::noiseModel::mEstimator::Cauchy::Create(1),
                         gtsam::noiseModel::Diagonal::Variances(loop_cov) );
 
             // ICP setup
-            icp.setMaxCorrespondenceDistance(150);
-            icp.setMaximumIterations(100);
-            icp.setTransformationEpsilon(1e-6);
-            icp.setEuclideanFitnessEpsilon(1e-6);
-            icp.setRANSACIterations(0);
+            icp.setMaxCorrespondenceDistance(cfg.icp.MAX_DIST);
+            icp.setMaximumIterations(cfg.icp.MAX_ITERS);
+            icp.setTransformationEpsilon(cfg.icp.TF_EPSILON);
+            icp.setEuclideanFitnessEpsilon(cfg.icp.EUC_FIT_EPSILON);
+            icp.setRANSACIterations(cfg.icp.RANSAC_ITERS);
+
+            this->icp_candidates.set_capacity(100);
 
             // Scan Context
-            this->sc_ptr_ = std::make_unique<ScanContext>();
+            this->sc_ptr_ = std::make_unique<ScanContext>(cfg.scancontext.NUM_EXCLUDE_RECENT, cfg.scancontext.NUM_CANDIDATES_FROM_TREE,
+                                                          cfg.scancontext.PC_NUM_RING, cfg.scancontext.PC_NUM_SECTOR, cfg.scancontext.PC_MAX_RADIUS,
+                                                          cfg.scancontext.SC_THRESHOLD, cfg.scancontext.SEARCH_RATIO );
 
             this->initFlag = true;
         }
 
         bool Looper::solve(){
             if(not this->initFlag) return false;
-            if(this->init_estimates.size() < 3 /*config.min_number_states*/) return false;
+            if(this->init_estimates.size() < this->config.posegraph.min_num_states) return false;
 
             // Check loop closure (To-DO: call loop check at different rate)
             this->check_loop();
@@ -97,7 +107,7 @@
             // Update Key Frames clouds
             this->updateKeyFrames(&result);
 
-            std::cout << "iSAM result size: " << result.size() << std::endl;
+            std::cout << "FAST_LIMO::LOOPER iSAM result size: " << result.size() << std::endl;
 
             // Compute marginals
             // gtsam::Marginals marginals(this->graph, result);
@@ -105,9 +115,9 @@
             //     std::cout << "x" << i << " covariance:\n" << marginals.marginalCovariance(i) << std::endl;
             // }
             
-            std::cout << "------------------------ optimzed state -------------------------\n";
-            std::cout << result.at<gtsam::Pose3>(static_cast<int>(result.size())-1) << std::endl;
-            std::cout << "-----------------------------------------------------------------\n";
+            // std::cout << "------------------------ optimzed state -------------------------\n";
+            // std::cout << result.at<gtsam::Pose3>(static_cast<int>(result.size())-1) << std::endl;
+            // std::cout << "-----------------------------------------------------------------\n";
 
             this->graph.resize(0);
             this->init_estimates.clear();
@@ -120,6 +130,7 @@
         void Looper::check_loop(){
 
             if(this->keyframes.size() < this->sc_ptr_->NUM_EXCLUDE_RECENT) return; // avoid checking too early
+            if(not this->time2loop()) return;  // only check loop closure inside the radius search
 
             auto lc_ids = sc_ptr_->detectLoopClosureID(); // loop closure indexes
             int closest_id = lc_ids.first;
@@ -127,8 +138,8 @@
                 const int prev_idx = closest_id;
                 const int curr_idx = this->keyframes.size()-1;
 
-                // std::cout << "FAST_LIMO::LOOPER loop detected!!\n";
-                // std::cout << "                  from: " << prev_idx << " to: " << curr_idx << std::endl;
+                std::cout << "FAST_LIMO::LOOPER loop detected!!\n";
+                std::cout << "                  from: " << prev_idx << " to: " << curr_idx << std::endl;
 
                 this->icp_mtx.lock();
                 this->icp_candidates.push_front(std::make_pair(prev_idx, curr_idx));
@@ -141,6 +152,8 @@
 
             while(not this->icp_candidates.empty()){
                 auto loop_idxs = icp_candidates.back();
+
+                std::cout << "FAST_LIMO::LOOPER processing ICP candidate\n";
 
                 this->icp_mtx.lock();
                 icp_candidates.pop_back();
@@ -158,17 +171,20 @@
             if(not time2update(s)) return;
             if(pc->points.size() <= 0) return;
 
+            pcl::PointCloud<PointType>::Ptr baselink_pc(new pcl::PointCloud<PointType>()); // local frame cloud
+            pcl::transformPointCloud(*pc, *baselink_pc, s.get_RT_inv());
+
             this->kf_mtx.lock();
             this->keyframes.push_front(std::make_pair(s, pc));
             this->kf_mtx.unlock();
 
             pcl::PointCloud<pcl::PointXYZ>::Ptr sc_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-            pcl::copyPointCloud(*pc, *sc_cloud); // change cloud type
+            pcl::copyPointCloud(*baselink_pc, *sc_cloud); // change cloud type
 
-            pcl::PointCloud<pcl::PointXYZ>::Ptr bl_cloud(new pcl::PointCloud<pcl::PointXYZ>()); // base link cloud
-            pcl::transformPointCloud(*sc_cloud, *bl_cloud, s.get_RT_inv());
+            sc_ptr_->makeAndSaveScanContextAndKeys(*sc_cloud);
 
-            sc_ptr_->makeAndSaveScanContextAndKeys(*bl_cloud);
+            if(not this->priorAdded)
+                this->prior_state = s;
 
             this->updateGraph(this->fromLIMOtoGTSAM(s));
         }
@@ -195,7 +211,7 @@
             gtsam::Pose3 last_estimate = init_estimates.at<gtsam::Pose3>(global_idx-1);
             gtsam::Point3 gnss_state(last_estimate.x(), last_estimate.y(), alt_offset);
 
-            std::cout << "GNSS ALTITUDE offset: " << alt_offset << std::endl;
+            // std::cout << "GNSS ALTITUDE offset: " << alt_offset << std::endl;
 
             graph_mtx.lock();
             graph.add(gtsam::GPSFactor(global_idx-1, gnss_state, gnss_noise));
@@ -210,6 +226,10 @@
                                   );
             s.q = this->out_estimate.rotation().toQuaternion().cast<float>(); 
             return s;
+        }
+
+        State Looper::get_last_odom(){
+            return this->last_kf;
         }
 
         void Looper::get_state(State& s){
@@ -234,15 +254,24 @@
             std::vector<std::pair<State, pcl::PointCloud<PointType>::Ptr>> output;
             output.resize(this->keyframes.size());
 
-            int num_threads = 10; // To-DO: make config param
             this->kf_mtx.lock();
-            #pragma omp parallel for num_threads(num_threads)
+            #pragma omp parallel for num_threads(omp_get_max_threads())
             for(int i=0; i < this->keyframes.size(); i++){
                 output[i] = this->keyframes[i];
             }
             this->kf_mtx.unlock();
 
+            std::reverse(output.begin(), output.end());
+
             return output;
+        }
+
+        float Looper::getScanContextResult(){
+            return sc_ptr_->getScanContextResult();
+        }
+
+        int Looper::getScanContextIndex(){
+            return sc_ptr_->getScanContextIndex();
         }
 
     // private
@@ -256,8 +285,9 @@
 
             Eigen::Vector3f rpy = q_diff.toRotationMatrix().eulerAngles(0, 1, 2);
 
-            if(fabs(rpy(2)) > 0.5 || p_diff.norm() > 1.5){
-                std::cout << "TIME TO UPDATE iSAM\n";
+            if( fabs(rpy(2)) > this->config.kf.odom_diff.second 
+                || p_diff.norm() > this->config.kf.odom_diff.first 
+            ){
                 this->last_kf = s;
                 return true;
             }else
@@ -266,12 +296,15 @@
 
         bool Looper::time2update(Eigen::Vector3d& enu){
             Eigen::Vector3d p_diff = enu - this->last_enu;
-            if(p_diff.norm() > 2.5){
-                std::cout << "TIME TO UPDATE GNSS\n";
+            if(p_diff.norm() > this->config.kf.gnss_diff){
                 this->last_enu = enu;
                 return true;
             }else
                 return false;
+        }
+
+        bool Looper::time2loop(){
+            return (keyframes[0].first.p - prior_state.p).norm() < config.radiussearch.RADIUS;
         }
 
         void Looper::updateGraph(gtsam::Pose3 pose){
@@ -295,14 +328,14 @@
             }
             graph_mtx.unlock();
 
-            std::cout << "out estimate\n";
-            std::cout << out_estimate << std::endl;
+            // std::cout << "out estimate\n";
+            // std::cout << out_estimate << std::endl;
 
-            std::cout << "input estimate\n";
-            std::cout << pose << std::endl;
+            // std::cout << "input estimate\n";
+            // std::cout << pose << std::endl;
 
-            std::cout << "between pose:\n";
-            std::cout << out_estimate.between(pose) << std::endl;
+            // std::cout << "between pose:\n";
+            // std::cout << out_estimate.between(pose) << std::endl;
 
             if(global_idx < UINT64_MAX) global_idx++;
             else{
@@ -332,18 +365,17 @@
             auto kf_it = this->keyframes.begin();
 
             int idx = graph_estimate->size()-1;
-            while( kf_it != this->keyframes.end() || idx > 0) {
+            while( (kf_it != this->keyframes.end()) && (idx > 0) ) {
 
                 Eigen::Matrix4d Td = graph_estimate->at<gtsam::Pose3>(idx).matrix();
                 fast_limo::State st(Td);
 
-                Eigen::Matrix4f Tdiff = kf_it->first.get_RT_inv()*st.get_RT();
+                Eigen::Matrix4f Tdiff = st.get_RT()*kf_it->first.get_RT_inv();
 
                 // Update key pairs
                 kf_it->first = st;
 
-                pcl::PointCloud<PointType> updated_cloud;
-                pcl::transformPointCloud (*(kf_it->second), updated_cloud, Tdiff);
+                pcl::transformPointCloud (*(kf_it->second), *(kf_it->second), Tdiff);
 
                 kf_it++;
                 idx--;
@@ -356,19 +388,25 @@
         gtsam::Pose3 Looper::run_icp(int id0, int idN){
 
             pcl::PointCloud<PointType>::Ptr currentKeyFrameCloud(this->keyframes[idN].second);
+            pcl::transformPointCloud (*currentKeyFrameCloud, *currentKeyFrameCloud, this->keyframes[idN].first.get_RT());
+
             pcl::PointCloud<PointType>::Ptr targetKeyFrameCloud(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr correctedCloud(new pcl::PointCloud<PointType>());
 
             // Fill target cloud with near frames
             int kf_size = this->keyframes.size();
-            for (int i = -20 /*config.window_size*/; i <= 25/*config.window_size*/; ++i)
+            for (int i = -this->config.icp.WINDOW_SIZE; i <= this->config.icp.WINDOW_SIZE; ++i)
             {
                 int idx = id0 + i;
-                if (idx < 0 || idx >= kf_size )
+                if(idx < 0) idx += kf_size;
+                if (idx >= kf_size )
                     continue;
 
+                pcl::PointCloud<PointType> cloud;
+                pcl::transformPointCloud(*(this->keyframes[idx].second), cloud, this->keyframes[idx].first.get_RT());
+
                 this->kf_mtx.lock(); 
-                *targetKeyFrameCloud += *this->keyframes[idx].second;
+                *targetKeyFrameCloud += cloud;
                 this->kf_mtx.unlock();
             }
 

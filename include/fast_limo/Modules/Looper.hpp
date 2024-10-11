@@ -20,7 +20,7 @@
 
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Objects/State.hpp"
-#include "fast_limo/Utils/Config.hpp"
+#include "fast_limo/Utils/LoopConfig.hpp"
 #include "fast_limo/Utils/GNSStf.hpp"
 
 #include <gtsam/nonlinear/Values.h>
@@ -47,6 +47,9 @@ class fast_limo::Looper {
         gtsam::Values init_estimates;
         gtsam::ISAM2* iSAM_;
         gtsam::Pose3 out_estimate;
+
+            // Config struct
+        LoopConfig config;
 
             // Loop Closure
         std::unique_ptr<ScanContext> sc_ptr_;
@@ -77,6 +80,7 @@ class fast_limo::Looper {
         bool initFlag;
         State last_kf;
         Eigen::Vector3d last_enu;
+        fast_limo::State prior_state;
 
     // FUNCTIONS
 
@@ -84,9 +88,10 @@ class fast_limo::Looper {
         Looper();
         ~Looper();
 
-        void init(); // To DO: add config struct as input
+        void init(LoopConfig& cfg); // To DO: add config struct as input
 
         State get_state();
+        State get_last_odom();
         void get_state(State& s);
 
         std::vector<double> getPoseCovariance(); // get iSAM covariances
@@ -94,6 +99,9 @@ class fast_limo::Looper {
 
         std::vector< std::pair<State, 
                     pcl::PointCloud<PointType>::Ptr> > getKeyFrames();
+        
+        float getScanContextResult();
+        int getScanContextIndex();
 
         bool solve();
         void check_loop();
@@ -111,6 +119,7 @@ class fast_limo::Looper {
 
         bool time2update(const State& s);
         bool time2update(Eigen::Vector3d& enu);
+        bool time2loop();
 
         void updateKeyFrames(gtsam::Values* graph_estimate);
 

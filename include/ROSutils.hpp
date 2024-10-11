@@ -242,4 +242,41 @@ visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string f
     return m_array;
 }
 
+visualization_msgs::Marker getKfMarker(const std::vector<fast_limo::State> st_vec, std::string frame_id){
+    visualization_msgs::Marker m;
+
+    if(st_vec.size() < 2) return m;
+
+
+    m.ns = "fast_limo_kf";
+    m.id = 0;
+    m.type = visualization_msgs::Marker::LINE_STRIP;
+    m.action = visualization_msgs::Marker::ADD;
+
+    m.color.r = 1.0f;
+    m.color.g = 1.0f;
+    m.color.b = 0.0f;
+    m.color.a = 1.0f;
+
+    m.lifetime = ros::Duration(0);
+    m.header.frame_id = frame_id;
+    m.header.stamp = ros::Time::now();
+
+    m.pose.orientation.w = 1.0;
+
+    m.scale.x = 0.5;
+
+    m.points.reserve(st_vec.size());
+    geometry_msgs::Point point;
+    for(int i=0; i < st_vec.size(); i++){
+        point.x = st_vec[i].p(0);
+        point.y = st_vec[i].p(1);
+        point.z = st_vec[i].p(2);
+
+        m.points.push_back(point);
+    }
+
+    return m;
+}
+
 }

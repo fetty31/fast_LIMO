@@ -48,6 +48,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <memory>
 
 template <typename T>
 std::string to_string_with_precision(const T a_value, const int n = 6)
@@ -94,6 +95,7 @@ namespace fast_limo {
 
     // UTILS
   struct Config;
+  struct LoopConfig;
   class GNSStf;
 
     // STRUCTURES
