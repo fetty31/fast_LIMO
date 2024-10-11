@@ -148,10 +148,10 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
 
 ## Future Work (To Do)
 ### DevOps
-- [X] ROS2 branch. _Coming soon!_
+- [X] ROS2 branch. 
 ### New Features
-- [ ] Take into account GPS data. _Low freq corrections of the iKFOM._
-- [ ] Add loop closure strategy. _Thinking in pose-graph optimization using [g2o](https://github.com/RainerKuemmerle/g2o)._
+- [X] Take into account GPS data. _Pose-graph optimization using [GTSAM](https://github.com/borglab/gtsam)_
+- [X] Add loop closure strategy. _Loop Closure detection with [ScanContext](https://ieeexplore.ieee.org/document/8593953)._
 - [ ] Relocalize in previously saved pcl map. _Probably ICP-based correction for initial pose._
 
 :envelope_with_arrow: _Feel free to reach out for new ideas or questions!_ :envelope_with_arrow:
