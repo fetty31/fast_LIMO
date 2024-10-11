@@ -155,8 +155,8 @@ If you plan to use `Fast-LIMO` please make sure to give some love to [LIMO-Velo]
 ### DevOps
 - [X] ROS2 branch. 
 ### New Features
-- [ ] Take into account GPS data. _Low freq corrections of the iKFOM._
-- [ ] Add loop closure strategy. _Thinking in pose-graph optimization using [g2o](https://github.com/RainerKuemmerle/g2o)._
+- [X] Take into account GPS data. _Pose-graph optimization using [GTSAM](https://github.com/borglab/gtsam)_
+- [X] Add loop closure strategy. _Loop Closure detection with [ScanContext](https://ieeexplore.ieee.org/document/8593953)._
 - [ ] Relocalize in previously saved pcl map. _Probably ICP-based correction for initial pose._
 
 :envelope_with_arrow: _Feel free to reach out for new ideas or questions!_ :envelope_with_arrow:
@@ -198,6 +198,14 @@ roslaunch fast_limo cat.launch rviz:=true
 ```
 
 _Note that this algorithm's precision greatly depends on the pointcloud & IMU timestamps, so remember to run the rosbag with __use_sim_time=true__ and __--clock__ flag._
+
+### 5. Loop Closure
+If you're interested in having loop closure for long-term odometry drift correction checkout to the `loop/scancontext` branch. 
+
+Apart from the steps 1-4, the looper node has to be launched:
+```sh
+roslaunch fast_limo loop.launch robot:=cat
+```
 
 ## Docker
 A [Dockerfile](docker/Dockerfile) is provided in order to build a `Fast-LIMO` image on top of `ros2-humble` or `ros-noetic` desktop image.
