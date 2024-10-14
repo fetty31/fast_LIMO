@@ -7,10 +7,10 @@ topics:
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
-  world: map
+  world: global
   body: base_link
 
-num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
+num_threads: 10 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
 sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
@@ -25,7 +25,7 @@ calibration:  # automatic IMU calibration (if all set to false, no calibration w
   gravity_align: true     # estimate gravity vector
   accel: true             # estimate lin. accel. bias
   gyro: true              # estimate ang. vel. bias
-  time: 3.0               # time to estimate (during this time, the robot must be at stand still)
+  time: 0.5               # time to estimate (during this time, the robot must be at stand still)
 
 extrinsics: # w.r.t baselink [SI]
   imu:
@@ -34,23 +34,24 @@ extrinsics: # w.r.t baselink [SI]
           0.,  1.,  0.,
           0.,  0.,  1. ]
   lidar:
-    t: [ 1.25,  0.,  0. ]
-    R: [ 1.,  0.,  0.,
-          0.,  1.,  0.,
-          0.,  0.,  1. ]
+    t: [1.10, 0.0, 0.05]
+    R: [0.998,  0.0,  -0.052,
+        0.0, 1.0,  0.0,
+        0.052, 0.0, 0.998]
+
 
 intrinsics:
   accel:
-    bias: [ 0.01, 0.01, 0.01 ]  # [m/s^2]
+    bias: [ 0.001, 0.001, 0.001 ]  # [m/s^2]
     sm:   [ 1.,  0.,  0.,
             0.,  1.,  0.,
             0.,  0.,  1. ]
   gyro:
-    bias: [ 0.01, 0.01, 0.01 ]  # [rad/s]
+    bias: [ 0.001, 0.001, 0.001 ]  # [rad/s]
 
 filters:
   cropBox: # prism crop
-    active: true
+    active: false
     box:
       min: [ -2.0, -2.0, -1.0 ]  # [m]
       max: [ 2.0, 2.0, 1.0 ]     # [m]
@@ -61,15 +62,15 @@ filters:
 
   minDistance: # sphere crop
     active: true
-    value: 3.5  # [m]
+    value: 1.5  # [m]
 
   FoV: # crop field of view
     active: false
     value: 180  # [deg]
   
   rateSampling: # quick downsample
-    active: true
-    value: 4
+    active: false
+    value: 2
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)

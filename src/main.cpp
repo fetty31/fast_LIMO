@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
     orig_pub     = nh.advertise<sensor_msgs::PointCloud2>("original", 1);
     desk_pub     = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
     match_pub    = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
-    finalraw_pub = nh.advertise<sensor_msgs::PointCloud2>("final_raw", 1);
+    finalraw_pub = nh.advertise<sensor_msgs::PointCloud2>("full_pcl", 1);
     body_pub     = nh.advertise<nav_msgs::Odometry>("body_state", 1);
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);

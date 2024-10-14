@@ -72,7 +72,7 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
 
 void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
-    out.header.frame_id = "map";
+    out.header.frame_id = "global";
 
     // Pose/Attitude
     Eigen::Vector3d pos = in.p.cast<double>();
@@ -94,7 +94,7 @@ void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
 void fromLimoToROS(const fast_limo::State& in, const std::vector<double>& cov_pose,
                     const std::vector<double>& cov_twist, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
-    out.header.frame_id = "map";
+    out.header.frame_id = "global";
 
     // Pose/Attitude
     Eigen::Vector3d pos = in.p.cast<double>();
@@ -162,7 +162,7 @@ visualization_msgs::Marker getLocalMapMarker(BoxPointType bb){
     m.color.a = 0.5f;
 
     m.lifetime = ros::Duration(0);
-    m.header.frame_id = "map";
+    m.header.frame_id = "global";
     m.header.stamp = ros::Time::now();
 
     m.pose.orientation.w = 1.0;
