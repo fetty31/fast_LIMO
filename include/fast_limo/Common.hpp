@@ -18,7 +18,7 @@
 #ifndef __FASTLIMO_COMMON_HPP__
 #define __FASTLIMO_COMMON_HPP__
 
-#ifndef HAS_CUPID
+#ifdef HAS_CPUID
 #include <cpuid.h>
 #endif
 
