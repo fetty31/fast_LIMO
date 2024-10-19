@@ -18,10 +18,15 @@
 #ifndef __FASTLIMO_MATCH_HPP__
 #define __FASTLIMO_MATCH_HPP__
 
-#include "fast_limo/Common.hpp"
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
+#include "fast_limo/Utils/PCL.hpp"
 #include "fast_limo/Objects/Plane.hpp"
 
-class fast_limo::Match{
+
+namespace fast_limo {
+class Match{
 
     public:
         fast_limo::Plane plane;
@@ -38,5 +43,7 @@ class fast_limo::Match{
         Eigen::Vector3f point;
 
 };
+    typedef std::vector<Match> Matches;
+}
 
 #endif

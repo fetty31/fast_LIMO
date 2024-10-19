@@ -18,10 +18,16 @@
 #ifndef __FASTLIMO_PLANE_HPP__
 #define __FASTLIMO_PLANE_HPP__
 
-#include "fast_limo/Common.hpp"
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
+#include "fast_limo/Utils/PCL.hpp"
 #include "fast_limo/Utils/Config.hpp"
 
-class fast_limo::Plane{
+
+namespace  fast_limo {
+
+class Plane{
 
     public:
 
@@ -56,5 +62,7 @@ class fast_limo::Plane{
         Eigen::Vector3f get_centroid(const MapPoints&);
 
 };
+    typedef std::vector<Plane> Planes;
+}
 
 #endif

@@ -18,17 +18,64 @@
 #ifndef __FASTLIMO_LOCALIZER_HPP__
 #define __FASTLIMO_LOCALIZER_HPP__
 
-#include "fast_limo/Common.hpp"
+#ifndef HAS_CUPID
+#include <cpuid.h>
+#endif
+
+#define FAST_LIMO_v "1.0.0"
+
+// System
+#include <ctime>
+#include <iomanip>
+#include <future>
+#include <ios>
+#include <sys/times.h>
+#include <sys/vtimes.h>
+
+#include <iostream>
+#include <sstream>
+#include <fstream>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <chrono>
+#include <string>
+
+#include <climits>
+#include <cmath>
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <queue>
+
+#include <boost/format.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/range/adaptor/indexed.hpp>
+#include <boost/range/adaptor/adjacent_filtered.hpp>
+#include <boost/range/adaptor/filtered.hpp>
+
+// #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/Plane.hpp"
 #include "fast_limo/Utils/Config.hpp"
+#include "fast_limo/Utils/PCL.hpp"
+
 #include "fast_limo/Utils/Algorithms.hpp"
+#include "fast_limo/Objects/Imu.hpp"
+
 
 using namespace fast_limo;
 
-class fast_limo::Localizer {
+namespace fast_limo {
+
+
+enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };
+
+class Localizer {
 
 	// VARIABLES
 
@@ -187,6 +234,33 @@ class fast_limo::Localizer {
 		void getCPUinfo();
 		void debugVerbose();
 
+    void h_share_model(state_ikfom &updated_state,
+                         esekfom::dyn_share_datastruct<double> &ekfom_data);
+
+      Eigen::Matrix<double, 24, 1> get_f(state_ikfom &s, const input_ikfom &in);
+      Eigen::Matrix<double, 24, 23> df_dx(state_ikfom &s, const input_ikfom &in);
+      Eigen::Matrix<double, 24, 12> df_dw(state_ikfom &s, const input_ikfom &in);
+
+      static Eigen::Matrix<double, 24, 1> get_f_wrapper(state_ikfom& s,
+                                                        const input_ikfom& in) {
+          return Localizer::getInstance().get_f(s, in);
+      }
+
+      static Eigen::Matrix<double, 24, 23> df_dx_wrapper(state_ikfom& s,
+                                                        const input_ikfom& in) {
+          return Localizer::getInstance().df_dx(s, in);
+      }
+
+      static Eigen::Matrix<double, 24, 12> df_dw_wrapper(state_ikfom& s,
+                                                        const input_ikfom& in) {
+          return Localizer::getInstance().df_dw(s, in);
+      }
+
+      static void h_share_model_wrapper(state_ikfom& updated_state,
+                                        esekfom::dyn_share_datastruct<double>& ekfom_data) {
+          Localizer::getInstance().h_share_model(updated_state, ekfom_data);
+      }
+
 	// SINGLETON 
 
 	public:
@@ -203,5 +277,7 @@ class fast_limo::Localizer {
 		Localizer& operator=(Localizer&&) = delete;
 
 };
+
+}
 
 #endif

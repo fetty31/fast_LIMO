@@ -21,7 +21,7 @@
 #include <signal.h>
 
 // Fast LIMO
-#include "fast_limo/Common.hpp"
+#include "fast_limo/Objects/Imu.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
 

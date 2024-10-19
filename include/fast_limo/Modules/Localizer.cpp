@@ -17,6 +17,8 @@
 
 #include "fast_limo/Modules/Localizer.hpp"
 
+
+using namespace fast_limo;
 // class fast_limo::Localizer
 	// public
 
@@ -629,10 +631,10 @@
 		void Localizer::init_iKFoM() {
 			// Initialize IKFoM
 			this->_iKFoM.init_dyn_share(
-				IKFoM::get_f,
-				IKFoM::df_dx,
-				IKFoM::df_dw,
-				IKFoM::h_share_model,
+				&Localizer::get_f_wrapper,
+				&Localizer::df_dx_wrapper,
+				&Localizer::df_dw_wrapper,
+				&Localizer::h_share_model_wrapper,
 				config.ikfom.MAX_NUM_ITERS,
 				config.ikfom.LIMITS
 			);
@@ -916,6 +918,105 @@
 
 			return true;
 		}
+
+void Localizer::h_share_model(state_ikfom &updated_state,
+							  esekfom::dyn_share_datastruct<double> &ekfom_data) {
+  
+ Mapper& MAP = Mapper::getInstance();
+
+	// Calculate matches
+	Matches matches = MAP.match(
+	    fast_limo::State (updated_state),
+	    this->pc2match
+	);
+
+
+	int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
+
+	ekfom_data.h_x = Eigen::MatrixXd::Zero(N, 12);
+	ekfom_data.h.resize(N);
+	State S(updated_state);
+
+	// For each match, calculate its derivative and distance
+	#pragma omp parallel for num_threads(this->num_threads_)
+	for (int i = 0; i < N; ++i) {
+		Match match = matches[i];
+		Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
+		Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
+		Eigen::Vector4f normal   = match.plane.get_normal();
+
+		// Rotation matrices
+		Eigen::Matrix3f R_inv = updated_state.rot.conjugate().toRotationMatrix().cast<float>();
+		Eigen::Matrix3f I_R_L_inv = updated_state.offset_R_L_I.conjugate().toRotationMatrix().cast<float>();
+
+		// Set correct dimensions
+		Eigen::Vector3f p_lidar, p_imu, n;
+		p_lidar = p4_lidar.head(3);
+		p_imu   = p4_imu.head(3);
+		n       = normal.head(3);
+
+		// Calculate measurement Jacobian H (:= dh/dx)
+		Eigen::Vector3f C = R_inv * n;
+		Eigen::Vector3f B = p_lidar.cross(I_R_L_inv * C);
+		Eigen::Vector3f A = p_imu.cross(C);
+		
+		ekfom_data.h_x.block<1, 6>(i,0) << n(0), n(1), n(2), A(0), A(1), A(2);
+		if (config.ikfom.estimate_extrinsics) ekfom_data.h_x.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
+
+		// Measurement: distance to the closest plane
+		ekfom_data.h(i) = -match.dist;
+	}
+
+	if(this->config.debug) 
+		this->matches = matches;
+
+}
+
+
+Eigen::Matrix<double, 24, 1> Localizer::get_f(state_ikfom &s,
+											  const input_ikfom &in) {
+
+  Eigen::Matrix<double, 24, 1> res = Eigen::Matrix<double, 24, 1>::Zero();
+  vect3 omega;
+  in.gyro.boxminus(omega, s.bg);
+  vect3 a_inertial = s.rot * (in.acc-s.ba);
+  for(int i = 0; i < 3; i++ ){
+	res(i) = s.vel[i];
+	res(i + 3) =  omega[i]; 
+	res(i + 12) = a_inertial[i] + s.grav[i]; 
+  }
+  return res;
+}
+
+Eigen::Matrix<double, 24, 23> Localizer::df_dx(state_ikfom &s, const input_ikfom &in) {
+
+  Eigen::Matrix<double, 24, 23> cov = Eigen::Matrix<double, 24, 23>::Zero();
+  cov.template block<3, 3>(0, 12) = Eigen::Matrix3d::Identity();
+  vect3 acc_;
+  in.acc.boxminus(acc_, s.ba);
+  vect3 omega;
+  in.gyro.boxminus(omega, s.bg);
+  cov.template block<3, 3>(12, 3) = -s.rot.toRotationMatrix()*MTK::hat(acc_);
+  cov.template block<3, 3>(12, 18) = -s.rot.toRotationMatrix();
+  Eigen::Matrix<state_ikfom::scalar, 2, 1> vec = Eigen::Matrix<state_ikfom::scalar, 2, 1>::Zero();
+  Eigen::Matrix<state_ikfom::scalar, 3, 2> grav_matrix;
+  s.S2_Mx(grav_matrix, vec, 21);
+  cov.template block<3, 2>(12, 21) =  grav_matrix;
+  cov.template block<3, 3>(3, 15) = -Eigen::Matrix3d::Identity();
+  return cov;
+}
+
+Eigen::Matrix<double, 24, 12> Localizer::df_dw(state_ikfom &s, const input_ikfom &in) {
+
+  Eigen::Matrix<double, 24, 12> cov = Eigen::Matrix<double, 24, 12>::Zero();
+  cov.template block<3, 3>(12, 3) = -s.rot.toRotationMatrix();
+  cov.template block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
+  cov.template block<3, 3>(15, 6) = Eigen::Matrix3d::Identity();
+  cov.template block<3, 3>(18, 9) = Eigen::Matrix3d::Identity();
+  return cov;
+}
+
+
 
 		void Localizer::getCPUinfo(){ // CPU Specs
 			char CPUBrandString[0x40];

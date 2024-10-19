@@ -18,23 +18,56 @@
 #ifndef __FASTLIMO_ALGORITHMS_HPP__
 #define __FASTLIMO_ALGORITHMS_HPP__
 
-#include "fast_limo/Common.hpp"
+#include <ctime>
+#include <iomanip>
+#include <future>
+#include <ios>
+#include <sys/times.h>
+#include <sys/vtimes.h>
 
-namespace fast_limo::algorithms {
+#include <iostream>
+#include <sstream>
+#include <fstream>
 
-    template <typename Array>
-    int binary_search_tailored(const Array& sorted_v, double t) {
-        int high, mid, low;
-        low = 0; high = sorted_v.size()-1;
-        
-        while(high >= low){
-            mid = (low + high)/2;
-            (sorted_v[mid].time > t) ? high = mid - 1 : low = mid + 1;
+#include <stdio.h>
+#include <stdlib.h>
+#include <chrono>
+#include <string>
+
+#include <climits>
+#include <cmath>
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <queue>
+
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
+
+namespace fast_limo {
+    namespace algorithms {
+
+        template <typename Array>
+        int binary_search_tailored(const Array& sorted_v, double t) {
+            int high, mid, low;
+            low = 0; high = sorted_v.size()-1;
+            
+            while(high >= low){
+                mid = (low + high)/2;
+                (sorted_v[mid].time > t) ? high = mid - 1 : low = mid + 1;
+            }
+
+            // Return the leftest value (older time stamp)
+            if(high < 0) return 0;
+            return high;
         }
-
-        // Return the leftest value (older time stamp)
-        if(high < 0) return 0;
-        return high;
     }
     
 }

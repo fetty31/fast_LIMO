@@ -18,9 +18,14 @@
 #ifndef __FASTLIMO_STATE_HPP__
 #define __FASTLIMO_STATE_HPP__
 
-#include "fast_limo/Common.hpp"
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
-class fast_limo::State{
+#include "fast_limo/Utils/PCL.hpp"
+#include "IKFoM/use-ikfom.hpp"
+
+namespace fast_limo {
+class State{
 
     public:
 
@@ -64,5 +69,10 @@ class fast_limo::State{
         Eigen::Matrix4f get_extr_RT_inv();  // get estimated extrinsics inverted Rotation & Translation matrix
 
 };
+
+    typedef std::vector<State> States;
+
+
+}
 
 #endif

@@ -18,7 +18,32 @@
 #ifndef __FASTLIMO_MAPPER_HPP__
 #define __FASTLIMO_MAPPER_HPP__
 
-#include "fast_limo/Common.hpp"
+#include <ctime>
+#include <iomanip>
+#include <future>
+#include <ios>
+#include <sys/times.h>
+#include <sys/vtimes.h>
+
+#include <iostream>
+#include <sstream>
+#include <fstream>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <chrono>
+#include <string>
+
+#include <climits>
+#include <cmath>
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <queue>
+
+#include "ikd-Tree/ikd_Tree/ikd_Tree.h"
+
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Plane.hpp"
@@ -26,7 +51,8 @@
 
 using namespace fast_limo;
 
-class fast_limo::Mapper {
+namespace fast_limo {
+class Mapper {
 
     // Variables
 
@@ -90,5 +116,7 @@ class fast_limo::Mapper {
         Mapper& operator=(Mapper&&) = delete;
 
 };
+
+}
 
 #endif

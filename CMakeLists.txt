@@ -71,14 +71,12 @@ target_include_directories(ikd_tree
 )
 
 # IKFOM
-add_library(ikfom
-            include/IKFoM/IKFoM_toolkit
-            include/IKFoM/use-ikfom.cpp
-            )
+add_library(ikfom INTERFACE)
 
-target_link_libraries(ikfom ${PCL_LIBRARIES} ${OpenMP_LIBS})
-target_include_directories(ikfom
-  PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit 
+target_link_libraries(ikfom INTERFACE ${PCL_LIBRARIES} ${OpenMP_LIBS})
+target_include_directories(ikfom INTERFACE
+  include/IKFoM/
+  include/IKFoM/IKFoM_toolkit 
 )
 
 # Fast LIMO
