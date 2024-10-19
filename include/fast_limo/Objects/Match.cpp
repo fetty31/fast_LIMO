@@ -22,6 +22,7 @@
 
         fast_limo::Match::Match(const Eigen::Vector3f& p, const fast_limo::Plane& H) : point(p), plane(H){
             this->dist = this->plane.dist2plane(p);
+            this->point = p;
         }
 
         bool fast_limo::Match::lisanAlGaib(){

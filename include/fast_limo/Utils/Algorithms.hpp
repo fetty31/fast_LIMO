@@ -42,6 +42,9 @@
 #include <mutex>
 #include <queue>
 
+#include "fast_limo/Utils/PCL.hpp"
+#include <Eigen/Dense>
+
 template <typename T>
 std::string to_string_with_precision(const T a_value, const int n = 6)
 {
@@ -68,8 +71,48 @@ namespace fast_limo {
             if(high < 0) return 0;
             return high;
         }
+
+        bool estimate_plane(Eigen::Vector4f& pabcd, const MapPoints& pts, double& thresh){
+            int NUM_MATCH_POINTS = pts.size();
+            Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> A(NUM_MATCH_POINTS, 3);
+            Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> b(NUM_MATCH_POINTS, 1);
+            A.setZero();
+            b.setOnes();
+            b *= -1.0f;
+
+            for (int j = 0; j < NUM_MATCH_POINTS; j++)
+            {
+                A(j,0) = pts[j].x;
+                A(j,1) = pts[j].y;
+                A(j,2) = pts[j].z;
+            }
+
+            Eigen::Matrix<float, 3, 1> normvec = A.colPivHouseholderQr().solve(b);
+            Eigen::Vector4f pca_result;
+
+            float n = normvec.norm();
+            pca_result(0) = normvec(0) / n;
+            pca_result(1) = normvec(1) / n;
+            pca_result(2) = normvec(2) / n;
+            pca_result(3) = 1.0 / n;
+
+            pabcd = pca_result;
+
+            for (int j = 0; j < pts.size(); j++) {
+                double dist2point = std::fabs(pabcd(0) * pts[j].x 
+                                            + pabcd(1) * pts[j].y
+                                            + pabcd(2) * pts[j].z
+                                            + pabcd(3));
+                
+                if (dist2point > thresh)
+                    return false;
+            }
+
+            return true;
+        
+        }
+
     }
-    
 }
 
 #endif

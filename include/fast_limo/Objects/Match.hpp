@@ -39,7 +39,7 @@ class Match{
         Eigen::Vector4f get_4Dpoint();
         Eigen::Vector3f get_point();
     
-    private:
+    public:
         Eigen::Vector3f point;
 
 };

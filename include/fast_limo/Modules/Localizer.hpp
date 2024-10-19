@@ -206,12 +206,9 @@ class Localizer {
 		// Config
 		void set_sensor_type(uint8_t type);
 
-		// iKFoM measurement model
-		void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
 
 		// Backpropagation
 		void propagateImu(const IMUmeas& imu);
-		void propagateImu(double t1, double t2);
 
 	private:
 		void init_iKFoM();
@@ -221,14 +218,11 @@ class Localizer {
 
 		pcl::PointCloud<PointType>::Ptr deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time);
 
-		States integrateImu(double start_time, double end_time, State& state);
+		States integrateImu(double start_time, double end_time);
 
 		bool propagatedFromTimeRange(double start_time, double end_time,
 								  boost::circular_buffer<State>::reverse_iterator& begin_prop_it,
 								  boost::circular_buffer<State>::reverse_iterator& end_prop_it);
-		bool imuMeasFromTimeRange(double start_time, double end_time,
-								  boost::circular_buffer<IMUmeas>::reverse_iterator& begin_imu_it,
-								  boost::circular_buffer<IMUmeas>::reverse_iterator& end_imu_it);
 		bool isInRange(PointType& p);
 
 		void getCPUinfo();

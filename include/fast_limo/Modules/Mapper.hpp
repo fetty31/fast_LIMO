@@ -56,7 +56,7 @@ class Mapper {
 
     // Variables
 
-    private:
+    public:
         KD_TREE<MapPoint>::Ptr map;
         BoxPointType local_map_bb; // map's boundary box
         std::mutex mtx_local_map;
@@ -87,6 +87,8 @@ class Mapper {
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
+        
+        Match match_plane(Eigen::Vector4f& p);
 
     private:
         void build(pcl::PointCloud<PointType>::Ptr&);
@@ -97,7 +99,6 @@ class Mapper {
         
         void set_bb_dim(State&);
 
-        Match match_plane(Eigen::Vector4f& p);
 
     // Singleton 
 
