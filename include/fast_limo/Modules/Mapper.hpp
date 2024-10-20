@@ -44,9 +44,7 @@
 
 #include "ikd-Tree/ikd_Tree/ikd_Tree.h"
 
-#include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/State.hpp"
-#include "fast_limo/Objects/Plane.hpp"
 #include "fast_limo/Utils/Config.hpp"
 
 using namespace fast_limo;
@@ -83,14 +81,14 @@ class Mapper {
 
         BoxPointType get_local_map();
 
-        Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
+        // Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
         
-        Match match_plane(Eigen::Vector4f& p);
+        // Match match_plane(Eigen::Vector4f& p);
 
-    private:
+    public:
         void build(pcl::PointCloud<PointType>::Ptr&);
 
         void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);

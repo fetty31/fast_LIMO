@@ -62,28 +62,28 @@
             return this->local_map_bb;
         }
 
-        Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
-            Matches matches;
-            if(not this->exists()) return matches;
+        // Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
+        //     // Matches matches;
+        //     // if(not this->exists()) return matches;
 
-            int N0 = (pc->points.size() > config.MAX_NUM_PC2MATCH) ? pc->points.size() - config.MAX_NUM_PC2MATCH : 0;
+        //     // int N0 = (pc->points.size() > config.MAX_NUM_PC2MATCH) ? pc->points.size() - config.MAX_NUM_PC2MATCH : 0;
 
-            matches.reserve(pc->points.size()-N0);
+        //     // matches.reserve(pc->points.size()-N0);
 
-            #pragma omp parallel for num_threads(this->num_threads_)
-            for(int i = N0; i < pc->points.size(); i++){
+        //     // #pragma omp parallel for num_threads(this->num_threads_)
+        //     // for(int i = N0; i < pc->points.size(); i++){
                 
-                Eigen::Vector4f bl4_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
-                Eigen::Vector4f global_point = (s.get_RT() *  s.get_extr_RT()) * bl4_point; 
+        //     //     Eigen::Vector4f bl4_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
+        //     //     Eigen::Vector4f global_point = (s.get_RT() *  s.get_extr_RT()) * bl4_point; 
 
-                                 // global 4d point == [x', y', z', 1.0]
-                Match match = this->match_plane(global_point);                                    // point-to-plane match
+        //     //                      // global 4d point == [x', y', z', 1.0]
+        //     //     Match match = this->match_plane(global_point);                                    // point-to-plane match
 
-                if(match.lisanAlGaib()) 
-                    matches.push_back(match); // if match is chosen, push it
-            }
-            return matches;
-        }
+        //     //     if(match.lisanAlGaib()) 
+        //     //         matches.push_back(match); // if match is chosen, push it
+        //     // }
+        //     // return matches;
+        // }
         
         void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, State& s, double time, bool downsample){
 
@@ -134,16 +134,16 @@
             this->map->Add_Points(map_vec, downsample);
         }
 
-        Match Mapper::match_plane(Eigen::Vector4f& p) {
+        // Match Mapper::match_plane(Eigen::Vector4f& p) {
 
-            // Find k nearest points
-            MapPoints near_points;
-            std::vector<float> pointSearchSqDis(this->config.NUM_MATCH_POINTS);
-            this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), this->config.NUM_MATCH_POINTS, near_points, pointSearchSqDis);
+        //     // Find k nearest points
+        //     MapPoints near_points;
+        //     std::vector<float> pointSearchSqDis(this->config.NUM_MATCH_POINTS);
+        //     this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), this->config.NUM_MATCH_POINTS, near_points, pointSearchSqDis);
 
-            // Construct a plane fitting between them
-            return Match( p.head(3), Plane (near_points, pointSearchSqDis, &config) );
-        }
+        //     // Construct a plane fitting between them
+        //     return Match( p.head(3), Plane (near_points, pointSearchSqDis, &config) );
+        // }
 
         void Mapper::set_bb_dim(State& s){
 

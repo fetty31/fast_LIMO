@@ -48,6 +48,9 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <algorithm>
+
+#include <utility>
 
 #include <boost/format.hpp>
 #include <boost/circular_buffer.hpp>
@@ -59,8 +62,6 @@
 // #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
 #include "fast_limo/Objects/State.hpp"
-#include "fast_limo/Objects/Match.hpp"
-#include "fast_limo/Objects/Plane.hpp"
 #include "fast_limo/Utils/Config.hpp"
 #include "fast_limo/Utils/PCL.hpp"
 
@@ -96,7 +97,7 @@ class Localizer {
 		Config config;
 
 		// Matches (debug aux var.)
-		Matches matches;
+		// Matches matches;
 
 		// PCL Filters
 		pcl::CropBox<PointType> crop_filter;
@@ -190,7 +191,7 @@ class Localizer {
 		pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
 		pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
 
-		Matches& get_matches();
+		// Matches& get_matches();/
 
 		State getWorldState();  // get state in body/base_link frame
 		State getBodyState();   // get state in LiDAR frame

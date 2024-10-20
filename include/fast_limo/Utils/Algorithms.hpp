@@ -95,7 +95,7 @@ namespace fast_limo {
             pca_result(1) = normvec(1) / n;
             pca_result(2) = normvec(2) / n;
             pca_result(3) = 1.0 / n;
-
+            
             pabcd = pca_result;
 
             for (int j = 0; j < pts.size(); j++) {

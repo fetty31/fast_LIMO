@@ -15,7 +15,7 @@ num_threads: 10 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 sensor_type: 1  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
 debug: true     # fill useful intermediate pcl (deskewed, final_raw...) for visualizing purposes
-verbose: false   # print debug/performance board
+verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)

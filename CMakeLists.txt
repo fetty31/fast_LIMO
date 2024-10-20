@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(fast_limo)
 
-add_compile_options(-std=c++14)
+set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -lm -lblas -llapack")
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "Release")
 
 find_package( PCL 1.8 REQUIRED )
@@ -85,8 +86,6 @@ add_library(${PROJECT_NAME}
             include/fast_limo/Modules/Mapper.cpp
 
             include/fast_limo/Objects/State.cpp
-            include/fast_limo/Objects/Plane.cpp
-            include/fast_limo/Objects/Match.cpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)

@@ -49,19 +49,6 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     finalraw_msg.header.stamp = ros::Time::now();
     finalraw_msg.header.frame_id = world_frame;
     finalraw_pub.publish(finalraw_msg);
-
-    // Visualize current map size
-    fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-    visualization_msgs::Marker bb_marker = visualize_limo::getLocalMapMarker(map.get_local_map());
-    bb_marker.header.frame_id = world_frame;
-    map_bb_pub.publish(bb_marker);
-
-    // Visualize current matches
-    visualization_msgs::MarkerArray match_markers = visualize_limo::getMatchesMarker(loc.get_matches(), 
-                                                                                    world_frame
-                                                                                    );
-    match_points_pub.publish(match_markers);
-
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){

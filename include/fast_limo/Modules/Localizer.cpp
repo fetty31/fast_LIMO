@@ -131,9 +131,9 @@ pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
 	return this->pc2match;
 }
 
-Matches& Localizer::get_matches(){
-	return this->matches;
-}
+// Matches& Localizer::get_matches(){
+// 	return this->matches;
+// }
 
 bool Localizer::is_calibrated(){
 	return this->imu_calibrated_;
@@ -297,7 +297,7 @@ void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double
 		this->pc2match = deskewed_Xt2_pc_;
 	}
 
-	if(this->pc2match->points.size() > 1){
+	if (this->pc2match->points.size() > 1){
 
 		// iKFoM observation stage
 		this->mtx_ikfom.lock();
@@ -799,31 +799,63 @@ bool Localizer::propagatedFromTimeRange(double start_time, double end_time,
 
 void Localizer::h_share_model(state_ikfom &updated_state,
 							  esekfom::dyn_share_datastruct<double> &ekfom_data) {
-  
+
+	typedef std::pair<Eigen::Vector4f, Eigen::Vector4f> Match;
+	int N = (int)this->pc2match->size();
+	std::vector<bool> chosen(N, false);
+	std::vector<Match> matches(N);
+
   Mapper& MAP = Mapper::getInstance();
+	if (not MAP.exists()) {
+		ekfom_data.h_x = Eigen::MatrixXd::Zero(0, 12);
+		ekfom_data.h.resize(0);
+		return;
+	}
+
 	State S(updated_state);
-	// Calculate matches
-	Matches matches = MAP.match(
-	    fast_limo::State (updated_state),
-	    this->pc2match
-	);
 
-	if(this->config.debug) 
-		this->matches = matches;
+	#pragma omp parallel for num_threads(8)
+	for (int i = 0; i < N; i++) {
+		auto p = this->pc2match->points[i];
+		Eigen::Vector4f bl4_point(p.x, p.y, p.z, 1.);
+		Eigen::Vector4f g = (S.get_RT() * S.get_extr_RT()) * bl4_point; 
 
-	int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
+		MapPoints near_points;
+		std::vector<float> pointSearchSqDis(this->config.ikfom.mapping.NUM_MATCH_POINTS);
+		MAP.map->Nearest_Search(MapPoint(g(0), g(1), g(2)), 
+		                        this->config.ikfom.mapping.NUM_MATCH_POINTS,
+														near_points, pointSearchSqDis);
+		
+		if (near_points.size() < this->config.ikfom.mapping.NUM_MATCH_POINTS 
+		    or pointSearchSqDis.back() > 2)
+					continue;
+		
+		Eigen::Vector4f p_abcd = Eigen::Vector4f::Zero();
+		if (not algorithms::estimate_plane(p_abcd, near_points, this->config.ikfom.mapping.PLANE_THRESHOLD))
+			continue;
+		
+		chosen[i] = true;
+		matches[i] = std::make_pair(g, p_abcd);
+	}
 
-	ekfom_data.h_x = Eigen::MatrixXd::Zero(N, 12);
-	ekfom_data.h.resize(N);
-	
+
+	std::vector<Match> clean_matches;
+	for (int i = 0; i < N; i++) {
+		if (chosen[i])
+			clean_matches.push_back(matches[i]);
+	}
+
+
+	ekfom_data.h_x = Eigen::MatrixXd::Zero(clean_matches.size(), 12);
+	ekfom_data.h.resize(clean_matches.size());	
 
 	// For each match, calculate its derivative and distance
-	#pragma omp parallel for num_threads(this->num_threads_)
-	for (int i = 0; i < N; ++i) {
-		Match match = matches[i];
-		Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
-		Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
-		Eigen::Vector4f normal   = match.plane.get_normal();
+	#pragma omp parallel for num_threads(8)
+	for (int i = 0; i < clean_matches.size(); ++i) {
+		Match match = clean_matches[i];
+		Eigen::Vector4f p4_imu   = S.get_RT_inv() * match.first;
+		Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() * p4_imu;
+		Eigen::Vector4f normal   = match.second;
 
 		// Rotation matrices
 		Eigen::Matrix3f R_inv = updated_state.rot.conjugate().toRotationMatrix().cast<float>();
@@ -841,14 +873,17 @@ void Localizer::h_share_model(state_ikfom &updated_state,
 		Eigen::Vector3f A = p_imu.cross(C);
 		
 		ekfom_data.h_x.block<1, 6>(i,0) << n(0), n(1), n(2), A(0), A(1), A(2);
-		if (config.ikfom.estimate_extrinsics) ekfom_data.h_x.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
+		if (config.ikfom.estimate_extrinsics)
+			ekfom_data.h_x.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
 
 		// Measurement: distance to the closest plane
-		ekfom_data.h(i) = -match.dist;
-	}
+		double dist = normal(0) * match.first(0) 
+		              + normal(1) * match.first(1)
+									+ normal(2) * match.first(2)
+									+ normal(3); 
 
-	if(this->config.debug) 
-		this->matches = matches;
+		ekfom_data.h(i) = -dist;
+	}
 
 }
 
