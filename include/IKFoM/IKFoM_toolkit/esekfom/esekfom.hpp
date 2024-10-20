@@ -286,11 +286,7 @@ public:
 	
 	// Modified version used in Fast-LIO2
 	//iterated error state EKF update modified for one specific system.
-	void update_iterated_dyn_share_modified(
-		double R,
-		double D,
-		double &solve_time,
-		bool print_degeneracy=false) {
+	void update_iterated_dyn_share_modified(double R) {
 
 		dyn_share_datastruct<scalar_type> dyn_share;
 		dyn_share.valid = true;
@@ -320,7 +316,6 @@ public:
 			#else
 				Eigen::Matrix<scalar_type, Eigen::Dynamic, 12> h_x_ = dyn_share.h_x;
 			#endif
-			double solve_start = omp_get_wtime();
 			dof_Measurement = h_x_.rows();
 			vectorized_state dx;
 			x_.boxminus(dx, x_propagated);
@@ -478,10 +473,8 @@ public:
 				}
 
 				P_ = L_ - K_x.template block<n, 12>(0, 0) * P_.template block<12, n>(0, 0);
-				solve_time += omp_get_wtime() - solve_start;
 				return;
 			}
-			solve_time += omp_get_wtime() - solve_start;
 		}
 	}
 
