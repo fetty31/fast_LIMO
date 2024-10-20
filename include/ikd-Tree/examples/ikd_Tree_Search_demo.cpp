@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     KD_TREE<PointType>      &ikd_Tree        = *kdtree_ptr;
 
     /*** 2. Load point cloud data */
-    pcl::PointCloud<PointType>::Ptr src(new pcl::PointCloud<PointType>);
+    PointCloudT::Ptr src(new PointCloudT);
     string filename = "../materials/hku_demo_pointcloud.pcd";
     if (pcl::io::loadPCDFile<PointType>(filename, *src) == -1) //* load the file
     {

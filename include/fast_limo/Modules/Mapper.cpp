@@ -62,7 +62,7 @@
             return this->local_map_bb;
         }
 
-        // Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
+        // Matches Mapper::match(State s, PointCloudT::ConstPtr& pc){
         //     // Matches matches;
         //     // if(not this->exists()) return matches;
 
@@ -85,7 +85,7 @@
         //     // return matches;
         // }
         
-        void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, State& s, double time, bool downsample){
+        void Mapper::add(PointCloudT::Ptr& pc, State& s, double time, bool downsample){
 
             // Initialize local map dimensions 
             if(not this->bb_init)
@@ -100,7 +100,7 @@
             this->last_map_time = time;
         }
 
-        void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, double time, bool downsample){
+        void Mapper::add(PointCloudT::Ptr& pc, double time, bool downsample){
             if(pc->points.size() < 1) return;
 
             // If map doesn't exists, build one
@@ -112,7 +112,7 @@
 
     // private
 
-        void Mapper::build(pcl::PointCloud<PointType>::Ptr& pc){
+        void Mapper::build(PointCloudT::Ptr& pc){
             MapPoints map_vec;
             map_vec.reserve(pc->points.size());
 
@@ -123,7 +123,7 @@
             this->map->Build(map_vec);
         }
 
-        void Mapper::add_pointcloud(pcl::PointCloud<PointType>::Ptr& pc, bool downsample){
+        void Mapper::add_pointcloud(PointCloudT::Ptr& pc, bool downsample){
             MapPoints map_vec;
             map_vec.reserve(pc->points.size());
 

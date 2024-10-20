@@ -406,19 +406,7 @@ public:
 
 			Matrix<scalar_type, n, 1> dx_ = K_h + (K_x - Matrix<scalar_type, n, n>::Identity()) * dx_new; 
 
-			// Degeneracy
-			Eigen::EigenSolver<Eigen::Matrix<scalar_type, 6, 6>> es(HTH. template block<6,6>(0,0));
-			Eigen::Matrix<scalar_type, 6, 6> VEPs = es.eigenvectors().real(). template block<6,6>(0,0);
-			Eigen::Matrix<scalar_type, 1, 6> VAPs = es.eigenvalues().real().head(6);
-			if (VAPs.prod() < 1e-20) VEPs = Eigen::Matrix<scalar_type, 6, 6>::Identity();
-			Eigen::Matrix<scalar_type, 6, 6> selVEPs = VEPs;
-			for (int vapi = 0; vapi < 6; ++vapi) if (VAPs(vapi) < D) selVEPs. template block<1,6>(vapi,0) *= 0;
-			if (print_degeneracy) { for (int vapi = 0; vapi < 6; ++vapi) std::cout << VAPs(vapi) << " "; std::cout << std::endl; }
-			Matrix<scalar_type, n, 1> dx_no_degenerate_ = dx_;
-			dx_no_degenerate_.head(6) = VEPs.inverse() * selVEPs * dx_.head(6);
-
-			state x_before = x_;
-			x_.boxplus(dx_no_degenerate_);
+			x_.boxplus(dx_);
 			
 			dyn_share.converge = true;
 			for(int i = 0; i < n ; i++)

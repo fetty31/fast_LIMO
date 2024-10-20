@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     KD_TREE<PointType>      &ikd_Tree        = *kdtree_ptr;
 
     /*** 2. Load point cloud data */
-    pcl::PointCloud<PointType>::Ptr src(new pcl::PointCloud<PointType>);
+    PointCloudT::Ptr src(new PointCloudT);
     string filename = "../materials/hku_demo_pointcloud.pcd";
     if (pcl::io::loadPCDFile<PointType>(filename, *src) == -1) //* load the file
     {
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
     printf("# of removed points: %d\n", static_cast<int>(Removed_Points.size()));
 
     /*** 5. Check remaining points in ikd-Tree */
-    pcl::PointCloud<PointType>::Ptr Remaining_Points(new pcl::PointCloud<PointType>);
+    PointCloudT::Ptr Remaining_Points(new PointCloudT);
     ikd_Tree.flatten(ikd_Tree.Root_Node, ikd_Tree.PCL_Storage, NOT_RECORD);
     Remaining_Points->points = ikd_Tree.PCL_Storage;
     printf("Finally, %d Points remain\n", static_cast<int>(Remaining_Points->points.size()));

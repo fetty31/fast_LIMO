@@ -12,7 +12,7 @@ std::string world_frame, body_frame;
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 
-    pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+    PointCloudT::Ptr pc_ (boost::make_shared<PointCloudT>());
     pcl::fromROSMsg(*msg, *pc_);
 
     fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();

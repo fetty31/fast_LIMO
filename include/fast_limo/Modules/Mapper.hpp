@@ -81,17 +81,17 @@ class Mapper {
 
         BoxPointType get_local_map();
 
-        // Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
+        // Matches match(State, PointCloudT::ConstPtr&);
 
-        void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
-        void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
+        void add(PointCloudT::Ptr&, double time, bool downsample=false);
+        void add(PointCloudT::Ptr&, State&, double time, bool downsample=false);
         
         // Match match_plane(Eigen::Vector4f& p);
 
     public:
-        void build(pcl::PointCloud<PointType>::Ptr&);
+        void build(PointCloudT::Ptr&);
 
-        void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
+        void add_pointcloud(PointCloudT::Ptr&, bool downsample=false);
 
         void fov_segment(State&);
         

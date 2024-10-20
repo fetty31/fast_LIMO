@@ -22,19 +22,26 @@ using namespace fast_limo;
 // class fast_limo::Localizer
 	// public
 
-Localizer::Localizer() : scan_stamp(0.0), prev_scan_stamp(0.0), scan_dt(0.1), deskew_size(0), propagated_size(0),
-						numProcessors(0), imu_stamp(0.0), prev_imu_stamp(0.0), imu_dt(0.005), first_imu_stamp(0.0),
-						last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
-					{ 
+Localizer::Localizer() : scan_stamp(0.0),
+                         prev_scan_stamp(0.0),
+												 deskew_size(0),
+												 propagated_size(0),
+												 numProcessors(0),
+												 imu_stamp(0.0),
+												 prev_imu_stamp(0.0),
+												 first_imu_stamp(0.0),
+						             imu_calib_time_(3.0),
+												 gravity_(9.81),
+												 imu_calibrated_(false) { 
 
-	this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-	this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-	this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-	this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
-	this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+	this->original_scan  = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
+	this->deskewed_scan  = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
+	this->pc2match       = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
+	this->final_raw_scan = PointCloudT::Ptr (boost::make_shared<PointCloudT>());
+	this->final_scan     = PointCloudT::Ptr (boost::make_shared<PointCloudT>());
 }
 
-void Localizer::init(Config& cfg){
+void Localizer::init(Config& cfg) {
 
 	// Save config
 	this->config = cfg;
@@ -91,7 +98,7 @@ void Localizer::init(Config& cfg){
 	pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
 
 	// Initial calibration
-	if( not (config.gravity_align || config.calibrate_accel || config.calibrate_gyro) ){ // no need for automatic calibration
+	if (not (config.gravity_align || config.calibrate_accel || config.calibrate_gyro)) { // no need for automatic calibration
 		this->imu_calibrated_ = true;
 		this->init_iKFoM_state();
 	}
@@ -102,7 +109,7 @@ void Localizer::init(Config& cfg){
 	// CPU info
 	this->getCPUinfo();
 
-	if(config.verbose){
+	if (config.verbose) {
 		// set up buffer capacities
 		this->imu_rates.set_capacity(1000);
 		this->lidar_rates.set_capacity(1000);
@@ -111,35 +118,19 @@ void Localizer::init(Config& cfg){
 	}
 }
 
-pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
-	return this->final_scan;
-}
+PointCloudT::Ptr Localizer::get_pointcloud() { return this->final_scan; }
 
-pcl::PointCloud<PointType>::Ptr Localizer::get_finalraw_pointcloud(){
-	return this->final_raw_scan;
-}
+PointCloudT::Ptr Localizer::get_finalraw_pointcloud() { return this->final_raw_scan; }
 
-pcl::PointCloud<PointType>::ConstPtr Localizer::get_orig_pointcloud(){
-	return this->original_scan;
-}
+PointCloudT::ConstPtr Localizer::get_orig_pointcloud() { return this->original_scan; }
 
-pcl::PointCloud<PointType>::ConstPtr Localizer::get_deskewed_pointcloud(){
-	return this->deskewed_scan;
-}
+PointCloudT::ConstPtr Localizer::get_deskewed_pointcloud() { return this->deskewed_scan; }
 
-pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
-	return this->pc2match;
-}
+PointCloudT::ConstPtr Localizer::get_pc2match_pointcloud() { return this->pc2match; }
 
-// Matches& Localizer::get_matches(){
-// 	return this->matches;
-// }
+bool Localizer::is_calibrated() { return this->imu_calibrated_; }
 
-bool Localizer::is_calibrated(){
-	return this->imu_calibrated_;
-}
-
-void Localizer::set_sensor_type(uint8_t type){
+void Localizer::set_sensor_type(uint8_t type) {
 	if(type < 5)
 		this->sensor = static_cast<fast_limo::SensorType>(type);
 	else 
@@ -179,10 +170,6 @@ State Localizer::getWorldState(){
 	return out;
 }
 
-double Localizer::get_propagate_time(){
-	return this->last_propagate_time_;
-}
-
 std::vector<double> Localizer::getPoseCovariance(){
 	if(not this->is_calibrated())
 		return std::vector<double>(36, 0);
@@ -215,11 +202,8 @@ std::vector<double> Localizer::getTwistCovariance(){
 	return cov;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////           Principal callbacks/threads        /////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double time_stamp){
+void Localizer::updatePointCloud(PointCloudT::Ptr& raw_pc, double time_stamp){
 
 	auto start_time = chrono::system_clock::now();
 
@@ -273,23 +257,23 @@ void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double
 				| boost::adaptors::indexed()
 				| boost::adaptors::filtered(filter_f);
 
-	pcl::PointCloud<PointType>::Ptr input_pc (boost::make_shared<pcl::PointCloud<PointType>>());
+	PointCloudT::Ptr input_pc (boost::make_shared<PointCloudT>());
 	for (auto it = filtered_pc.begin(); it != filtered_pc.end(); it++) {
 		input_pc->points.push_back(it->value());
 	}
 
 	if(this->config.debug) // debug only
-		this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
+		this->original_scan = boost::make_shared<PointCloudT>(*input_pc); // LiDAR frame
 
 	// Motion compensation
-	pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+	PointCloudT::Ptr deskewed_Xt2_pc_ (boost::make_shared<PointCloudT>());
 	deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
 	/*NOTE: deskewed_Xt2_pc_ should be in base_link/body frame w.r.t last propagated state (Xt2) */
 
 	// Voxel Grid Filter
 	if (this->config.filters.voxel_active) { 
-		pcl::PointCloud<PointType>::Ptr current_scan_
-			(boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
+		PointCloudT::Ptr current_scan_
+			(boost::make_shared<PointCloudT>(*deskewed_Xt2_pc_));
 		this->voxel_filter.setInputCloud(current_scan_);
 		this->voxel_filter.filter(*current_scan_);
 		this->pc2match = current_scan_;
@@ -326,7 +310,7 @@ void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double
 
 		// Transform deskewed pc 
 			// Get deskewed scan to add to map
-		pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
+		PointCloudT::Ptr mapped_scan (boost::make_shared<PointCloudT>());
 		pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT()* this->state.get_extr_RT());
 		/*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
 				mapped_scan is in world/global frame.
@@ -371,10 +355,13 @@ void Localizer::updatePointCloud(pcl::PointCloud<PointType>::Ptr& raw_pc, double
 	this->prev_scan_stamp = this->scan_stamp;
 }
 
-void Localizer::updateIMU(IMUmeas& raw_imu){
+void Localizer::updateIMU(IMUmeas& imu){
 
-	this->imu_stamp = raw_imu.stamp;
-	IMUmeas imu = this->imu2baselink(raw_imu);
+	this->imu_stamp = imu.stamp;
+	imu.dt = imu.stamp - this->prev_imu_stamp;
+	
+	if ( (imu.dt == 0.) || (imu.dt > 0.1) ) { imu.dt = 1.0/400.0; }
+
 
 	if(this->first_imu_stamp == 0.0)
 		this->first_imu_stamp = imu.stamp;
@@ -501,10 +488,6 @@ void Localizer::updateIMU(IMUmeas& raw_imu){
 
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////          KF propagation model        /////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void Localizer::propagateImu(const IMUmeas& imu){
 	input_ikfom in;
 	in.acc = imu.lin_accel.cast<double>();
@@ -528,16 +511,9 @@ void Localizer::propagateImu(const IMUmeas& imu){
 														imu.stamp, imu.lin_accel, imu.ang_vel)
 										);
 	this->mtx_prop.unlock();
-
-	this->last_propagate_time_ = imu.stamp;
 }
 
 
-// private
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////          Aux. functions        ///////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Localizer::init_iKFoM() {
 	// Initialize IKFoM
@@ -575,48 +551,11 @@ void Localizer::init_iKFoM_state() {
 	this->_iKFoM.change_P(init_P);
 }
 
-IMUmeas Localizer::imu2baselink(IMUmeas& imu){
 
-	IMUmeas imu_baselink;
-
-	double dt = imu.stamp - this->prev_imu_stamp;
-	
-	if ( (dt == 0.) || (dt > 0.1) ) { dt = 1.0/200.0; }
-
-	// Transform angular velocity (will be the same on a rigid body, so just rotate to baselink frame)
-	Eigen::Vector3f ang_vel_cg = this->extr.imu2baselink.R * imu.ang_vel;
-
-	static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
-
-	// Transform linear acceleration (need to account for component due to translational difference)
-	Eigen::Vector3f lin_accel_cg = this->extr.imu2baselink.R * imu.lin_accel;
-
-	lin_accel_cg = lin_accel_cg
-					+ ((ang_vel_cg - ang_vel_cg_prev) / dt).cross(-this->extr.imu2baselink.t)
-					+ ang_vel_cg.cross(ang_vel_cg.cross(-this->extr.imu2baselink.t));
-
-	ang_vel_cg_prev = ang_vel_cg;
-
-	imu_baselink.ang_vel   = ang_vel_cg;
-	imu_baselink.lin_accel = lin_accel_cg;
-	imu_baselink.dt        = dt;
-	imu_baselink.stamp     = imu.stamp;
-
-	Eigen::Quaternionf q(this->extr.imu2baselink.R);
-	q.normalize();
-	imu_baselink.q = q * imu.q;
-
-	this->prev_imu_stamp = imu.stamp;
-
-	return imu_baselink;
-
-}
-
-pcl::PointCloud<PointType>::Ptr
-Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time){
+PointCloudT::Ptr Localizer::deskewPointCloud(PointCloudT::Ptr& pc, double& start_time){
 
 	if(pc->points.size() < 1) 
-		return boost::make_shared<pcl::PointCloud<PointType>>();
+		return boost::make_shared<PointCloudT>();
 
 	// individual point timestamps should be relative to this time
 	double sweep_ref_time = start_time;
@@ -661,11 +600,11 @@ Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_t
 		std::cout << "-------------------------------------------------------------------\n";
 		std::cout << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n";
 		std::cout << "-------------------------------------------------------------------\n";
-		return boost::make_shared<pcl::PointCloud<PointType>>();
+		return boost::make_shared<PointCloudT>();
 	}
 
 	// copy points into deskewed_scan_ in order of timestamp
-	pcl::PointCloud<PointType>::Ptr deskewed_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+	PointCloudT::Ptr deskewed_scan_ (boost::make_shared<PointCloudT>());
 	deskewed_scan_->points.resize(pc->points.size());
 	
 	std::partial_sort_copy(pc->points.begin(), pc->points.end(),
@@ -673,7 +612,7 @@ Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_t
 
 	if(deskewed_scan_->points.size() < 1){
 		std::cout << "FAST_LIMO::ERROR: failed to sort input pointcloud!\n";
-		return boost::make_shared<pcl::PointCloud<PointType>>();
+		return boost::make_shared<PointCloudT>();
 	}
 
 	// compute offset between sweep reference time and IMU data
@@ -692,11 +631,11 @@ Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_t
 	if(frames.size() < 1){
 		std::cout << "FAST_LIMO::ERROR: No frames obtained from IMU propagation!\n";
 		std::cout << "           Returning null deskewed pointcloud!\n";
-		return boost::make_shared<pcl::PointCloud<PointType>>();
+		return boost::make_shared<PointCloudT>();
 	}
 
 	// deskewed pointcloud w.r.t last known state prediction
-	pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+	PointCloudT::Ptr deskewed_Xt2_scan_ (boost::make_shared<PointCloudT>());
 	deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
 	this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
@@ -733,6 +672,7 @@ Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_t
 
 	return deskewed_Xt2_scan_; 
 }
+
 
 States Localizer::integrateImu(double start_time, double end_time) {
 
