@@ -42,6 +42,7 @@
 #include <mutex>
 #include <queue>
 
+#include "octree2/Octree.h"
 #include "ikd-Tree/ikd_Tree/ikd_Tree.h"
 
 #include "fast_limo/Objects/State.hpp"
@@ -50,71 +51,92 @@
 using namespace fast_limo;
 
 namespace fast_limo {
-class Mapper {
-
-    // Variables
+  class IKDTree {
 
     public:
-        KD_TREE<MapPoint>::Ptr map;
-        BoxPointType local_map_bb; // map's boundary box
-        std::mutex mtx_local_map;
+      KD_TREE<MapPoint>::Ptr map;
 
-        Config::iKFoM::Mapping config;
+      Config::iKFoM::Mapping config;
 
-        double last_map_time;
+      double last_map_time_;
 
-        int num_threads_;
+      int num_threads_;;
 
-        bool bb_init;
+      IKDTree();
 
-    // Methods
+      bool exists();
+      int size();
+      double last_time();
 
-    public:
-        Mapper();
+      void knn(const MapPoint& p,
+               int& k,
+               MapPoints& near_points,
+               std::vector<float>& sqDist);
 
-        void set_num_threads(int n);
-        void set_config(const Config::iKFoM::Mapping& cfg);
-
-        bool exists();
-        int size();
-        double last_time();
-
-        BoxPointType get_local_map();
-
-        // Matches match(State, PointCloudT::ConstPtr&);
-
-        void add(PointCloudT::Ptr&, double time, bool downsample=false);
-        void add(PointCloudT::Ptr&, State&, double time, bool downsample=false);
-        
-        // Match match_plane(Eigen::Vector4f& p);
+      void add(PointCloudT::Ptr&, double time, bool downsample=true);
 
     public:
-        void build(PointCloudT::Ptr&);
+      void build(PointCloudT::Ptr&);
 
-        void add_pointcloud(PointCloudT::Ptr&, bool downsample=false);
-
-        void fov_segment(State&);
-        
-        void set_bb_dim(State&);
-
-
-    // Singleton 
 
     public:
-        static Mapper& getInstance() {
-            static Mapper* mapper = new Mapper();
-            return *mapper;
-        }
+      static IKDTree& getInstance() {
+        static IKDTree* ikd = new IKDTree();
+        return *ikd;
+      }
 
     private:
-        // Disable copy/move capabilities
-        Mapper(const Mapper&) = delete;
-        Mapper(Mapper&&) = delete;
+      // Disable copy/move capabilities
+      IKDTree(const IKDTree&) = delete;
+      IKDTree(IKDTree&&) = delete;
 
-        Mapper& operator=(const Mapper&) = delete;
-        Mapper& operator=(Mapper&&) = delete;
+      IKDTree& operator=(const IKDTree&) = delete;
+      IKDTree& operator=(IKDTree&&) = delete;
+  };
 
-};
+  class Octree {
+
+    public:
+      thuni::Octree map;
+
+      Config::iKFoM::Mapping config;
+
+      double last_map_time_;
+
+      int num_threads_;;
+
+      Octree();
+
+      bool exists();
+      int size();
+      double last_time();
+
+      void knn(const MapPoint& p,
+               int& k,
+               MapPoints& near_points,
+               std::vector<float>& sqDist);
+
+      void add(PointCloudT::Ptr&, double time, bool downsample=true);
+
+    public:
+      void build(PointCloudT::Ptr&);
+
+    public:
+      static Octree& getInstance() {
+        static Octree* ikd = new Octree();
+        return *ikd;
+      }
+
+    private:
+      Octree(const Octree&) = delete;
+      Octree(Octree&&) = delete;
+
+      Octree& operator=(const Octree&) = delete;
+      Octree& operator=(Octree&&) = delete;
+  };
+
+
+typedef IKDTree Mapper;
 
 }
 

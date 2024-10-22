@@ -47,6 +47,7 @@ catkin_package(
 
 include_directories(
   include
+  ${CMAKE_CURRENT_LIST_DIR}/include/ioctree
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INLCUDE_DIRS}
   ${PCL_INLCUDE_DIRS}

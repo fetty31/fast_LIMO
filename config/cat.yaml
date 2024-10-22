@@ -22,10 +22,10 @@ time_offset: true           # whether to take into account a possible sync offse
 end_of_sweep: false          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
-  gravity_align: false     # estimate gravity vector
-  accel: false             # estimate lin. accel. bias
-  gyro: false              # estimate ang. vel. bias
-  time: 0.5               # time to estimate (during this time, the robot must be at stand still)
+  gravity_align: true     # estimate gravity vector
+  accel: true             # estimate lin. accel. bias
+  gyro: true              # estimate ang. vel. bias
+  time: 3.               # time to estimate (during this time, the robot must be at stand still)
 
 extrinsics: # w.r.t baselink [SI]
   imu:

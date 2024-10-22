@@ -46,8 +46,6 @@ void Localizer::init() {
 
 	// Update Mapper config
 	Mapper& map = Mapper::getInstance();
-	map.set_num_threads(config.num_threads);
-	map.set_config(config.ikfom.mapping);
 
 	// Initialize Iterated Kalman Filter on Manifolds
 	init_iKFoM();
@@ -179,10 +177,7 @@ void Localizer::updatePointCloud(PointCloudT::Ptr& raw_pc, double time_stamp) {
 
 		// Add scan to map
 		fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-		if (config.ikfom.mapping.local_mapping)
-			map.add(final_scan_, state_, scan_stamp_);
-		else 
-			map.add(final_scan_, scan_stamp_);
+		map.add(final_scan_, scan_stamp_);
 
 	} else {
 		std::cout << "-------------- FAST_LIMO::NULL ITERATION --------------\n";
@@ -419,11 +414,7 @@ void Localizer::init_iKFoM_state() {
 
 	esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = iKFoM_.get_P();
 	init_P.setIdentity();
-	init_P(6,6) = init_P(7,7) = init_P(8,8) = 0.00001;
-	init_P(9,9) = init_P(10,10) = init_P(11,11) = 0.00001;
-	init_P(15,15) = init_P(16,16) = init_P(17,17) = 0.0001;
-	init_P(18,18) = init_P(19,19) = init_P(20,20) = 0.001;
-	init_P(21,21) = init_P(22,22) = 0.00001; 
+	init_P *= 1e-8f;
 	
 	iKFoM_.change_P(init_P);
 }
@@ -488,9 +479,10 @@ PointCloudT::Ptr Localizer::deskewPointCloud(PointCloudT::Ptr& pc, double& start
 	deskewed_scan_->points.resize(pc->points.size());
 	
 	std::partial_sort_copy(pc->points.begin(), pc->points.end(),
-							deskewed_scan_->points.begin(), deskewed_scan_->points.end(), point_time_cmp);
+							           deskewed_scan_->points.begin(), deskewed_scan_->points.end(),
+												 point_time_cmp);
 
-	if(deskewed_scan_->points.size() < 1){
+	if (deskewed_scan_->points.size() < 1){
 		std::cout << "FAST_LIMO::ERROR: failed to sort input pointcloud!\n";
 		return boost::make_shared<PointCloudT>();
 	}
@@ -499,13 +491,15 @@ PointCloudT::Ptr Localizer::deskewPointCloud(PointCloudT::Ptr& pc, double& start
 	double offset = 0.0;
 	if (config.time_offset) {
 		offset = imu_stamp_ - extract_point_time(deskewed_scan_->points.back()) - 1.e-4; // automatic sync (not precise!)
-		if(offset > 0.0) offset = 0.0; // don't jump into future
+		if (offset > 0.0) offset = 0.0; // don't jump into future
 	}
 
 	// Set scan_stamp for next iteration
 	scan_stamp_ = extract_point_time(deskewed_scan_->points.back()) + offset;
 
 	// IMU prior & deskewing 
+	// if (prev_scan_stamp_ <= 0.) 
+		// prev_scan_stamp_ = scan_stamp_ - 0.1;
 	States frames = integrateImu(prev_scan_stamp_, scan_stamp_); // baselink/body frames
 
 	if (frames.size() < 1) {
@@ -635,15 +629,16 @@ void Localizer::h_share_model(state_ikfom &updated_state,
 
 	#pragma omp parallel for num_threads(5)
 	for (int i = 0; i < N; i++) {
-		auto p =pc2match_->points[i];
+		auto p = pc2match_->points[i];
 		Eigen::Vector4f bl4_point(p.x, p.y, p.z, 1.);
 		Eigen::Vector4f g = (S.get_RT() * S.get_extr_RT()) * bl4_point; 
 
 		MapPoints near_points;
 		std::vector<float> pointSearchSqDis(config.ikfom.mapping.NUM_MATCH_POINTS);
-		MAP.map->Nearest_Search(MapPoint(g(0), g(1), g(2)), 
-		                        config.ikfom.mapping.NUM_MATCH_POINTS,
-														near_points, pointSearchSqDis);
+		MAP.knn(MapPoint(g(0), g(1), g(2)), 
+		        config.ikfom.mapping.NUM_MATCH_POINTS,
+						near_points,
+						pointSearchSqDis);
 		
 		if (near_points.size() < config.ikfom.mapping.NUM_MATCH_POINTS 
 		    or pointSearchSqDis.back() > 2)
