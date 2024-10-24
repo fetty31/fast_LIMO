@@ -251,20 +251,21 @@
             std::function<bool(boost::range::index_value<PointType&, long>)> filter_f;
             
             if(this->config.filters.dist_active && this->config.filters.rate_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
                     { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist)
-                                && (p.index()%rate_value == 0); };
+                                && (p.index()%rate_value == 0) && this->isInRange(p.value()); };
             }
             else if(this->config.filters.dist_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return (Eigen::Vector3f(p.value().x, p.value().y, p.value().z).norm() > min_dist) &&
+                                this->isInRange(p.value()); };
             }
             else if(this->config.filters.rate_active){
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return p.index()%rate_value == 0; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return (p.index()%rate_value == 0) && this->isInRange(p.value()); };
             }else{
-                filter_f = [](boost::range::index_value<PointType&, long> p)
-                    { return true; };
+                filter_f = [this](boost::range::index_value<PointType&, long> p)
+                    { return this->isInRange(p.value()); };
             }
             auto filtered_pc = raw_pc->points 
                         | boost::adaptors::indexed()
@@ -802,66 +803,36 @@
 
             // deskewed pointcloud w.r.t last known state prediction
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (std::make_shared<pcl::PointCloud<PointType>>());
-            deskewed_Xt2_scan_->points.reserve(deskewed_scan_->points.size());
+            deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
 
-            int k=0;
-            for(int i = 0; i < frames.size()-1; i++){
-                while( k < deskewed_scan_->points.size() &&
-                        frames[i].time <= extract_point_time(deskewed_scan_->points[k])+offset && 
-                        extract_point_time(deskewed_scan_->points[k])+offset <= frames[i+1].time
-                    ){
-                        State X0 = frames[i];
-                        X0.update(extract_point_time(deskewed_scan_->points[k]) + offset);
+            #pragma omp parallel for num_threads(this->num_threads_)
+            for (int k = 0; k < deskewed_scan_->points.size(); k++) {
 
-                        Eigen::Matrix4f T = X0.get_RT() * this->extr.lidar2baselink_T;
+                int i_f = algorithms::binary_search_tailored(frames, extract_point_time(deskewed_scan_->points[k])+offset);
 
-                        // world frame deskewed pc
-                        auto &pt = deskewed_scan_->points[k]; // lidar frame
-                        pt.getVector4fMap()[3] = 1.;
-                        pt.getVector4fMap() = T * pt.getVector4fMap(); // world/global frame
+                State X0 = frames[i_f];
+                X0.update(extract_point_time(deskewed_scan_->points[k]) + offset);
 
-                        // Xt2 frame deskewed pc
-                        auto pt2 = deskewed_scan_->points[k];
-                        pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
-                        pt2.intensity = pt.intensity;
+                Eigen::Matrix4f T = X0.get_RT() * this->extr.lidar2baselink_T;
 
-                        if(this->isInRange(pt2)) 
-                            deskewed_Xt2_scan_->points.push_back(pt2);
-                        
-                        ++k;
-                    }
+                // world frame deskewed pc
+                auto &pt = deskewed_scan_->points[k]; // lidar frame
+                pt.getVector4fMap()[3] = 1.;
+                pt.getVector4fMap() = T * pt.getVector4fMap(); // world/global frame
+
+                // Xt2 frame deskewed pc
+                auto pt2 = deskewed_scan_->points[k];
+                pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
+                pt2.intensity = pt.intensity;
+
+                deskewed_Xt2_scan_->points[k] = pt2;
             }
 
-            // #pragma omp parallel for num_threads(this->num_threads_)
-            // for (int k = 0; k < deskewed_scan_->points.size(); k++) {
-
-            //     int i_f = algorithms::binary_search_tailored(frames, extract_point_time(deskewed_scan_->points[k])+offset);
-
-            //     State X0 = frames[i_f];
-            //     X0.update(extract_point_time(deskewed_scan_->points[k]) + offset);
-
-            //     Eigen::Matrix4f T = X0.get_RT() * this->extr.lidar2baselink_T;
-
-            //     // world frame deskewed pc
-            //     auto &pt = deskewed_scan_->points[k]; // lidar frame
-            //     pt.getVector4fMap()[3] = 1.;
-            //     pt.getVector4fMap() = T * pt.getVector4fMap(); // world/global frame
-
-            //     // Xt2 frame deskewed pc
-            //     auto pt2 = deskewed_scan_->points[k];
-            //     pt2.getVector4fMap() = this->last_state.get_RT_inv() * pt.getVector4fMap(); // Xt2 frame
-            //     pt2.intensity = pt.intensity;
-
-            //     if(this->isInRange(pt2)) 
-            //         deskewed_Xt2_scan_->points.push_back(pt2);
-
-            // }
-
             // debug info
-            // this->deskew_size = deskewed_Xt2_scan_->points.size(); 
-            this->deskew_size = k; 
+            this->deskew_size = deskewed_Xt2_scan_->points.size(); 
+            // this->deskew_size = k; 
             this->propagated_size = frames.size();
 
             if(this->config.debug && this->deskew_size > 0) // debug only

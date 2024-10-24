@@ -4,8 +4,8 @@ fast_limo:
   ros__parameters:
     topics:
       input:
-        lidar: /lidar/points
-        imu: /sensors/imu
+        lidar: /ouster/points
+        imu: /ouster/imu
       # output:
 
     frames: # output frames (the transform between frames will be broadcasted)
@@ -14,7 +14,7 @@ fast_limo:
 
     num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
-    sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
+    sensor_type: 0  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
 
     debug: true     # fill useful intermediate pcl (deskewed, final_raw...) for visualizing purposes
     verbose: true   # print debug/performance board
@@ -59,7 +59,7 @@ fast_limo:
 
       voxelGrid:
         active: true
-        leafSize: [ 0.5, 0.5, 0.5 ]
+        leafSize: [ 0.35, 0.35, 0.35 ]
 
       minDistance: # sphere crop
         active: true
@@ -70,7 +70,7 @@ fast_limo:
         value: 180.0  # [deg]
       
       rateSampling: # quick downsample
-        active: true
+        active: false
         value: 2
 
     iKFoM:  # Iterative Kalman Filter on Manifolds lib
