@@ -187,10 +187,10 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 84
+          Max Intensity: 85
           Min Color: 255; 255; 255
           Min Intensity: 0
           Name: Deskewed
@@ -208,7 +208,7 @@ Visualization Manager:
             Value: /fast_limo/deskewed
           Use Fixed Frame: true
           Use rainbow: false
-          Value: false
+          Value: true
         - Alpha: 0.20000000298023224
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -224,7 +224,7 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 63
+          Max Intensity: 85
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: FinalRaw
@@ -395,25 +395,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 21.549835205078125
+      Distance: 31.277698516845703
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.2165241241455078
-        Y: -0.6258020401000977
-        Z: -0.059255149215459824
+        X: 1.6333084106445312
+        Y: 1.5123138427734375
+        Z: -0.05925038084387779
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8397970199584961
+      Pitch: 0.7397968173027039
       Target Frame: base_link
       Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 3.1004135608673096
+      Yaw: 3.040408134460449
     Saved: ~
 Window Geometry:
   Displays:
@@ -431,5 +431,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 1992
+  X: 72
   Y: 27
