@@ -17,6 +17,9 @@ ScanContext:
   SEARCH_RATIO: 0.1
   SC_THRESHOLD: 0.3
 
+RadiusSearch:   # radius search condition (ScanContext will only be avaluated inside this range) 
+  RADIUS: 15.0
+
 PoseGraph:
   MinNumStates: 3  # min number of received states in order to solve pose-graph optimization
 

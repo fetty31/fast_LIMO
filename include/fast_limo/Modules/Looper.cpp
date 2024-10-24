@@ -107,7 +107,7 @@
             // Update Key Frames clouds
             this->updateKeyFrames(&result);
 
-            std::cout << "FAST_LIMO::LOOPER iSAM result size: " << result.size() << std::endl;
+            // std::cout << "FAST_LIMO::LOOPER iSAM result size: " << result.size() << std::endl;
 
             // Compute marginals
             // gtsam::Marginals marginals(this->graph, result);
@@ -130,11 +130,11 @@
         void Looper::check_loop(){
 
             if(this->keyframes.size() < this->sc_ptr_->NUM_EXCLUDE_RECENT) return; // avoid checking too early
-            if(not this->time2loop()) return;  // only check loop closure inside the radius search
 
             auto lc_ids = sc_ptr_->detectLoopClosureID(); // loop closure indexes
             int closest_id = lc_ids.first;
-            if(closest_id != -1){
+
+            if( (closest_id != -1) && this->time2loop()){ // only trust loop closure inside the radius search
                 const int prev_idx = closest_id;
                 const int curr_idx = this->keyframes.size()-1;
 
@@ -388,7 +388,6 @@
         gtsam::Pose3 Looper::run_icp(int id0, int idN){
 
             pcl::PointCloud<PointType>::Ptr currentKeyFrameCloud(this->keyframes[idN].second);
-            pcl::transformPointCloud (*currentKeyFrameCloud, *currentKeyFrameCloud, this->keyframes[idN].first.get_RT());
 
             pcl::PointCloud<PointType>::Ptr targetKeyFrameCloud(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr correctedCloud(new pcl::PointCloud<PointType>());
@@ -402,11 +401,8 @@
                 if (idx >= kf_size )
                     continue;
 
-                pcl::PointCloud<PointType> cloud;
-                pcl::transformPointCloud(*(this->keyframes[idx].second), cloud, this->keyframes[idx].first.get_RT());
-
                 this->kf_mtx.lock(); 
-                *targetKeyFrameCloud += cloud;
+                *targetKeyFrameCloud += *(this->keyframes[idx].second);
                 this->kf_mtx.unlock();
             }
 
