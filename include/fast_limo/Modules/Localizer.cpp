@@ -34,10 +34,11 @@ Localizer::Localizer() : scan_stamp_(0.0),
 												 imu_calibrated_(false) { 
 
 	original_scan_  = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
-	deskewed_scan_  = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
+	deskew_scan_  = PointCloudT::ConstPtr (boost::make_shared<PointCloudT>());
 	pc2match_       = PointCloudT::Ptr (boost::make_shared<PointCloudT>());
 	final_raw_scan_ = PointCloudT::Ptr (boost::make_shared<PointCloudT>());
 	final_scan_     = PointCloudT::Ptr (boost::make_shared<PointCloudT>());
+	matches_        = MatchPointCloud::Ptr (boost::make_shared<MatchPointCloud>());
 }
 
 void Localizer::init() {
@@ -542,7 +543,7 @@ PointCloudT::Ptr Localizer::deskewPointCloud(PointCloudT::Ptr& pc, double& start
 	propagated_size_ = frames.size();
 
 	if (config.debug && deskew_size_ > 0) // debug only
-		deskewed_scan_ = deskewed_Xt2_scan;
+		deskew_scan_ = deskewed_Xt2_scan;
 
 	return deskewed_Xt2_scan; 
 }
@@ -627,7 +628,7 @@ void Localizer::h_share_model(state_ikfom &updated_state,
 
 	State S(updated_state);
 
-	#pragma omp parallel for num_threads(5)
+	#pragma omp parallel for num_threads(8)
 	for (int i = 0; i < N; i++) {
 		auto p = pc2match_->points[i];
 		Eigen::Vector4f bl4_point(p.x, p.y, p.z, 1.);
@@ -654,10 +655,30 @@ void Localizer::h_share_model(state_ikfom &updated_state,
 
 
 	std::vector<Match> clean_matches;
+	MatchPointCloud::Ptr point_normals(boost::make_shared<MatchPointCloud>());
+	point_normals->points.resize(clean_matches.size());
+
 	for (int i = 0; i < N; i++) {
-		if (chosen[i])
+		if (chosen[i]) {
 			clean_matches.push_back(matches[i]);
+
+			if (config.debug) {
+				MatchPoint p;
+				p.x = matches[i].first.x();
+				p.y = matches[i].first.y();
+				p.z = matches[i].first.z();
+				p.intensity = 0.;
+				p.normal_x = matches[i].second(0);
+				p.normal_y = matches[i].second(1);
+				p.normal_z = matches[i].second(2);
+
+				point_normals->points.push_back(p);
+			}
+		}
 	}
+
+	if (config.debug)
+		matches_ = point_normals;
 
 	ekfom_data.h_x = Eigen::MatrixXd::Zero(clean_matches.size(), 12);
 	ekfom_data.h.resize(clean_matches.size());	
@@ -755,9 +776,11 @@ PointCloudT::Ptr Localizer::get_finalraw_pointcloud()  { return final_raw_scan_;
 
 PointCloudT::ConstPtr Localizer::get_orig_pointcloud() { return original_scan_; }
 
-PointCloudT::ConstPtr Localizer::get_deskewed_pointcloud() { return deskewed_scan_; }
+PointCloudT::ConstPtr Localizer::get_deskewed_pointcloud() { return deskew_scan_; }
 
 PointCloudT::Ptr Localizer::get_pc2match_pointcloud() { return pc2match_; }
+
+MatchPointCloud::Ptr Localizer::get_matches_pointcloud() { return matches_; };
 
 bool Localizer::is_calibrated() { return imu_calibrated_; }
 

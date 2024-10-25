@@ -5,7 +5,7 @@ ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
 // debugging publishers
-ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub;
+ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, normals_pub;
 
 // output frames
 std::string world_frame, body_frame;
@@ -41,7 +41,7 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     sensor_msgs::PointCloud2 match_msg;
     pcl::toROSMsg(*loc.get_pc2match_pointcloud(), match_msg);
     match_msg.header.stamp = ros::Time::now();
-    match_msg.header.frame_id = world_frame;
+    match_msg.header.frame_id = body_frame;
     match_pub.publish(match_msg);
 
     sensor_msgs::PointCloud2 finalraw_msg;
@@ -49,6 +49,13 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     finalraw_msg.header.stamp = ros::Time::now();
     finalraw_msg.header.frame_id = world_frame;
     finalraw_pub.publish(finalraw_msg);
+
+    sensor_msgs::PointCloud2 normals_msg;
+    pcl::toROSMsg(*loc.get_matches_pointcloud(), normals_msg);
+    normals_msg.header.stamp = ros::Time::now();
+    normals_msg.header.frame_id = world_frame;
+    normals_pub.publish(normals_msg);
+
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
@@ -115,6 +122,7 @@ int main(int argc, char** argv) {
     desk_pub     = nh.advertise<sensor_msgs::PointCloud2>("deskewed", 1);
     match_pub    = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
     finalraw_pub = nh.advertise<sensor_msgs::PointCloud2>("full_pcl", 1);
+    normals_pub  = nh.advertise<sensor_msgs::PointCloud2>("normals", 1);
     body_pub     = nh.advertise<nav_msgs::Odometry>("body_state", 1);
 
     // Set up fast_limo config

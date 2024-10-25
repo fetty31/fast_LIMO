@@ -98,9 +98,10 @@ namespace fast_limo {
 
 			// Point Clouds
 			PointCloudT::ConstPtr original_scan_; // in base_link/body frame
-			PointCloudT::ConstPtr deskewed_scan_; // in global/world frame
+			PointCloudT::ConstPtr deskew_scan_; // in global/world frame
 			PointCloudT::Ptr final_raw_scan_;     // in global/world frame
 			PointCloudT::Ptr final_scan_;         // in global/world frame
+			MatchPointCloud::Ptr matches_; // in global/world
 
 			// Time related var.
 			double scan_stamp_;
@@ -160,8 +161,10 @@ namespace fast_limo {
 			PointCloudT::Ptr get_pointcloud();
 			PointCloudT::Ptr get_finalraw_pointcloud();
 			PointCloudT::Ptr get_pc2match_pointcloud();
+			MatchPointCloud::Ptr get_matches_pointcloud();
 			PointCloudT::ConstPtr get_orig_pointcloud();
 			PointCloudT::ConstPtr get_deskewed_pointcloud();
+
 
 			// Matches& get_matches();/
 
