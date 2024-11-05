@@ -304,7 +304,10 @@
         }
 
         bool Looper::time2loop(){
-            return (keyframes[0].first.p - prior_state.p).norm() < config.radiussearch.RADIUS;
+            if(config.radiussearch.active)
+                return (keyframes[0].first.p - prior_state.p).norm() < config.radiussearch.RADIUS;
+            else
+                return true;
         }
 
         void Looper::updateGraph(gtsam::Pose3 pose){
@@ -411,11 +414,11 @@
             this->icp.setInputTarget(targetKeyFrameCloud);
             this->icp.align(*correctedCloud);
 
-            if (icp.hasConverged() == false || icp.getFitnessScore() > 0.3) {
-                std::cout << "FAST_LIMO::LOOPER ICP correction failed (" << icp.getFitnessScore() << " > " << 0.3 << "). Rejecting this SC loop." << std::endl;
+            if (icp.hasConverged() == false || icp.getFitnessScore() > this->config.icp.FIT_SCORE) {
+                std::cout << "FAST_LIMO::LOOPER ICP correction failed (" << icp.getFitnessScore() << " > " << config.icp.FIT_SCORE << "). Rejecting this SC loop." << std::endl;
                 return gtsam::Pose3::identity();
             } else {
-                std::cout << "FAST_LIMO::LOOPER ICP fitness test passed (" << icp.getFitnessScore() << " < " << 0.3 << "). Adding this SC loop." << std::endl;
+                std::cout << "FAST_LIMO::LOOPER ICP fitness test passed (" << icp.getFitnessScore() << " < " << config.icp.FIT_SCORE << "). Adding this SC loop." << std::endl;
             }
 
             // Get pose transformation

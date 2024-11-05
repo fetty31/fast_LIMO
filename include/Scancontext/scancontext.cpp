@@ -98,19 +98,20 @@
             }
             this->buff_mtx.unlock();
 
-            std::cout << "SCAN CONTEXT: minimum distance: " << min_dist << std::endl;
-            std::cout << "SCAN CONTEXT: best index: " << static_cast<int>(nn_id) << std::endl;
+            // std::cout << "SCAN CONTEXT: minimum distance: " << min_dist << std::endl;
+            // std::cout << "SCAN CONTEXT: best index: " << static_cast<int>(nn_id) << std::endl;
 
             if( min_dist < SC_THRESHOLD){
                 loop_id = static_cast<int>(nn_id);
 
-                std::cout << "------------------------------------------------------------------------------\n";
-                std::cout << "--------------------- SCAN CONTEXT: LOOP FOUND! ------------------------------\n";
-                std::cout << "------------------------------------------------------------------------------\n";
+                // std::cout << "------------------------------------------------------------------------------\n";
+                // std::cout << "--------------------- SCAN CONTEXT: LOOP FOUND! ------------------------------\n";
+                // std::cout << "------------------------------------------------------------------------------\n";
 
-            }else{
-                std::cout << "--------------------- SCAN CONTEXT: NO LOOP FOUND!----------------------------\n";
             }
+            // else{
+            //     std::cout << "--------------------- SCAN CONTEXT: NO LOOP FOUND!----------------------------\n";
+            // }
 
             this->sc_result   = min_dist;
             this->sc_best_idx = static_cast<int>(nn_id);

@@ -46,6 +46,7 @@ struct fast_limo::LoopConfig{
 
     struct RadiusSearch{
         float RADIUS;
+        bool active;
     } radiussearch;
 
     struct ICP{

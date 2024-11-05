@@ -55,6 +55,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::LoopConfig* config){
     nh_ptr->param<float>("ScanContext/SEARCH_RATIO",            config->scancontext.SEARCH_RATIO,               0.1f);
 
     nh_ptr->param<float>("RadiusSearch/RADIUS",                 config->radiussearch.RADIUS,    10.0f);
+    nh_ptr->param<bool>("RadiusSearch/active",                  config->radiussearch.active,    true);
 
     nh_ptr->param<int>("PoseGraph/MinNumStates", config->posegraph.min_num_states, 3);
     nh_ptr->param<std::vector<double>>("PoseGraph/Covariances/Prior", config->posegraph.prior_cov, std::vector<double> (6, 1.e-12) );

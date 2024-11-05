@@ -18,6 +18,7 @@ ScanContext:
   SC_THRESHOLD: 0.3
 
 RadiusSearch:   # radius search condition (ScanContext will only be avaluated inside this range) 
+  active: true
   RADIUS: 10.0
 
 PoseGraph:
