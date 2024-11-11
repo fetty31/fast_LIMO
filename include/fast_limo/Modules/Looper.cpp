@@ -161,7 +161,7 @@
 
                 auto pose_correction = run_icp(loop_idxs.first, loop_idxs.second);
 
-                if( not pose_correction.equals(gtsam::Pose3::identity()) )
+                if( not pose_correction.equals(gtsam::Pose3::Identity()) )
                     this->updateLoopClosure(pose_correction, loop_idxs.first, loop_idxs.second);
             }
         }
@@ -416,7 +416,7 @@
 
             if (icp.hasConverged() == false || icp.getFitnessScore() > this->config.icp.FIT_SCORE) {
                 std::cout << "FAST_LIMO::LOOPER ICP correction failed (" << icp.getFitnessScore() << " > " << config.icp.FIT_SCORE << "). Rejecting this SC loop." << std::endl;
-                return gtsam::Pose3::identity();
+                return gtsam::Pose3::Identity();
             } else {
                 std::cout << "FAST_LIMO::LOOPER ICP fitness test passed (" << icp.getFitnessScore() << " < " << config.icp.FIT_SCORE << "). Adding this SC loop." << std::endl;
             }
