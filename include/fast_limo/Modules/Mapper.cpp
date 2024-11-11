@@ -115,22 +115,22 @@
 
         void Mapper::build(pcl::PointCloud<PointType>::Ptr& pc){
             MapPoints map_vec;
-            map_vec.reserve(pc->points.size());
+            map_vec.resize(pc->points.size());
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for(int i = 0; i < pc->points.size (); i++)
-                map_vec.emplace_back( pc->points[i].x, pc->points[i].y, pc->points[i].z );
+                map_vec[i] = MapPoint( pc->points[i].x, pc->points[i].y, pc->points[i].z );
 
             this->map->Build(map_vec);
         }
 
         void Mapper::add_pointcloud(pcl::PointCloud<PointType>::Ptr& pc, bool downsample){
             MapPoints map_vec;
-            map_vec.reserve(pc->points.size());
+            map_vec.resize(pc->points.size());
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for(int i = 0; i < pc->points.size(); i++)
-                map_vec.emplace_back( pc->points[i].x, pc->points[i].y, pc->points[i].z );
+                map_vec[i] = MapPoint( pc->points[i].x, pc->points[i].y, pc->points[i].z );
 
             this->map->Add_Points(map_vec, downsample);
         }
