@@ -14,7 +14,7 @@ if docker ps -a | grep -q ${DOCKER_NAME}; then
   docker start -i ${DOCKER_NAME}
 fi
 
-docker run -it --rm \
+docker run -it \
   --name ${DOCKER_NAME} \
   --env="DISPLAY=$DISPLAY" \
   --env="QT_X11_NO_MITSHM=1" \
