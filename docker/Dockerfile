@@ -17,6 +17,6 @@ RUN cd /home/ && git clone https://github.com/ObjSal/GeographicLib.git --branch 
 	&& cd GeographicLib && mkdir BUILD && cd BUILD && ../configure && make && make install
 
 RUN mkdir -p /home/catkin_ws/src && cd /home/catkin_ws/src \
-    && git clone https://github.com/fetty31/fast_LIMO.git --branch loop/scancontext 
+    && git clone https://github.com/fetty31/fast_LIMO.git --branch loop/scancontext
 
 CMD [ "/bin/bash" ]

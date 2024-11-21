@@ -10,8 +10,8 @@ XAUTH=/tmp/.docker.xauth
 PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
 
 if docker ps -a | grep -q ${DOCKER_NAME}; then
-  echo "WARNING: A container named ${DOCKER_NAME} was already created; it will be removed"
-  docker rm ${DOCKER_NAME} &> /dev/null
+  echo "WARNING: A container named ${DOCKER_NAME} was already created; it will be started"
+  docker start -i ${DOCKER_NAME}
 fi
 
 docker run -it --rm \
