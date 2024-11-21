@@ -9,7 +9,7 @@ DOCKER_IMG="fastlimo-noetic-image:latest"
 XAUTH=/tmp/.docker.xauth
 PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
 
-if docker ps -l | grep -q ${DOCKER_NAME}; then
+if docker ps -a | grep -q ${DOCKER_NAME}; then
   echo "WARNING: A container named ${DOCKER_NAME} was already created; it will be removed"
   docker rm ${DOCKER_NAME} &> /dev/null
 fi

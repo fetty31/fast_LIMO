@@ -5,5 +5,6 @@ DOCKER_IMG="fastlimo-noetic-image"
 PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
 
 echo "----- Building Docker image from ${PROJECT_ROOT}/Dockerfile -----"
+echo " > GTSAM library will be built from sources, so go grab a cup of coffee and be patient :) "
 docker build -t ${DOCKER_IMG} ${PROJECT_ROOT}
 echo "----- Finished -----"
