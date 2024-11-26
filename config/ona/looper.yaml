@@ -15,10 +15,10 @@ ScanContext:
   PC_NUM_SECTOR: 60
   PC_MAX_RADIUS: 80.0
   SEARCH_RATIO: 0.1
-  SC_THRESHOLD: 0.3
+  SC_THRESHOLD: 0.1
 
-RadiusSearch:   # radius search condition (ScanContext will only be avaluated inside this range) 
-  active: true
+RadiusSearch:
+  active: false
   RADIUS: 10.0
 
 PoseGraph:
@@ -31,17 +31,17 @@ PoseGraph:
     Loop:  [ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
 
 ICP:
-  MAX_DIST: 150.0
+  MAX_DIST: 70.0
   MAX_ITERS: 100
   TF_EPSILON: 1.e-6
   EUC_FIT_EPSILON: 1.e-6
   RANSAC_ITERS: 0
-  FIT_SCORE: 0.3    # threshold to consider the current ICP solution as good (if score < FIT_SCORE the ICP solution will be used)
+  FIT_SCORE: 2.0    # threshold to consider the current ICP solution as good (if score < FIT_SCORE the ICP solution will be used)
   WINDOW_SIZE: 20   # number of previous pointcloud keyframes to take into account for the ICP correction
   
 KeyFrames:
   Odom:
-    DIFF_NORM: 0.5  # if (norm(pos_{t} - pos_{t-1}) > DIFF_NORM) a new keyframe will be added (state + pointcloud)
-    DIFF_YAW: 0.5   # if (norm(yaw_{t} - yaw_{t-1}) > DIFF_YAW) a new keyframe will be added
+    DIFF_NORM: 0.05  # if (norm(pos_{t} - pos_{t-1}) > DIFF_NORM) a new keyframe will be added (state + pointcloud)
+    DIFF_YAW: 0.05   # if (norm(yaw_{t} - yaw_{t-1}) > DIFF_YAW) a new keyframe will be added
   GPS:
     DIFF_NORM: 1.5  # if (norm(posGPS_{t} - posGPS_{t-1}) > DIFF_NORM) a new GPS landmark will be added

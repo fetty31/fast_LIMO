@@ -22,6 +22,7 @@
 
         Looper::Looper() : priorAdded(false),
                            initFlag(false),
+                           ICPcorrect(false),
                            global_idx(0),
                            last_enu(Eigen::Vector3d::Zero()),
                            out_estimate(gtsam::Pose3( gtsam::Rot3(gtsam::Rot3::Quaternion(1., 0., 0., 0.)), 
@@ -61,7 +62,6 @@
             gnss_noise = gtsam::noiseModel::Robust::Create(
                         gtsam::noiseModel::mEstimator::Cauchy::Create(1), // To DO: try different estimators
                         gtsam::noiseModel::Diagonal::Variances(gnss_cov) );
-            // gnss_noise = gtsam::noiseModel::Diagonal::Variances(gnss_cov);
 
             gtsam::Vector loop_cov(6);
             loop_cov << cfg.posegraph.loop_cov[0], cfg.posegraph.loop_cov[1], cfg.posegraph.loop_cov[2], 
@@ -77,14 +77,17 @@
             icp.setEuclideanFitnessEpsilon(cfg.icp.EUC_FIT_EPSILON);
             icp.setRANSACIterations(cfg.icp.RANSAC_ITERS);
 
-            this->icp_candidates.set_capacity(100);
-
             // Scan Context
             this->sc_ptr_ = std::make_unique<ScanContext>(cfg.scancontext.NUM_EXCLUDE_RECENT, cfg.scancontext.NUM_CANDIDATES_FROM_TREE,
                                                           cfg.scancontext.PC_NUM_RING, cfg.scancontext.PC_NUM_SECTOR, cfg.scancontext.PC_MAX_RADIUS,
                                                           cfg.scancontext.SC_THRESHOLD, cfg.scancontext.SEARCH_RATIO );
 
             this->initFlag = true;
+
+            this->icp_source_pc = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->icp_target_pc = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->icp_result_pc = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+
         }
 
         bool Looper::solve(){
@@ -93,7 +96,6 @@
 
             // Check loop closure (To-DO: call loop check at different rate)
             this->check_loop();
-            this->process_icp();
 
             this->graph_mtx.lock(); // avoid adding new state to the graph during iSAM update
 
@@ -141,29 +143,15 @@
                 std::cout << "FAST_LIMO::LOOPER loop detected!!\n";
                 std::cout << "                  from: " << prev_idx << " to: " << curr_idx << std::endl;
 
-                this->icp_mtx.lock();
-                this->icp_candidates.push_front(std::make_pair(prev_idx, curr_idx));
-                this->icp_mtx.unlock();
-            }
+                this->ICPcorrect = false;
 
-        }
-
-        void Looper::process_icp(){
-
-            while(not this->icp_candidates.empty()){
-                auto loop_idxs = icp_candidates.back();
-
-                std::cout << "FAST_LIMO::LOOPER processing ICP candidate\n";
-
-                this->icp_mtx.lock();
-                icp_candidates.pop_back();
-                this->icp_mtx.unlock();
-
-                auto pose_correction = run_icp(loop_idxs.first, loop_idxs.second);
+                auto pose_correction = run_icp(prev_idx, curr_idx);
 
                 if( not pose_correction.equals(gtsam::Pose3::Identity()) )
-                    this->updateLoopClosure(pose_correction, loop_idxs.first, loop_idxs.second);
+                    this->updateLoopClosure(pose_correction, prev_idx, curr_idx);
+
             }
+
         }
 
         void Looper::update(State s, pcl::PointCloud<PointType>::Ptr& pc){
@@ -175,7 +163,7 @@
             pcl::transformPointCloud(*pc, *baselink_pc, s.get_RT_inv());
 
             this->kf_mtx.lock();
-            this->keyframes.push_front(std::make_pair(s, pc));
+            this->keyframes.push_back(std::make_pair(s, pc));
             this->kf_mtx.unlock();
 
             pcl::PointCloud<pcl::PointXYZ>::Ptr sc_cloud(new pcl::PointCloud<pcl::PointXYZ>());
@@ -261,8 +249,6 @@
             }
             this->kf_mtx.unlock();
 
-            std::reverse(output.begin(), output.end());
-
             return output;
         }
 
@@ -273,6 +259,23 @@
         int Looper::getScanContextIndex(){
             return sc_ptr_->getScanContextIndex();
         }
+
+        bool Looper::hasICPconverged(){
+            return this->ICPcorrect;
+        }
+
+        pcl::PointCloud<PointType>::Ptr Looper::getICPsource(){
+            return icp_source_pc;
+        }
+
+        pcl::PointCloud<PointType>::Ptr Looper::getICPtarget(){
+            return icp_target_pc;
+        }
+
+        pcl::PointCloud<PointType>::Ptr Looper::getICPresult(){
+            return icp_result_pc;
+        }
+
 
     // private
 
@@ -305,7 +308,7 @@
 
         bool Looper::time2loop(){
             if(config.radiussearch.active)
-                return (keyframes[0].first.p - prior_state.p).norm() < config.radiussearch.RADIUS;
+                return (keyframes[keyframes.size()-1].first.p - prior_state.p).norm() < config.radiussearch.RADIUS;
             else
                 return true;
         }
@@ -331,15 +334,6 @@
             }
             graph_mtx.unlock();
 
-            // std::cout << "out estimate\n";
-            // std::cout << out_estimate << std::endl;
-
-            // std::cout << "input estimate\n";
-            // std::cout << pose << std::endl;
-
-            // std::cout << "between pose:\n";
-            // std::cout << out_estimate.between(pose) << std::endl;
-
             if(global_idx < UINT64_MAX) global_idx++;
             else{
                 std::cout << "-------------------------------------------------------------------\n";
@@ -350,9 +344,9 @@
 
         }
 
-        void Looper::updateLoopClosure(gtsam::Pose3 pose, int idN, int id0){
+        void Looper::updateLoopClosure(gtsam::Pose3 pose, int id0, int idN){
             graph_mtx.lock();
-            graph.add(gtsam::BetweenFactor<gtsam::Pose3>(idN, id0, pose, this->loop_noise));
+            graph.add(gtsam::BetweenFactor<gtsam::Pose3>(id0, idN, pose, this->loop_noise));
             graph_mtx.unlock();
         }
 
@@ -367,8 +361,8 @@
 
             auto kf_it = this->keyframes.begin();
 
-            int idx = graph_estimate->size()-1;
-            while( (kf_it != this->keyframes.end()) && (idx > 0) ) {
+            int idx = 0;
+            while( (kf_it != this->keyframes.end()) && (idx < graph_estimate->size()) ) {
 
                 Eigen::Matrix4d Td = graph_estimate->at<gtsam::Pose3>(idx).matrix();
                 fast_limo::State st(Td);
@@ -381,7 +375,7 @@
                 pcl::transformPointCloud (*(kf_it->second), *(kf_it->second), Tdiff);
 
                 kf_it++;
-                idx--;
+                idx++;
             }
 
             this->kf_mtx.unlock();
@@ -391,6 +385,7 @@
         gtsam::Pose3 Looper::run_icp(int id0, int idN){
 
             pcl::PointCloud<PointType>::Ptr currentKeyFrameCloud(this->keyframes[idN].second);
+            if(idN > 0) *currentKeyFrameCloud += *(this->keyframes[idN-1].second);
 
             pcl::PointCloud<PointType>::Ptr targetKeyFrameCloud(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr correctedCloud(new pcl::PointCloud<PointType>());
@@ -414,6 +409,10 @@
             this->icp.setInputTarget(targetKeyFrameCloud);
             this->icp.align(*correctedCloud);
 
+            this->icp_source_pc = currentKeyFrameCloud;
+            this->icp_target_pc = targetKeyFrameCloud;
+            this->icp_result_pc = correctedCloud;
+
             if (icp.hasConverged() == false || icp.getFitnessScore() > this->config.icp.FIT_SCORE) {
                 std::cout << "FAST_LIMO::LOOPER ICP correction failed (" << icp.getFitnessScore() << " > " << config.icp.FIT_SCORE << "). Rejecting this SC loop." << std::endl;
                 return gtsam::Pose3::Identity();
@@ -428,6 +427,8 @@
 
             gtsam::Pose3 poseFrom = this->fromLIMOtoGTSAM(fast_limo::State(correct_tf));
             gtsam::Pose3 poseTo = this->fromLIMOtoGTSAM(this->keyframes[id0].first);
+
+            this->ICPcorrect = true;
 
             return poseFrom.between(poseTo);
         }

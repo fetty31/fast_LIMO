@@ -42,21 +42,11 @@ class fast_limo::Looper {
     // VARIABLES
 
     private:
-            // GTSAM
+            // PoseGraph
         gtsam::NonlinearFactorGraph graph;
         gtsam::Values init_estimates;
         gtsam::ISAM2* iSAM_;
         gtsam::Pose3 out_estimate;
-
-            // Config struct
-        LoopConfig config;
-
-            // Loop Closure
-        std::unique_ptr<ScanContext> sc_ptr_;
-
-        pcl::IterativeClosestPoint<PointType, PointType> icp;
-        boost::circular_buffer<std::pair<int,int>> icp_candidates;
-        std::mutex icp_mtx;
 
         bool priorAdded;
         uint64_t global_idx;
@@ -65,9 +55,15 @@ class fast_limo::Looper {
 
         gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
         gtsam::noiseModel::Diagonal::shared_ptr odom_noise;
-        // gtsam::noiseModel::Diagonal::shared_ptr gnss_noise;
         gtsam::noiseModel::Base::shared_ptr gnss_noise;
         gtsam::noiseModel::Base::shared_ptr loop_noise;
+
+            // Config struct
+        LoopConfig config;
+
+            // Loop Closure
+        std::unique_ptr<ScanContext> sc_ptr_;
+        pcl::IterativeClosestPoint<PointType, PointType> icp;
 
             // Keyframes
         boost::circular_buffer<std::pair<State, pcl::PointCloud<PointType>::Ptr>> keyframes;
@@ -78,9 +74,14 @@ class fast_limo::Looper {
 
             // Aux var.
         bool initFlag;
+        bool ICPcorrect;
         State last_kf;
         Eigen::Vector3d last_enu;
         fast_limo::State prior_state;
+
+        pcl::PointCloud<PointType>::Ptr icp_source_pc;
+        pcl::PointCloud<PointType>::Ptr icp_target_pc;
+        pcl::PointCloud<PointType>::Ptr icp_result_pc;
 
     // FUNCTIONS
 
@@ -103,9 +104,13 @@ class fast_limo::Looper {
         float getScanContextResult();
         int getScanContextIndex();
 
+        pcl::PointCloud<PointType>::Ptr getICPsource();
+        pcl::PointCloud<PointType>::Ptr getICPtarget();
+        pcl::PointCloud<PointType>::Ptr getICPresult();
+        bool hasICPconverged();
+
         bool solve();
         void check_loop();
-        void process_icp();
 
         void update(State s, pcl::PointCloud<PointType>::Ptr&);
         void update(State s);
@@ -113,7 +118,7 @@ class fast_limo::Looper {
 
     private:
         void updateGraph(gtsam::Pose3 pose);
-        void updateLoopClosure(gtsam::Pose3 pose, int idN, int id0);
+        void updateLoopClosure(gtsam::Pose3 pose, int id0, int idN);
 
         gtsam::Pose3 fromLIMOtoGTSAM(const State& s);
 

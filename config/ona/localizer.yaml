@@ -1,15 +1,14 @@
 # ONA config
 
 topics:
-  input:
-    lidar: /ona2/sensors/pandar_front/cloud
-    imu: /ona2/sensors/imu_front/imu
+  input: 
+    lidar: /ona2/sensors/pandar_front/cloud  # /ona2/sensors/scan_fusion/cloud
+    imu: /ona2/sensors/imu_front/imu_uncalib  #/ona2/sensors/imu_front/imu  
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
   world: map
   body: base_link
-  tf_pub: true
   
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
@@ -22,7 +21,7 @@ estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
-  gravity_align: true     # estimate gravity vector
+  gravity_align: false     # estimate gravity vector
   accel: true             # estimate lin. accel. bias
   gyro: true              # estimate ang. vel. bias
   time: 3.0               # [s] time to estimate (during this time, the robot must be at stand still)
@@ -35,7 +34,7 @@ extrinsics: # w.r.t baselink [SI]
           0.,  0.,  1. ]
 
   lidar:
-    t: [ 0.87,  -0.44,  -0.201 ]
+    t: [ 0.,  0., -0.2 ]
     # R: [ 0.774, -0.633, 0.022,
     #     0.633, 0.774,  -0.026,
     #     -0.0005, 0.03,  0.999 ] # +40º

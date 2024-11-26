@@ -112,6 +112,10 @@ int main(int argc, char** argv) {
     ros::Publisher sc_idx_pub   = nh.advertise<std_msgs::Int32>("scan_context/index", 1);
     ros::Publisher st_marker_pub = nh.advertise<visualization_msgs::Marker>("kf/states", 1);
 
+    ros::Publisher icp_target_pub = nh.advertise<sensor_msgs::PointCloud2>("icp/target", 1);
+    ros::Publisher icp_source_pub = nh.advertise<sensor_msgs::PointCloud2>("icp/source", 1);
+    ros::Publisher icp_result_pub = nh.advertise<sensor_msgs::PointCloud2>("icp/result", 1);
+
     LOOP.init(config);
 
     nav_msgs::Odometry state_msg;
@@ -158,6 +162,27 @@ int main(int argc, char** argv) {
 
             sc_idx_msg.data = LOOP.getScanContextIndex();
             sc_idx_pub.publish(sc_idx_msg);
+
+                // ICP output
+            if(LOOP.hasICPconverged()){
+                sensor_msgs::PointCloud2 pc_source_msg;
+                pcl::toROSMsg(*LOOP.getICPsource(), pc_source_msg);
+                pc_source_msg.header.stamp = ros::Time::now();
+                pc_source_msg.header.frame_id = world_frame;
+                icp_source_pub.publish(pc_source_msg);
+
+                sensor_msgs::PointCloud2 pc_target_msg;
+                pcl::toROSMsg(*LOOP.getICPtarget(), pc_target_msg);
+                pc_target_msg.header.stamp = ros::Time::now();
+                pc_target_msg.header.frame_id = world_frame;
+                icp_target_pub.publish(pc_target_msg);
+
+                sensor_msgs::PointCloud2 pc_result_msg;
+                pcl::toROSMsg(*LOOP.getICPresult(), pc_result_msg);
+                pc_result_msg.header.stamp = ros::Time::now();
+                pc_result_msg.header.frame_id = world_frame;
+                icp_result_pub.publish(pc_result_msg);
+            }
         }
 
         r.sleep();
