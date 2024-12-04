@@ -12,18 +12,17 @@ PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
 if docker ps -l | grep -q ${DOCKER_NAME}; then
   echo "WARNING: A container named ${DOCKER_NAME} was already created; it will be started"
   docker start -i ${DOCKER_NAME}
+else
+  docker run -it \
+    --name ${DOCKER_NAME} \
+    --env="DISPLAY=$DISPLAY" \
+    --env="QT_X11_NO_MITSHM=1" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    --env="XAUTHORITY=$XAUTH" \
+    --net=host \
+    --privileged \
+    ${DOCKER_IMG} "$@"
 fi
-
-docker run -it \
-  --name ${DOCKER_NAME} \
-  --env="DISPLAY=$DISPLAY" \
-  --env="QT_X11_NO_MITSHM=1" \
-  --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-  --volume="/home/fetty/Desktop/rosbags:/home/rosbags" \
-  --env="XAUTHORITY=$XAUTH" \
-  --net=host \
-  --privileged \
-  ${DOCKER_IMG} "$@"
 
 xhost -local:root
 echo "Goodbye :)"
