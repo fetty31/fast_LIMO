@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Deskewed
+    SyncSource: ""
 Visualization Manager:
   Class: ""
   Displays:
@@ -331,7 +331,7 @@ Visualization Manager:
           Enabled: true
           Name: BoundingBox
           Namespaces:
-            fast_limo: true
+            {}
           Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -431,5 +431,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
+  X: 1992
   Y: 27
