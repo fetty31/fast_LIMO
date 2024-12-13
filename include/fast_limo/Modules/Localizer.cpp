@@ -300,12 +300,17 @@
                 // iKFoM observation stage
                 this->mtx_ikfom.lock();
 
+                // Call Mapper obj
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+
                     // Update iKFoM measurements (after prediction)
                 double solve_time = 0.0;
                 this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
                                                                 solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
+
+                map.matches.clear(); // clear matches vector for next iteration
 
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
@@ -364,7 +369,6 @@
                 }
 
                 // Add scan to map
-                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
                 if(this->config.ikfom.mapping.local_mapping)
                     map.add(mapped_scan, this->state, this->scan_stamp);
                 else 
@@ -540,7 +544,7 @@
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
+                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dglobal();
                 Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
@@ -698,16 +702,16 @@
             // Transform angular velocity (will be the same on a rigid body, so just rotate to baselink frame)
             Eigen::Vector3f ang_vel_cg = this->extr.imu2baselink.R * imu.ang_vel;
 
-            // static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
+            static Eigen::Vector3f ang_vel_cg_prev = ang_vel_cg;
 
             // Transform linear acceleration (need to account for component due to translational difference)
             Eigen::Vector3f lin_accel_cg = this->extr.imu2baselink.R * imu.lin_accel;
 
             lin_accel_cg = lin_accel_cg
-                            // + ((ang_vel_cg - ang_vel_cg_prev) / dt).cross(-this->extr.imu2baselink.t)
+                            + ((ang_vel_cg - ang_vel_cg_prev) / dt).cross(-this->extr.imu2baselink.t)
                             + ang_vel_cg.cross(ang_vel_cg.cross(-this->extr.imu2baselink.t));
 
-            // ang_vel_cg_prev = ang_vel_cg;
+            ang_vel_cg_prev = ang_vel_cg;
 
             imu_baselink.ang_vel   = ang_vel_cg;
             imu_baselink.lin_accel = lin_accel_cg;

@@ -43,6 +43,9 @@ class fast_limo::Mapper {
 
         bool bb_init;
 
+    public:
+        Matches matches;
+
     // Methods
 
     public:
@@ -71,7 +74,7 @@ class fast_limo::Mapper {
         
         void set_bb_dim(State&);
 
-        Match match_plane(Eigen::Vector4f& p);
+        Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
 
     // Singleton 
 
