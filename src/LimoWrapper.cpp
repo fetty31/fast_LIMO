@@ -28,6 +28,8 @@ namespace ros2wrap {
             std::string world_frame;
             std::string body_frame;
 
+            bool publish_tf;
+
         private:
                 // subscribers
             rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
@@ -65,6 +67,9 @@ namespace ros2wrap {
                     // Load config
                     fast_limo::Config config;
                     this->loadConfig(&config);
+
+                    rclcpp::Parameter tf_pub = this->get_parameter("frames.tf_pub");
+                    this->publish_tf = tf_pub.as_bool();
 
                     // Define two callback groups (ensure parallel execution of lidar_callback & imu_callback)
                     rclcpp::SubscriptionOptions lidar_opt, imu_opt;
@@ -412,7 +417,8 @@ namespace ros2wrap {
                 tf_msg.transform.rotation.w = quat.w();
 
                 // Broadcast
-                tf_broadcaster_->sendTransform(tf_msg);
+                if(this->publish_tf)
+                    tf_broadcaster_->sendTransform(tf_msg);
             }
 
             visualization_msgs::msg::Marker getLocalMapMarker(BoxPointType bb){

@@ -90,7 +90,6 @@
             Matches chosen_matches;
             for(int j = 0; j < init_matches.size(); j++){
                 if(init_matches[j].lisanAlGaib())
-                    // matches.push_back(init_matches[j]); // if match is chosen, push it
                     chosen_matches.push_back(init_matches[j]); // if match is chosen, push it
             }
 
