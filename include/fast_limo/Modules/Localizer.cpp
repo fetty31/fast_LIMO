@@ -132,7 +132,7 @@
             return this->deskewed_scan;
         }
 
-        pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
+        pcl::PointCloud<PointType>::Ptr Localizer::get_pc2match_pointcloud(){
             return this->pc2match;
         }
 
