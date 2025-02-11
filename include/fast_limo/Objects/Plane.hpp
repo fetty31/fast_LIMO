@@ -27,7 +27,6 @@ class fast_limo::Plane{
 
         Plane(const MapPoints& p, const std::vector<float>& d, 
               Config::iKFoM::Mapping* config_ptr);
-        Plane() = default;
 
         Eigen::Vector4f get_normal();
         bool good_fit();

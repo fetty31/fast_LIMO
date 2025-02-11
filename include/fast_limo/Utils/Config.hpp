@@ -15,8 +15,8 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef _FASTLIMO_CONFIG_HPP_
-#define _FASTLIMO_CONFIG_HPP_
+#ifndef __FASTLIMO_CONFIG_HPP__
+#define __FASTLIMO_CONFIG_HPP__
 
 #include "fast_limo/Common.hpp"
 

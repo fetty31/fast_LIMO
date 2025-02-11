@@ -120,6 +120,14 @@ class fast_limo::Localizer {
         clock_t lastCPU, lastSysCPU, lastUserCPU;
         int numProcessors;
 
+            // CPU stats
+        std::mutex mtx_cpu_stats;
+        float cpu_time;
+        float cpu_max_time;
+        float cpu_mean_time;
+        float cpu_cores, cpu_load, cpu_max_load;
+        float ram_usage;
+
             // Other
         chrono::duration<double> elapsed_time;  // pointcloud callback elapsed time
         int deskew_size;                        // steps taken to deskew (FoV discretization)
@@ -152,6 +160,10 @@ class fast_limo::Localizer {
         std::vector<double> getTwistCovariance();// get eKF covariances
         
         double get_propagate_time();
+
+        // CPU stats
+        void get_cpu_stats(float &comput_time, float &max_comput_time, float &mean_comput_time,
+                            float &cpu_cores, float &cpu_load, float &cpu_max_load, float &ram_usage);
 
         // Status info
         bool is_calibrated();
