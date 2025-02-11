@@ -33,7 +33,7 @@ class fast_limo::Localizer {
     // VARIABLES
 
     public:
-        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match in Xt2 (last_state) frame
+        pcl::PointCloud<PointType>::Ptr pc2match; // pointcloud to match in Xt2 (last_state) frame
 
     private:
         // Iterated Kalman Filter on Manifolds (FASTLIOv2)
@@ -149,7 +149,7 @@ class fast_limo::Localizer {
 
         pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
-        pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
+        pcl::PointCloud<PointType>::Ptr get_pc2match_pointcloud();
 
         Matches& get_matches();
 

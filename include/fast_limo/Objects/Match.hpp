@@ -20,6 +20,7 @@
 
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Objects/Plane.hpp"
+#include "fast_limo/Objects/State.hpp"
 
 class fast_limo::Match{
 
@@ -27,15 +28,21 @@ class fast_limo::Match{
         fast_limo::Plane plane;
         float dist;
 
-        Match(const Eigen::Vector3f& p, const fast_limo::Plane& H);
+        Match(const Eigen::Vector3f& p_global, const Eigen::Vector3f& p_local, const fast_limo::Plane& H);
+        Match() = default;
 
         bool lisanAlGaib(); // whether is the chosen one :)
 
-        Eigen::Vector4f get_4Dpoint();
-        Eigen::Vector3f get_point();
+        void update_global(fast_limo::State& s);
+
+        Eigen::Vector4f get_4Dglobal();
+        Eigen::Vector4f get_4Dlocal();
+        Eigen::Vector3f get_global_point();
+        Eigen::Vector3f get_local_point();
     
     private:
-        Eigen::Vector3f point;
+        Eigen::Vector3f p_global;
+        Eigen::Vector3f p_local;
 
 };
 

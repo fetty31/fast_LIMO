@@ -27,7 +27,7 @@
 
             this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
-            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            this->pc2match       = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             this->final_scan     = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
         }
@@ -132,7 +132,7 @@
             return this->deskewed_scan;
         }
 
-        pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
+        pcl::PointCloud<PointType>::Ptr Localizer::get_pc2match_pointcloud(){
             return this->pc2match;
         }
 
@@ -321,6 +321,9 @@
                 // iKFoM observation stage
                 this->mtx_ikfom.lock();
 
+                // Call Mapper obj
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+
                     // Update iKFoM measurements (after prediction)
                 double solve_time = 0.0;
                 this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
@@ -328,6 +331,8 @@
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
                 
+                map.matches.clear(); // clear matches vector for next iteration
+
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
 
@@ -365,7 +370,6 @@
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
                 // Add scan to map
-                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
                 if(this->config.ikfom.mapping.local_mapping)
                     map.add(mapped_scan, this->state, this->scan_stamp);
                 else 
@@ -541,7 +545,7 @@
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
+                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dglobal();
                 Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
@@ -877,8 +881,8 @@
             if (this->propagated_buffer.empty() || this->propagated_buffer.front().time < end_time) {
                 // Wait for the latest IMU data
                 std::cout << "PROPAGATE WAITING...\n";
-                std::cout << "     - buffer time: " << propagated_buffer.front().time << std::endl;
-                std::cout << "     - end scan time: " << end_time << std::endl;
+                std::cout << "     - buffer time: " << std::setprecision(15) << propagated_buffer.front().time << std::endl;
+                std::cout << "     - end scan time: " << std::setprecision(15) << end_time << std::endl;
                 std::unique_lock<decltype(this->mtx_prop)> lock(this->mtx_prop);
                 this->cv_prop_stamp.wait(lock, [this, &end_time]{ return this->propagated_buffer.front().time >= end_time; });
             }
@@ -989,10 +993,10 @@
                 std::accumulate(this->cpu_times.begin(), this->cpu_times.end(), 0.0) / this->cpu_times.size();
 
             // Average sensor rates
-            double avg_imu_rate =
-                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size();
-            double avg_lidar_rate =
-                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size();
+            double avg_imu_rate = (this->imu_rates.size() > 0) ?
+                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size() : 0.0;
+            double avg_lidar_rate = (this->lidar_rates.size() > 0) ?
+                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size() : 0.0;
 
             // RAM Usage
             double vm_usage = 0.0;

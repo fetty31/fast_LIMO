@@ -209,7 +209,7 @@ visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string f
 
     for(int i=0; i < matches.size(); i++){
         m.id = i;
-        Eigen::Vector3f match_p = matches[i].get_point();
+        Eigen::Vector3f match_p = matches[i].get_global_point();
         m.pose.position.x = match_p(0);
         m.pose.position.y = match_p(1);
         m.pose.position.z = match_p(2);
