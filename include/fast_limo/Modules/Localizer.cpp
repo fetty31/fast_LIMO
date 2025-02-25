@@ -151,6 +151,10 @@
                 this->sensor = fast_limo::SensorType::UNKNOWN;
         }
 
+        fast_limo::SensorType Localizer::get_sensor_type(){
+            return this->sensor;
+        }
+
         State Localizer::getBodyState(){
 
             if(not this->is_calibrated())

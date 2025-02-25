@@ -108,11 +108,18 @@ namespace ros2wrap {
                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */
 
             void lidar_callback(const sensor_msgs::msg::PointCloud2 & msg) {
+                
+                fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
+                static bool pc_in_good_shape = this->checkPointcloudStructure(msg, loc.get_sensor_type());
+
+                if(not pc_in_good_shape){
+                    throw std::runtime_error("FAST_LIMO::FATAL ERROR: check that the given pointcloud has the expected structure!");
+                    exit(EXIT_FAILURE);
+                }
 
                 pcl::PointCloud<PointType>::Ptr pc_ (std::make_shared<pcl::PointCloud<PointType>>());
                 pcl::fromROSMsg(msg, *pc_);
 
-                fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
                 loc.updatePointCloud(pc_, rclcpp::Time(msg.header.stamp).seconds());
 
                 // Publish output pointcloud
@@ -419,6 +426,64 @@ namespace ros2wrap {
                 // Broadcast
                 if(this->publish_tf)
                     tf_broadcaster_->sendTransform(tf_msg);
+            }
+
+            bool checkPointcloudStructure(const sensor_msgs::msg::PointCloud2 & msg, fast_limo::SensorType sensor){
+                if (sensor == fast_limo::SensorType::OUSTER) {
+                    for(size_t i=0; i < msg->fields.size(); i++){
+                        if(msg->fileds[i] == "t")
+                            return true;
+                    }
+            
+                    std::cout << "-------------------------------------------------------------------\n";
+                    std::cout << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n";
+                    std::cout << "          Remember that for OUSTER alike pointclouds, the expected fields are:\n";
+                    std::cout << "                  x: FLOAT32 (x coordinate in meters)\n";
+                    std::cout << "                  y: FLOAT32 (y coordinate in meters)\n";
+                    std::cout << "                  z: FLOAT32 (z coordinate in meters)\n";
+                    std::cout << "                  t: UINT32 (time since beginning of scan in nanoseconds)\n";
+                    std::cout << "-------------------------------------------------------------------\n";
+            
+                } else if (sensor == fast_limo::SensorType::VELODYNE) {
+                    for(size_t i=0; i < msg->fields.size(); i++){
+                        if(msg->fileds[i] == "time")
+                            return true;
+                    }
+            
+                    std::cout << "-------------------------------------------------------------------\n";
+                    std::cout << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n";
+                    std::cout << "          Remember that for VELODYNE alike pointclouds, the expected fields are:\n";
+                    std::cout << "                  x: FLOAT32 (x coordinate in meters)\n";
+                    std::cout << "                  y: FLOAT32 (y coordinate in meters)\n";
+                    std::cout << "                  z: FLOAT32 (z coordinate in meters)\n";
+                    std::cout << "                  time: FLOAT32 (time since beginning of scan in seconds)\n";
+                    std::cout << "-------------------------------------------------------------------\n";
+            
+                } else if ( (sensor == fast_limo::SensorType::HESAI) || (sensor == fast_limo::SensorType::LIVOX) ) {
+                    for(size_t i=0; i < msg->fields.size(); i++){
+                        if(msg->fileds[i] == "timestamp")
+                            return true;
+                    }
+            
+                    std::cout << "-------------------------------------------------------------------\n";
+                    std::cout << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n";
+                    std::cout << "          Remember that for HESAI or LIVOX alike pointclouds, the expected fields are:\n";
+                    std::cout << "                  x: FLOAT32 (x coordinate in meters)\n";
+                    std::cout << "                  y: FLOAT32 (y coordinate in meters)\n";
+                    std::cout << "                  z: FLOAT32 (z coordinate in meters)\n";
+                    if(sensor == fast_limo::SensorType::HESAI)
+                        std::cout << "                  timestamp: FLOAT64 (time since beginning of scan in seconds)\n";
+                    else
+                        std::cout << "                  timestamp: FLOAT64 (time since beginning of scan in nanoseconds)\n";
+                    std::cout << "-------------------------------------------------------------------\n";
+            
+                } else {
+                    std::cout << "-------------------------------------------------------------------\n";
+                    std::cout << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n";
+                    std::cout << "-------------------------------------------------------------------\n";
+                }
+                
+                return false;
             }
 
             visualization_msgs::msg::Marker getLocalMapMarker(BoxPointType bb){
