@@ -186,7 +186,8 @@ namespace ros2wrap {
                 this->body_pub->publish(body_msg);
 
                 // TF broadcasting
-                this->broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+                if(this->publish_tf)
+                    this->broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
             }
 
         /* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
@@ -424,14 +425,13 @@ namespace ros2wrap {
                 tf_msg.transform.rotation.w = quat.w();
 
                 // Broadcast
-                if(this->publish_tf)
-                    tf_broadcaster_->sendTransform(tf_msg);
+                tf_broadcaster_->sendTransform(tf_msg);
             }
 
             bool checkPointcloudStructure(const sensor_msgs::msg::PointCloud2 & msg, fast_limo::SensorType sensor){
                 if (sensor == fast_limo::SensorType::OUSTER) {
-                    for(size_t i=0; i < msg->channels.size(); i++){
-                        if(msg->channels[i].name == "t")
+                    for(size_t i=0; i < msg.fields.size(); i++){
+                        if(msg.fields[i].name == "t")
                             return true;
                     }
             
@@ -445,8 +445,8 @@ namespace ros2wrap {
                     std::cout << "-------------------------------------------------------------------\n";
             
                 } else if (sensor == fast_limo::SensorType::VELODYNE) {
-                    for(size_t i=0; i < msg->channels.size(); i++){
-                        if(msg->channels[i].name == "time")
+                    for(size_t i=0; i < msg.fields.size(); i++){
+                        if(msg.fields[i].name == "time")
                             return true;
                     }
             
@@ -460,8 +460,8 @@ namespace ros2wrap {
                     std::cout << "-------------------------------------------------------------------\n";
             
                 } else if ( (sensor == fast_limo::SensorType::HESAI) || (sensor == fast_limo::SensorType::LIVOX) ) {
-                    for(size_t i=0; i < msg->channels.size(); i++){
-                        if(msg->channels[i].name == "timestamp")
+                    for(size_t i=0; i < msg.fields.size(); i++){
+                        if(msg.fields[i].name == "timestamp")
                             return true;
                     }
             
