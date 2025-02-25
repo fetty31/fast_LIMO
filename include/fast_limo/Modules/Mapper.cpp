@@ -62,28 +62,39 @@
             return this->local_map_bb;
         }
 
-        Matches Mapper::match(State s, pcl::PointCloud<PointType>::ConstPtr& pc){
-            Matches matches;
+        Matches Mapper::match(State s, pcl::PointCloud<PointType>::Ptr& pc){
+
             if(not this->exists()) return matches;
+
+            // if(not this->matches.empty()){ // we already found matches
+            //     for (auto& match : matches) 
+            //         match.update_global(s); // update global point
+            //     return matches;
+            // }
 
             int N0 = (pc->points.size() > config.MAX_NUM_PC2MATCH) ? pc->points.size() - config.MAX_NUM_PC2MATCH : 0;
 
-            matches.reserve(pc->points.size()-N0);
+            Matches init_matches;
+            init_matches.resize(pc->points.size()-N0);
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for(int i = N0; i < pc->points.size(); i++){
                 
                 Eigen::Vector4f bl4_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
                 Eigen::Vector4f global_point = s.get_RT() * bl4_point;                            // global 4d point == [x', y', z', 1.0]
-                Match match = this->match_plane(global_point);                                    // point-to-plane match
+                Match match = this->match_plane(global_point, bl4_point);                         // point-to-plane match
 
-                Eigen::Vector3f bl_point(pc->points[i].x, pc->points[i].y, pc->points[i].z);      // base link 3d point
-
-                if(match.lisanAlGaib()) 
-                    matches.push_back(match); // if match is chosen, push it
+                init_matches[i] = match; 
             }
 
-            return matches;
+            Matches chosen_matches;
+            for(int j = 0; j < init_matches.size(); j++){
+                if(init_matches[j].lisanAlGaib())
+                    chosen_matches.push_back(init_matches[j]); // if match is chosen, push it
+            }
+
+            this->matches = chosen_matches; // save matches for next iter
+            return chosen_matches;
         }
         
         void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, State& s, double time, bool downsample){
@@ -135,7 +146,7 @@
             this->map->Add_Points(map_vec, downsample);
         }
 
-        Match Mapper::match_plane(Eigen::Vector4f& p) {
+        Match Mapper::match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local) {
 
             // Find k nearest points
             MapPoints near_points;
@@ -143,7 +154,7 @@
             this->map->Nearest_Search(MapPoint(p(0), p(1), p(2)), this->config.NUM_MATCH_POINTS, near_points, pointSearchSqDis);
 
             // Construct a plane fitting between them
-            return Match( p.head(3), Plane (near_points, pointSearchSqDis, &config) );
+            return Match( p.head(3), p_local.head(3), Plane (near_points, pointSearchSqDis, &config) );
         }
 
         void Mapper::set_bb_dim(State& s){

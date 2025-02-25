@@ -7,8 +7,9 @@ topics:
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
-  world: map
-  body: base_link
+  world: ona2/odom
+  body: ona2/base_link
+  tf_pub: true
   
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
