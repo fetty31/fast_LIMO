@@ -434,7 +434,7 @@ namespace ros2wrap {
                             return true;
                     }
             
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "-------------------------------------------------------------------\n" 
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "\n-------------------------------------------------------------------\n" 
                                         << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
                                         << "          Remember that for OUSTER alike pointclouds, the expected fields are:\n"
                                         << "                  x: FLOAT32 (x coordinate in meters)\n"
@@ -450,7 +450,7 @@ namespace ros2wrap {
                             return true;
                     }
 
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "-------------------------------------------------------------------\n" 
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "\n-------------------------------------------------------------------\n" 
                                         << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
                                         << "          Remember that for VELODYNE alike pointclouds, the expected fields are:\n"
                                         << "                  x: FLOAT32 (x coordinate in meters)\n"
@@ -466,7 +466,7 @@ namespace ros2wrap {
                             return true;
                     }
 
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "-------------------------------------------------------------------\n" 
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "\n-------------------------------------------------------------------\n" 
                                         << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
                                         << "          Remember that for HESAI/LIVOX alike pointclouds, the expected fields are:\n"
                                         << "                  x: FLOAT32 (x coordinate in meters)\n"
@@ -477,7 +477,7 @@ namespace ros2wrap {
                                         );
             
                 } else {
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "-------------------------------------------------------------------\n" 
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "\n-------------------------------------------------------------------\n" 
                                         << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n"
                                         << "-------------------------------------------------------------------\n"
                                         );
