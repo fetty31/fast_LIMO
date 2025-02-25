@@ -170,7 +170,7 @@ class fast_limo::Localizer {
 
         // Config
         void set_sensor_type(uint8_t type);
-        uint8_t get_sensor_type();
+        fast_limo::SensorType get_sensor_type();
 
         // iKFoM measurement model
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);

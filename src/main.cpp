@@ -13,6 +13,7 @@ bool publish_tf;
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 
+    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     static bool pc_in_good_shape = debug_limo::checkPointcloudStructure(msg, loc.get_sensor_type());
 
     if(not pc_in_good_shape){
@@ -23,7 +24,6 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
-    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     loc.updatePointCloud(pc_, msg->header.stamp.toSec());
 
     // Publish output pointcloud
