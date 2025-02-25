@@ -152,7 +152,7 @@ namespace debug_limo {
 bool checkPointcloudStructure(const sensor_msgs::PointCloud2::ConstPtr& msg, fast_limo::SensorType sensor){
     if (sensor == fast_limo::SensorType::OUSTER) {
         for(size_t i=0; i < msg->fields.size(); i++){
-            if(msg->fileds[i] == "t")
+            if(msg->fields[i].name == "t")
                 return true;
         }
 
@@ -167,7 +167,7 @@ bool checkPointcloudStructure(const sensor_msgs::PointCloud2::ConstPtr& msg, fas
 
     } else if (sensor == fast_limo::SensorType::VELODYNE) {
         for(size_t i=0; i < msg->fields.size(); i++){
-            if(msg->fileds[i] == "time")
+            if(msg->fields[i].name == "time")
                 return true;
         }
 
@@ -182,7 +182,7 @@ bool checkPointcloudStructure(const sensor_msgs::PointCloud2::ConstPtr& msg, fas
 
     } else if ( (sensor == fast_limo::SensorType::HESAI) || (sensor == fast_limo::SensorType::LIVOX) ) {
         for(size_t i=0; i < msg->fields.size(); i++){
-            if(msg->fileds[i] == "timestamp")
+            if(msg->fields[i].name == "timestamp")
                 return true;
         }
 
