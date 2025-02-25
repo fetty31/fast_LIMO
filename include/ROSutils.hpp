@@ -19,7 +19,6 @@
 
 // Std utils
 #include <signal.h>
-#include <stdlib.h>
 
 // Fast LIMO
 #include "fast_limo/Common.hpp"
