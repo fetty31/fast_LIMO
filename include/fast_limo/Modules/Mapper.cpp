@@ -66,11 +66,11 @@
 
             if(not this->exists()) return matches;
 
-            if(not this->matches.empty()){ // we already found matches
-                for (auto& match : matches) 
-                    match.update_global(s); // update global point
-                return matches;
-            }
+            // if(not this->matches.empty()){ // we already found matches
+            //     for (auto& match : matches) 
+            //         match.update_global(s); // update global point
+            //     return matches;
+            // }
 
             int N0 = (pc->points.size() > config.MAX_NUM_PC2MATCH) ? pc->points.size() - config.MAX_NUM_PC2MATCH : 0;
 
