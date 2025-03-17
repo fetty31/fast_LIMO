@@ -22,7 +22,7 @@
 #include <cpuid.h>
 #endif
 
-#define FAST_LIMO_v "1.0.0"
+#define FAST_LIMO_v "2.0.0"
 
 // System
 #include <ctime>
