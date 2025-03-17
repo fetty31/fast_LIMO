@@ -43,6 +43,9 @@ class fast_limo::Mapper {
 
         bool bb_init;
 
+    public:
+        Matches matches;
+
     // Methods
 
     public:
@@ -57,7 +60,7 @@ class fast_limo::Mapper {
 
         BoxPointType get_local_map();
 
-        Matches match(State, pcl::PointCloud<PointType>::ConstPtr&);
+        Matches match(State, pcl::PointCloud<PointType>::Ptr&);
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
@@ -71,7 +74,7 @@ class fast_limo::Mapper {
         
         void set_bb_dim(State&);
 
-        Match match_plane(Eigen::Vector4f& p);
+        Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
 
     // Singleton 
 

@@ -25,11 +25,11 @@
                                 last_propagate_time_(-1.0), imu_calib_time_(3.0), gravity_(9.81), imu_calibrated_(false)
                             { 
 
-            this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->pc2match       = pcl::PointCloud<PointType>::ConstPtr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
-            this->final_scan     = pcl::PointCloud<PointType>::Ptr (boost::make_shared<pcl::PointCloud<PointType>>());
+            this->original_scan  = pcl::PointCloud<PointType>::ConstPtr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            this->deskewed_scan  = pcl::PointCloud<PointType>::ConstPtr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            this->pc2match       = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            this->final_raw_scan = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            this->final_scan     = pcl::PointCloud<PointType>::Ptr (fast_limo::make_shared<pcl::PointCloud<PointType>>());
         }
 
         void Localizer::init(Config& cfg){
@@ -100,13 +100,20 @@
             // CPU info
             this->getCPUinfo();
 
-            if(config.verbose){
-                // set up buffer capacities
-                this->imu_rates.set_capacity(1000);
-                this->lidar_rates.set_capacity(1000);
-                this->cpu_times.set_capacity(1000);
-                this->cpu_percents.set_capacity(1000);
-            }
+            // Set up buffer capacities
+            this->imu_rates.set_capacity(1000);
+            this->lidar_rates.set_capacity(1000);
+            this->cpu_times.set_capacity(1000);
+            this->cpu_percents.set_capacity(1000);
+
+            // Fill CPU stats
+            this->cpu_time = 0.0f;
+            this->cpu_max_time = 0.0f;
+            this->cpu_mean_time = 0.0f;
+            this->cpu_cores = 0.0f;
+            this->cpu_load = 0.0f;
+            this->cpu_max_load = 0.0f;
+            this->ram_usage = 0.0f;
         }
 
         pcl::PointCloud<PointType>::Ptr Localizer::get_pointcloud(){
@@ -125,7 +132,7 @@
             return this->deskewed_scan;
         }
 
-        pcl::PointCloud<PointType>::ConstPtr Localizer::get_pc2match_pointcloud(){
+        pcl::PointCloud<PointType>::Ptr Localizer::get_pc2match_pointcloud(){
             return this->pc2match;
         }
 
@@ -142,6 +149,10 @@
                 this->sensor = static_cast<fast_limo::SensorType>(type);
             else 
                 this->sensor = fast_limo::SensorType::UNKNOWN;
+        }
+
+        fast_limo::SensorType Localizer::get_sensor_type(){
+            return this->sensor;
         }
 
         State Localizer::getBodyState(){
@@ -179,6 +190,20 @@
 
         double Localizer::get_propagate_time(){
             return this->last_propagate_time_;
+        }
+
+        void Localizer::get_cpu_stats(float &comput_time, float &max_comput_time, float &mean_comput_time,
+                            float &cpu_cores, float &cpu_load, float &cpu_max_load, float &ram_usage){
+            
+            this->mtx_cpu_stats.lock();
+            comput_time = this->cpu_time;
+            max_comput_time = this->cpu_max_time;
+            mean_comput_time = this->cpu_mean_time;
+            cpu_cores = this->cpu_cores;
+            cpu_load = this->cpu_load;
+            cpu_max_load = this->cpu_max_load;
+            ram_usage = this->ram_usage;
+            this->mtx_cpu_stats.unlock();
         }
 
         std::vector<double> Localizer::getPoseCovariance(){
@@ -271,23 +296,23 @@
                         | boost::adaptors::indexed()
                         | boost::adaptors::filtered(filter_f);
 
-            pcl::PointCloud<PointType>::Ptr input_pc (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr input_pc (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             for (auto it = filtered_pc.begin(); it != filtered_pc.end(); it++) {
                 input_pc->points.push_back(it->value());
             }
 
             if(this->config.debug) // debug only
-                this->original_scan = boost::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
+                this->original_scan = fast_limo::make_shared<pcl::PointCloud<PointType>>(*input_pc); // LiDAR frame
 
             // Motion compensation
-            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_pc_ (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_pc_ = this->deskewPointCloud(input_pc, time_stamp);
             /*NOTE: deskewed_Xt2_pc_ should be in base_link/body frame w.r.t last propagated state (Xt2) */
 
             // Voxel Grid Filter
             if (this->config.filters.voxel_active) { 
                 pcl::PointCloud<PointType>::Ptr current_scan_
-                    (boost::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
+                    (fast_limo::make_shared<pcl::PointCloud<PointType>>(*deskewed_Xt2_pc_));
                 this->voxel_filter.setInputCloud(current_scan_);
                 this->voxel_filter.filter(*current_scan_);
                 this->pc2match = current_scan_;
@@ -300,6 +325,9 @@
                 // iKFoM observation stage
                 this->mtx_ikfom.lock();
 
+                // Call Mapper obj
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+
                     // Update iKFoM measurements (after prediction)
                 double solve_time = 0.0;
                 this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
@@ -307,6 +335,8 @@
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
                 
+                map.matches.clear(); // clear matches vector for next iteration
+
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
 
@@ -315,6 +345,7 @@
                 if(this->config.calibrate_accel) corrected_state.b.accel = this->state.b.accel;
                 if(this->config.gravity_align)   corrected_state.g       = this->state.g;
 
+                // Update current state estimate
                 this->state      = corrected_state;
                 this->state.w    = this->last_imu.ang_vel;
                 this->state.a    = this->last_imu.lin_accel;
@@ -326,7 +357,7 @@
 
                 // Transform deskewed pc 
                     // Get deskewed scan to add to map
-                pcl::PointCloud<PointType>::Ptr mapped_scan (boost::make_shared<pcl::PointCloud<PointType>>());
+                pcl::PointCloud<PointType>::Ptr mapped_scan (fast_limo::make_shared<pcl::PointCloud<PointType>>());
                 pcl::transformPointCloud (*this->pc2match, *mapped_scan, this->state.get_RT());
                 /*NOTE: pc2match must be in base_link frame w.r.t Xt2 frame for this transform to work.
                         mapped_scan is in world/global frame.
@@ -343,7 +374,6 @@
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
                 // Add scan to map
-                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
                 if(this->config.ikfom.mapping.local_mapping)
                     map.add(mapped_scan, this->state, this->scan_stamp);
                 else 
@@ -355,18 +385,18 @@
             auto end_time = chrono::system_clock::now();
             elapsed_time = end_time - start_time;
 
-            if(this->config.verbose){
-                // fill stats
-                if(this->prev_scan_stamp > 0.0) this->lidar_rates.push_front( 1. / (this->scan_stamp - this->prev_scan_stamp) );
-                if(calibrating > 0) this->cpu_times.push_front(elapsed_time.count());
-                else this->cpu_times.push_front(0.0);
-                
-                if(calibrating < UCHAR_MAX) calibrating++;
-
-                // debug thread
-                this->debug_thread = std::thread( &Localizer::debugVerbose, this );
-                this->debug_thread.detach();
+            // fill stats
+            if(this->prev_scan_stamp > 0.0) this->lidar_rates.push_front( 1. / (this->scan_stamp - this->prev_scan_stamp) );
+            if(calibrating > 0) this->cpu_times.push_front(elapsed_time.count());
+            else{
+                this->cpu_times.push_front(0.0);
+                calibrating++;
             }
+            // if(calibrating < UCHAR_MAX) calibrating++;
+
+            // debug thread
+            this->debug_thread = std::thread( &Localizer::debugVerbose, this );
+            this->debug_thread.detach();
 
             this->prev_scan_stamp = this->scan_stamp;
         }
@@ -379,8 +409,7 @@
             if(this->first_imu_stamp == 0.0)
                 this->first_imu_stamp = imu.stamp;
 
-            if(this->config.verbose) 
-                    this->imu_rates.push_front( 1./imu.dt );
+            this->imu_rates.push_front( 1./imu.dt );
 
             // IMU calibration procedure - do only while the robot is in stand still!
             if (not this->imu_calibrated_) {
@@ -520,7 +549,7 @@
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dpoint();
+                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dglobal();
                 Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
@@ -658,11 +687,11 @@
 
             esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = this->_iKFoM.get_P();
             init_P.setIdentity();
-            init_P(6,6) = init_P(7,7) = init_P(8,8) = 0.00001;
-            init_P(9,9) = init_P(10,10) = init_P(11,11) = 0.00001;
-            init_P(15,15) = init_P(16,16) = init_P(17,17) = 0.0001;
-            init_P(18,18) = init_P(19,19) = init_P(20,20) = 0.001;
-            init_P(21,21) = init_P(22,22) = 0.00001; 
+            init_P(6,6) = init_P(7,7) = init_P(8,8) = 0.000001;
+            init_P(9,9) = init_P(10,10) = init_P(11,11) = 0.000001;
+            init_P(15,15) = init_P(16,16) = init_P(17,17) = 0.00001;
+            init_P(18,18) = init_P(19,19) = init_P(20,20) = 0.0001;
+            init_P(21,21) = init_P(22,22) = 0.000001; 
             
             this->_iKFoM.change_P(init_P);
         }
@@ -708,7 +737,7 @@
         Localizer::deskewPointCloud(pcl::PointCloud<PointType>::Ptr& pc, double& start_time){
 
             if(pc->points.size() < 1) 
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return fast_limo::make_shared<pcl::PointCloud<PointType>>();
 
             // individual point timestamps should be relative to this time
             double sweep_ref_time = start_time;
@@ -753,11 +782,11 @@
                 std::cout << "-------------------------------------------------------------------\n";
                 std::cout << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n";
                 std::cout << "-------------------------------------------------------------------\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return fast_limo::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // copy points into deskewed_scan_ in order of timestamp
-            pcl::PointCloud<PointType>::Ptr deskewed_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
+            pcl::PointCloud<PointType>::Ptr deskewed_scan_ (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             deskewed_scan_->points.resize(pc->points.size());
             
             std::partial_sort_copy(pc->points.begin(), pc->points.end(),
@@ -765,7 +794,7 @@
 
             if(deskewed_scan_->points.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: failed to sort input pointcloud!\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return fast_limo::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // compute offset between sweep reference time and IMU data
@@ -784,12 +813,12 @@
             if(frames.size() < 1){
                 std::cout << "FAST_LIMO::ERROR: No frames obtained from IMU propagation!\n";
                 std::cout << "           Returning null deskewed pointcloud!\n";
-                return boost::make_shared<pcl::PointCloud<PointType>>();
+                return fast_limo::make_shared<pcl::PointCloud<PointType>>();
             }
 
             // deskewed pointcloud w.r.t last known state prediction
-            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (boost::make_shared<pcl::PointCloud<PointType>>());
-            deskewed_Xt2_scan_->points.reserve(deskewed_scan_->points.size());
+            pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (fast_limo::make_shared<pcl::PointCloud<PointType>>());
+            deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
             this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
 
@@ -856,8 +885,8 @@
             if (this->propagated_buffer.empty() || this->propagated_buffer.front().time < end_time) {
                 // Wait for the latest IMU data
                 std::cout << "PROPAGATE WAITING...\n";
-                std::cout << "     - buffer time: " << propagated_buffer.front().time << std::endl;
-                std::cout << "     - end scan time: " << end_time << std::endl;
+                std::cout << "     - buffer time: " << std::setprecision(15) << propagated_buffer.front().time << std::endl;
+                std::cout << "     - end scan time: " << std::setprecision(15) << end_time << std::endl;
                 std::unique_lock<decltype(this->mtx_prop)> lock(this->mtx_prop);
                 this->cv_prop_stamp.wait(lock, [this, &end_time]{ return this->propagated_buffer.front().time >= end_time; });
             }
@@ -968,10 +997,10 @@
                 std::accumulate(this->cpu_times.begin(), this->cpu_times.end(), 0.0) / this->cpu_times.size();
 
             // Average sensor rates
-            double avg_imu_rate =
-                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size();
-            double avg_lidar_rate =
-                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size();
+            double avg_imu_rate = (this->imu_rates.size() > 0) ?
+                std::accumulate(this->imu_rates.begin(), this->imu_rates.end(), 0.0) / this->imu_rates.size() : 0.0;
+            double avg_lidar_rate = (this->lidar_rates.size() > 0) ?
+                std::accumulate(this->lidar_rates.begin(), this->lidar_rates.end(), 0.0) / this->lidar_rates.size() : 0.0;
 
             // RAM Usage
             double vm_usage = 0.0;
@@ -1014,6 +1043,8 @@
                 std::accumulate(this->cpu_percents.begin(), this->cpu_percents.end(), 0.0) / this->cpu_percents.size();
 
             // ------------------------------------- PRINT OUT -------------------------------------
+
+            if(this->config.verbose){
 
             printf("\033[2J\033[1;1H");
             std::cout << std::endl
@@ -1177,5 +1208,18 @@
                 << "|" << std::endl;
 
             std::cout << "+-------------------------------------------------------------------+" << std::endl;
+
+            }//end if(config.verbose)
+
+            // Overwrite CPU stats
+            this->mtx_cpu_stats.lock();
+            this->cpu_time = cpu_times.front()*1000.0f;
+            this->cpu_mean_time = avg_comp_time*1000.0f;
+            this->cpu_max_time = *std::max_element(this->cpu_times.begin(), this->cpu_times.end())*1000.0f;
+            this->cpu_cores = (cpu_percent/100.0f) * this->numProcessors;
+            this->cpu_load = cpu_percent;
+            this->cpu_max_load = *std::max_element(this->cpu_percents.begin(), this->cpu_percents.end());
+            this->ram_usage = resident_set/1000.0f;
+            this->mtx_cpu_stats.unlock();
 
         }

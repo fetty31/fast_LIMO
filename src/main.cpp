@@ -9,13 +9,19 @@ ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, map_bb_pub
 
 // output frames
 std::string world_frame, body_frame;
+bool publish_tf;
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
+
+    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
+    static bool pc_in_good_shape = debug_limo::checkPointcloudStructure(msg, loc.get_sensor_type());
+
+    if(not pc_in_good_shape)
+        throw std::runtime_error("FAST_LIMO::FATAL ERROR: invalid pointcloud structure");
 
     pcl::PointCloud<PointType>::Ptr pc_ (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(*msg, *pc_);
 
-    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
     loc.updatePointCloud(pc_, msg->header.stamp.toSec());
 
     // Publish output pointcloud
@@ -89,7 +95,8 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     body_pub.publish(body_msg);
 
     // TF broadcasting
-    tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+    if(publish_tf)
+        tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
 
 }
 
@@ -187,6 +194,7 @@ int main(int argc, char** argv) {
     // Read frames names
     nh.param<std::string>("frames/world", world_frame, "map");
     nh.param<std::string>("frames/body", body_frame, "base_link");
+    nh.param<bool>("frames/tf_pub", publish_tf, true);
 
     // Define subscribers & publishers
     ros::Subscriber lidar_sub = nh.subscribe(config.topics.lidar, 1, &lidar_callback, ros::TransportHints().tcpNoDelay());

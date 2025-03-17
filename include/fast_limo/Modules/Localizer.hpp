@@ -33,7 +33,7 @@ class fast_limo::Localizer {
     // VARIABLES
 
     public:
-        pcl::PointCloud<PointType>::ConstPtr pc2match; // pointcloud to match in Xt2 (last_state) frame
+        pcl::PointCloud<PointType>::Ptr pc2match; // pointcloud to match in Xt2 (last_state) frame
 
     private:
         // Iterated Kalman Filter on Manifolds (FASTLIOv2)
@@ -120,6 +120,14 @@ class fast_limo::Localizer {
         clock_t lastCPU, lastSysCPU, lastUserCPU;
         int numProcessors;
 
+            // CPU stats
+        std::mutex mtx_cpu_stats;
+        float cpu_time;
+        float cpu_max_time;
+        float cpu_mean_time;
+        float cpu_cores, cpu_load, cpu_max_load;
+        float ram_usage;
+
             // Other
         chrono::duration<double> elapsed_time;  // pointcloud callback elapsed time
         int deskew_size;                        // steps taken to deskew (FoV discretization)
@@ -141,7 +149,7 @@ class fast_limo::Localizer {
 
         pcl::PointCloud<PointType>::ConstPtr get_orig_pointcloud();
         pcl::PointCloud<PointType>::ConstPtr get_deskewed_pointcloud();
-        pcl::PointCloud<PointType>::ConstPtr get_pc2match_pointcloud();
+        pcl::PointCloud<PointType>::Ptr get_pc2match_pointcloud();
 
         Matches& get_matches();
 
@@ -153,11 +161,16 @@ class fast_limo::Localizer {
         
         double get_propagate_time();
 
+        // CPU stats
+        void get_cpu_stats(float &comput_time, float &max_comput_time, float &mean_comput_time,
+                            float &cpu_cores, float &cpu_load, float &cpu_max_load, float &ram_usage);
+
         // Status info
         bool is_calibrated();
 
         // Config
         void set_sensor_type(uint8_t type);
+        fast_limo::SensorType get_sensor_type();
 
         // iKFoM measurement model
         void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);

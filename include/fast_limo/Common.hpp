@@ -30,7 +30,6 @@
 #include <future>
 #include <ios>
 #include <sys/times.h>
-#include <sys/vtimes.h>
 
 #include <iostream>
 #include <sstream>
@@ -48,6 +47,8 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+
+#include <memory>
 
 template <typename T>
 std::string to_string_with_precision(const T a_value, const int n = 6)
@@ -76,6 +77,7 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/pcl_config.h>
 
 namespace fast_limo {
   enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };
@@ -126,6 +128,26 @@ namespace fast_limo {
     Eigen::Vector3f lin_accel;
     Eigen::Quaternionf q;
   };
+
+#if PCL_VERSION_COMPARE(<, 1, 11, 0)
+	// Use Boost for older versions of PCL
+	template <typename T>
+	using shared_ptr = boost::shared_ptr<T>;
+
+	template <typename T, typename... Args>
+	boost::shared_ptr<T> make_shared(Args&&... args) {
+    	return boost::make_shared<T>(std::forward<Args>(args)...);
+	}
+#else
+	// Use std::shared_ptr for PCL >= 1.10.0
+	template <typename T>
+	using shared_ptr = std::shared_ptr<T>;
+
+	template <typename T, typename... Args>
+	std::shared_ptr<T> make_shared(Args&&... args) {
+    	return std::make_shared<T>(std::forward<Args>(args)...);
+	}
+#endif
 
 }
 

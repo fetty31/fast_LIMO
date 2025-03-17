@@ -6,15 +6,25 @@ xhost +local:root
 DOCKER_NAME="fastlimo-container"
 DOCKER_IMG="fastlimo-noetic-image:latest"
 
+if [[ $# -eq 0 ]] ; then
+  echo "INFO: No arguments provided, container ${DOCKER_NAME} from image ${DOCKER_IMG} will be started"
+elif [[ $# -eq 1 ]] ; then
+  echo "INFO: Only one argument provided, container $1 from image ${DOCKER_IMG} will be started"
+  DOCKER_NAME=$1
+else
+  DOCKER_NAME=$1
+  DOCKER_IMG=$2
+fi
+
 XAUTH=/tmp/.docker.xauth
 PROJECT_ROOT="$(cd "$(dirname "$0")"; pwd)"
 
 if docker ps -l | grep -q ${DOCKER_NAME}; then
   echo "WARNING: A container named ${DOCKER_NAME} was already created; it will be removed"
-  docker rm ${DOCKER_NAME} &> /dev/null
+  docker start -i ${DOCKER_NAME}
 fi
 
-docker run -it --rm \
+docker run -it \
   --name ${DOCKER_NAME} \
   --env="DISPLAY=$DISPLAY" \
   --env="QT_X11_NO_MITSHM=1" \

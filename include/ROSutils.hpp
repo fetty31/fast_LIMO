@@ -19,6 +19,7 @@
 
 // Std utils
 #include <signal.h>
+#include <stdlib.h>
 
 // Fast LIMO
 #include "fast_limo/Common.hpp"
@@ -144,7 +145,71 @@ void broadcastTF(const fast_limo::State& in, std::string parent_name, std::strin
     br.sendTransform(tf_msg);
 }
 
+} // namespace tf_limo
+
+namespace debug_limo {
+
+bool checkPointcloudStructure(const sensor_msgs::PointCloud2::ConstPtr& msg, fast_limo::SensorType sensor){
+    if (sensor == fast_limo::SensorType::OUSTER) {
+        for(size_t i=0; i < msg->fields.size(); i++){
+            if(msg->fields[i].name == "t")
+                return true;
+        }
+
+        ROS_ERROR_STREAM("\n-------------------------------------------------------------------\n"
+                        << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
+                        << "          Remember that for OUSTER alike pointclouds, the expected fields are:\n"
+                        << "                  x: FLOAT32 (x coordinate in meters)\n"
+                        << "                  y: FLOAT32 (y coordinate in meters)\n"
+                        << "                  z: FLOAT32 (z coordinate in meters)\n"
+                        << "                  t: UINT32 (time since beginning of scan in nanoseconds)\n"
+                        << "-------------------------------------------------------------------\n"
+                        );
+
+    } else if (sensor == fast_limo::SensorType::VELODYNE) {
+        for(size_t i=0; i < msg->fields.size(); i++){
+            if(msg->fields[i].name == "time")
+                return true;
+        }
+
+        ROS_ERROR_STREAM("\n-------------------------------------------------------------------\n"
+                        << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
+                        << "          Remember that for VELODYNE alike pointclouds, the expected fields are:\n"
+                        << "                  x: FLOAT32 (x coordinate in meters)\n"
+                        << "                  y: FLOAT32 (y coordinate in meters)\n"
+                        << "                  z: FLOAT32 (z coordinate in meters)\n"
+                        << "                  time: FLOAT32 (time since beginning of scan in nanoseconds)\n"
+                        << "-------------------------------------------------------------------\n"
+                        );
+
+
+    } else if ( (sensor == fast_limo::SensorType::HESAI) || (sensor == fast_limo::SensorType::LIVOX) ) {
+        for(size_t i=0; i < msg->fields.size(); i++){
+            if(msg->fields[i].name == "timestamp")
+                return true;
+        }
+
+        ROS_ERROR_STREAM("\n-------------------------------------------------------------------\n"
+                        << "FAST_LIMO::FATAL ERROR: the received pointcloud MUST have a timestamp field available!\n"
+                        << "          Remember that for VELODYNE alike pointclouds, the expected fields are:\n"
+                        << "                  x: FLOAT32 (x coordinate in meters)\n"
+                        << "                  y: FLOAT32 (y coordinate in meters)\n"
+                        << "                  z: FLOAT32 (z coordinate in meters)\n"
+                        << "                  timestamp: FLOAT64 (time since beginning of scan in seconds/nanoseconds if HESAI/LIVOX)\n"
+                        << "-------------------------------------------------------------------\n"
+                        );
+
+    } else {
+        ROS_ERROR_STREAM("\n-------------------------------------------------------------------\n"
+                        << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n"
+                        << "-------------------------------------------------------------------\n"
+                        );
+    }
+    
+    return false;
 }
+
+} // namespace debug_limo
 
 namespace visualize_limo {
 
@@ -209,7 +274,7 @@ visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string f
 
     for(int i=0; i < matches.size(); i++){
         m.id = i;
-        Eigen::Vector3f match_p = matches[i].get_point();
+        Eigen::Vector3f match_p = matches[i].get_global_point();
         m.pose.position.x = match_p(0);
         m.pose.position.y = match_p(1);
         m.pose.position.z = match_p(2);
@@ -220,4 +285,4 @@ visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string f
     return m_array;
 }
 
-}
+} // namespace visualize_limo
