@@ -78,7 +78,7 @@
             init_matches.resize(pc->points.size()-N0);
 
             #pragma omp parallel for num_threads(this->num_threads_)
-            for(int i = N0; i < pc->points.size(); i++){
+            for(int i = 0; i < pc->points.size()-N0; i++){
                 
                 Eigen::Vector4f bl4_point(pc->points[i].x, pc->points[i].y, pc->points[i].z, 1.); // base link 4d point
                 Eigen::Vector4f global_point = s.get_RT() * bl4_point;                            // global 4d point == [x', y', z', 1.0]
