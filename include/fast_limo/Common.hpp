@@ -85,6 +85,7 @@ namespace fast_limo {
     // MODULES
   class Localizer;
   class Mapper;
+  class Relocator;
 
     // OBJECTS
   class State;
@@ -93,6 +94,7 @@ namespace fast_limo {
 
     // UTILS
   struct Config;
+  struct RelocaConfig;
 
     // STRUCTURES
   struct Point {

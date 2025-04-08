@@ -25,6 +25,7 @@
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
+#include "fast_limo/Modules/Relocator.hpp"
 
 // ROS
 #include <ros/ros.h>
@@ -39,6 +40,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 
+#include <fast_limo/SendPointCloud.h> // reloca service
+
 #include <tf2/convert.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <Eigen/Geometry>
@@ -47,6 +50,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/impl/transforms.hpp>
