@@ -14,6 +14,13 @@ message("PCL version: ${PCL_VERSION}")
 find_package( Eigen3 REQUIRED )
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+# KISS-Matcher dependency (relocation)
+find_package(robin REQUIRED)
+find_package(kiss_matcher REQUIRED)
+
+find_package(TBB REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 include(FindOpenMP)
 if(OPENMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -35,12 +42,25 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   nav_msgs
   tf2
+  message_generation # Service generation
+  nano_gicp # Temporary dependency to perform GICP
+)
+
+add_service_files(
+  FILES
+  SendPointCloud.srv # Service to send map in relocation mode
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
 )
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs
+ CATKIN_DEPENDS roscpp pcl_ros sensor_msgs geometry_msgs tf2 visualization_msgs nav_msgs message_runtime
  DEPENDS EIGEN3 PCL
 )
 
@@ -85,23 +105,41 @@ target_include_directories(ikfom
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
             include/fast_limo/Modules/Mapper.cpp
+            include/fast_limo/Modules/Relocator.cpp
 
             include/fast_limo/Objects/State.cpp
             include/fast_limo/Objects/Plane.cpp
             include/fast_limo/Objects/Match.cpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)
+target_link_libraries(${PROJECT_NAME} 
+                      ${PCL_LIBRARIES} 
+                      ${OpenMP_LIBS} 
+                      ikfom 
+                      ikd_tree
+                      TBB::tbb
+                      kiss_matcher::kiss_matcher_core
+                      robin::robin
+                      )
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec
               src/main.cpp
               )
 
+add_executable(${PROJECT_NAME}_reloca_exec
+              src/reloca.cpp
+)
+
 add_dependencies(${PROJECT_NAME}_multi_exec ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_reloca_exec ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_reloca_exec ${PROJECT_NAME} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # Binaries
 install( TARGETS ${PROJECT_NAME}_multi_exec
          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
+
+install( TARGETS ${PROJECT_NAME}_reloca_exec
+          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION} )
