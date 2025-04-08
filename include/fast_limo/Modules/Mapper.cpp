@@ -62,6 +62,16 @@
             return this->local_map_bb;
         }
 
+        bool Mapper::is_relocated(){
+            std::cout << "Mapper: Relocated: " << this->relocated_ << std::endl;
+            if (this->matches.size() < 300) { // use instead ratio of matches and scan size
+                this->relocated_ = false;
+                std::cout << "Mapper: Not enough matches to relocate the map!" << std::endl;
+                std::cout << "Changing relocated to false!" << std::endl;
+            }
+            return this->relocated_;
+        }
+
         Matches Mapper::match(State s, pcl::PointCloud<PointType>::Ptr& pc){
 
             if(not this->exists()) return matches;
@@ -120,6 +130,23 @@
             else this->add_pointcloud(pc, downsample);
 
             this->last_map_time = time;
+        }
+
+        void Mapper::load_map(pcl::PointCloud<PointType>::Ptr& full_map){
+
+            KD_TREE<MapPoint>::Ptr new_map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0.3, 0.6, 0.1));            
+            MapPoints map_vec;
+            map_vec.resize(full_map->points.size());
+            
+            #pragma omp parallel for num_threads(this->num_threads_)
+            for(int i = 0; i < full_map->points.size(); i++)
+                map_vec[i] = MapPoint(full_map->points[i].x, 
+                                    full_map->points[i].y, 
+                                    full_map->points[i].z);
+
+            new_map->Build(map_vec);
+            this->relocated_ = true;
+            this->map = new_map;
         }
 
     // private

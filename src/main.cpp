@@ -100,6 +100,22 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
 
 }
 
+bool receivePointCloud(fast_limo::SendPointCloud::Request &req,
+                       fast_limo::SendPointCloud::Response &res) {
+
+    sensor_msgs::PointCloud2 pc_ros = req.pointcloud;
+    pcl::PointCloud<PointType>::Ptr pc_ (new pcl::PointCloud<PointType>);
+    pcl::fromROSMsg(pc_ros, *pc_);
+
+    ROS_INFO("Map received with %ld points", pc_->points.size());
+
+    fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+    // map.load_map(pc_);
+
+    res.success = true;
+    return true;
+}
+
 void mySIGhandler(int sig){
     ros::shutdown();
 }
@@ -211,6 +227,9 @@ int main(int argc, char** argv) {
     body_pub     = nh.advertise<nav_msgs::Odometry>("body_state", 1);
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);
+
+    // Define relocation service
+    ros::ServiceServer service = nh.advertiseService("send_pointcloud", receivePointCloud);
 
     // Set up fast_limo config
     loc.init(config);

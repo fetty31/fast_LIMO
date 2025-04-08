@@ -335,7 +335,7 @@
                     /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
                     in order to update the measurement stage of the KF with the computed point-to-plane distances*/
                 
-                map.matches.clear(); // clear matches vector for next iteration
+                //map.matches.clear(); // clear matches vector for next iteration
 
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
@@ -373,11 +373,13 @@
                 if(this->config.debug) // save final scan without voxel grid
                     pcl::transformPointCloud (*deskewed_Xt2_pc_, *this->final_raw_scan, this->state.get_RT());
 
-                // Add scan to map
-                if(this->config.ikfom.mapping.local_mapping)
-                    map.add(mapped_scan, this->state, this->scan_stamp);
-                else 
-                    map.add(mapped_scan, this->scan_stamp);
+                // Just if is not relocated, add scan to map
+                if(!map.is_relocated()){
+                    if(this->config.ikfom.mapping.local_mapping)
+                        map.add(mapped_scan, this->state, this->scan_stamp);
+                    else 
+                        map.add(mapped_scan, this->scan_stamp);
+                }
 
             }else
                 std::cout << "-------------- FAST_LIMO::NULL ITERATION --------------\n";

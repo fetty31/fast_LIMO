@@ -43,10 +43,9 @@ class fast_limo::Mapper {
 
         bool bb_init;
 
-    public:
-        Matches matches;
+        bool relocated_{false};
 
-    // Methods
+        Matches matches;
 
     public:
         Mapper();
@@ -57,6 +56,7 @@ class fast_limo::Mapper {
         bool exists();
         int size();
         double last_time();
+        bool is_relocated();
 
         BoxPointType get_local_map();
 
@@ -64,6 +64,8 @@ class fast_limo::Mapper {
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
+
+        void load_map(pcl::PointCloud<PointType>::Ptr& full_map);
 
     private:
         void build(pcl::PointCloud<PointType>::Ptr&);
