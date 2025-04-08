@@ -8,6 +8,7 @@ topics:
 
 frames: # output frames (the transform between frames will be broadcasted)
   world: ona2/odom
+  map: ona2/map
   body: ona2/base_link
   tf_pub: true
   

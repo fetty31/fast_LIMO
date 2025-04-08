@@ -110,7 +110,7 @@ bool receivePointCloud(fast_limo::SendPointCloud::Request &req,
     ROS_INFO("Map received with %ld points", pc_->points.size());
 
     fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-    // map.load_map(pc_);
+    map.load_map(pc_);
 
     res.success = true;
     return true;

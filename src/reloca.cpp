@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
     load_config(&nh, &config);
 
     // Read frames names
-    nh.param<std::string>(ros::this_node::getNamespace() + "/fast_limo/frames/map", map_frame, "map");
+    nh.param<std::string>(ros::this_node::getNamespace() + "/fast_limo/frames/map", map_frame, "reloca_map");
     nh.param<std::string>(ros::this_node::getNamespace() + "/fast_limo/frames/world", world_frame, "odom");
 
     std::cout << "Map frame: " << map_frame << std::endl;
