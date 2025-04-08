@@ -97,4 +97,14 @@ struct fast_limo::Config{
 
 };
 
+struct fast_limo::RelocaConfig{
+
+    bool mode;                  // False: use full map, True: use partial map around /initialpose
+    std::string map_path;       // path to the PCD map
+    double distance_threshold;  // distance threshold to trigger relocation in mode 0
+    int inliers_threshold;      // min inliers to consider a match valid
+    double score;               // min score to consider a right relocation
+
+};
+
 #endif
