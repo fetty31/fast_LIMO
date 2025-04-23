@@ -795,8 +795,9 @@
                 
                 point_time_cmp = [](const PointType& p1, const PointType& p2)
                 { return p1.timestamp < p2.timestamp; };
-                extract_point_time = [&sweep_ref_time](PointType& pt)
-                { return sweep_ref_time + pt.timestamp*1e-9f; };
+                extract_point_time = [&sweep_ref_time, &end_of_sweep](PointType& pt)
+                {   if (end_of_sweep) return sweep_ref_time - pt.timestamp * 1e-9f; 
+                    else return sweep_ref_time + pt.timestamp * 1e-9f; };
             } else {
                 std::cout << "-------------------------------------------------------------------\n";
                 std::cout << "FAST_LIMO::FATAL ERROR: LiDAR sensor type unknown or not specified!\n";
