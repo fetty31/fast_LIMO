@@ -428,9 +428,12 @@ namespace ros2wrap {
             }
 
             bool checkPointcloudStructure(const sensor_msgs::msg::PointCloud2 & msg, fast_limo::SensorType sensor){
+
+                using sensor_msgs::msg::PointField;
+
                 if (sensor == fast_limo::SensorType::OUSTER) {
                     for(size_t i=0; i < msg.fields.size(); i++){
-                        if(msg.fields[i].name == "t")
+                        if( (msg.fields[i].name == "t") && (msg.fields[i].datatype == PointField::UINT32) )
                             return true;
                     }
             
@@ -446,7 +449,7 @@ namespace ros2wrap {
             
                 } else if (sensor == fast_limo::SensorType::VELODYNE) {
                     for(size_t i=0; i < msg.fields.size(); i++){
-                        if(msg.fields[i].name == "time")
+                        if( (msg.fields[i].name == "time") && (msg.fields[i].datatype == PointField::FLOAT32)  )
                             return true;
                     }
 
@@ -462,7 +465,7 @@ namespace ros2wrap {
             
                 } else if ( (sensor == fast_limo::SensorType::HESAI) || (sensor == fast_limo::SensorType::LIVOX) ) {
                     for(size_t i=0; i < msg.fields.size(); i++){
-                        if(msg.fields[i].name == "timestamp")
+                        if( (msg.fields[i].name == "timestamp") && (msg.fields[i].datatype == PointField::FLOAT64) )
                             return true;
                     }
 
