@@ -116,6 +116,36 @@ bool receivePointCloud(fast_limo::SendPointCloud::Request &req,
     return true;
 }
 
+bool saveMap(fast_limo::SaveMap::Request &req,
+             fast_limo::SaveMap::Response &res) {
+
+    std::cout << "Saving map to " << req.full_path.data << std::endl;
+
+    std::string full_path = req.full_path.data;
+
+    // First: get the full map
+    pcl::PointCloud<PointType>::Ptr full_map(new pcl::PointCloud<PointType>);
+    fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+    if(map.get_map(full_map)){
+        ROS_INFO("Map has %ld points", full_map->points.size());
+    } else {
+        ROS_ERROR("Map is empty or not initialized");
+        res.success = false;
+        return false;
+    }
+
+    // Second: save the map
+    if(pcl::io::savePCDFileBinary(full_path, *full_map)==0){
+        ROS_INFO("Map saved to %s", full_path.c_str());
+        res.success = true;
+    } else {
+        ROS_ERROR("Failed to save the map to %s", full_path.c_str());
+        res.success = false;
+    }
+    
+    return true;
+}
+
 void mySIGhandler(int sig){
     ros::shutdown();
 }
@@ -228,8 +258,9 @@ int main(int argc, char** argv) {
     map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);
 
-    // Define relocation service
-    ros::ServiceServer service = nh.advertiseService("send_pointcloud", receivePointCloud);
+    // Define services
+    ros::ServiceServer service_recive_pc = nh.advertiseService("send_pointcloud", receivePointCloud);
+    ros::ServiceServer service_savemap   = nh.advertiseService("save_map", saveMap);
 
     // Set up fast_limo config
     loc.init(config);
