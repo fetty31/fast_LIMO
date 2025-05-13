@@ -1,0 +1,5 @@
+# Request
+std_msgs/String full_path
+---
+# Response
+bool success
