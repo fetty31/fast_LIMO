@@ -1,7 +1,7 @@
 #include "ROSutils.hpp"
 
-// debugging publishers
-ros::Publisher full_map_pub, target_map_pub, source_cloud_pub, aligned_cloud_pub;
+// publishers
+ros::Publisher full_map_pub;
 ros::ServiceClient pc_client;
 
 // output frames
@@ -45,18 +45,16 @@ void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
 
     fast_limo::Relocator& reloca = fast_limo::Relocator::getInstance();
     reloca.updateState(msg);
-
 }
 
 void initialpose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg){
 
     fast_limo::Relocator& reloca = fast_limo::Relocator::getInstance();
 
-    float x = msg->pose.pose.position.x;
-    float y = msg->pose.pose.position.y;
-    float z = msg->pose.pose.position.z;
-
-    std::vector<float> init_state = {x, y, z, 0.0, 0.0, 0.0};
+    std::vector<double> init_state = {msg->pose.pose.position.x, 
+                                     msg->pose.pose.position.y, 
+                                     msg->pose.pose.position.z, 
+                                     0.0, 0.0, 0.0};
 
     reloca.updateInitialPose(init_state);
 }
@@ -120,35 +118,18 @@ int main(int argc, char** argv) {
     nh.param<std::string>(ros::this_node::getNamespace() + "/fast_limo/frames/map", map_frame, "reloca_map");
     nh.param<std::string>(ros::this_node::getNamespace() + "/fast_limo/frames/world", world_frame, "odom");
 
-    std::cout << "Map frame: " << map_frame << std::endl;
-    std::cout << "World frame: " << world_frame << std::endl;
-
     // Define subscribers & publishers
-    ros::Subscriber lidar_sub = nh.subscribe(ros::this_node::getNamespace() + "/fast_limo/pointcloud", 1, &lidar_callback);
+    ros::Subscriber lidar_sub = nh.subscribe(ros::this_node::getNamespace() + "/fast_limo/final_raw", 1, &lidar_callback);
     ros::Subscriber state_sub = nh.subscribe(ros::this_node::getNamespace() + "/fast_limo/state", 1, &state_callback);
     ros::Subscriber initialpose_sub = nh.subscribe("/initialpose", 1, &initialpose_callback);
 
     full_map_pub = nh.advertise<sensor_msgs::PointCloud2>("full_map", 1);
 
-        // debugging publishers
-    target_map_pub = nh.advertise<sensor_msgs::PointCloud2>("target_map", 1);
-    source_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("source_cloud", 1);
-    aligned_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("aligned_cloud", 1); 
-
     // Define relocation service 
     pc_client = nh.serviceClient<fast_limo::SendPointCloud>(ros::this_node::getNamespace() + "/fast_limo/send_pointcloud");
-    std::cout << "service name: " << ros::this_node::getNamespace() + "/fast_limo/send_pointcloud" << std::endl;
 
     // Set up Reloca config
     reloca.init(config);
-
-    // Publish the full map once
-    pcl::PointCloud<PointType>::Ptr full_map(new pcl::PointCloud<PointType>);
-    reloca.get_full_map(full_map);
-    sensor_msgs::PointCloud2 full_map_msg;
-    pcl::toROSMsg(*full_map, full_map_msg);
-    full_map_msg.header.frame_id = map_frame;
-    full_map_pub.publish(full_map_msg);
 
     ros::Rate rate(10);
 

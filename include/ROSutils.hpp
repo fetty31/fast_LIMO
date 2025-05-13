@@ -33,6 +33,9 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
 
+#include <std_msgs/String.h>
+#include <std_msgs/Bool.h>
+
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
@@ -41,6 +44,7 @@
 #include <geometry_msgs/PoseArray.h>
 
 #include <fast_limo/SendPointCloud.h> // reloca service
+#include <fast_limo/SaveMap.h>        // save map service
 
 #include <tf2/convert.h>
 #include <tf2_ros/transform_broadcaster.h>

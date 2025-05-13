@@ -46,7 +46,7 @@ Relocator::Relocator() {
     // Initialize NanoGICP with default parameters
     m_nano_gicp = nano_gicp::NanoGICP<PointTypeNano, PointTypeNano>();
     m_nano_gicp.setMaxCorrespondenceDistance(2.0);
-    m_nano_gicp.setNumThreads(0);
+    m_nano_gicp.setNumThreads(10);
     m_nano_gicp.setCorrespondenceRandomness(15);
     m_nano_gicp.setMaximumIterations(32);
     m_nano_gicp.setTransformationEpsilon(0.01);
@@ -65,9 +65,23 @@ bool Relocator::enough_distance_traveled() {
     return this->distance_traveled > this->cfg_.distance_threshold;
 }
 
-void Relocator::updateInitialPose(std::vector<float> init_state){
-    this->init_state_ = init_state;
-    this->recived_estimated_pose = true; // Todo turn it back to false once tried
+void Relocator::updateInitialPose(std::vector<double> init_state){
+    this->init_state_[0] = init_state[0];
+    this->init_state_[1] = init_state[1];
+    this->init_state_[2] = init_state[2];
+    this->recived_estimated_pose = true; 
+}
+
+void Relocator::reset() {
+    this->distance_traveled = 0;
+    this->source_cloud_->clear();
+    this->target_map_->clear();
+    this->aligned_cloud_->clear();
+    this->aligned_cloud_gicp->clear();
+    this->recived_estimated_pose = false;
+    this->last_x = std::nan("");
+    p = Eigen::Vector3f::Zero();
+    q = Eigen::Quaternionf::Identity();
 }
 
 void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
@@ -75,18 +89,21 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
     // Accumulate the point cloud
     *this->source_cloud_ += *pc;
 
-    bool should_relocate = (!cfg_.mode && enough_distance_traveled()) ||
-                           (cfg_.mode && recived_estimated_pose);
+    // Check if has been traveled enough distance
+    if(!enough_distance_traveled()) return;
+    
+    // Check if we have received the initial pose (if mode is true)
+    if(cfg_.mode && !recived_estimated_pose) return;
 
-    if(should_relocate){
-        std::cout << "Distance traveled: " << this->distance_traveled << " meters" << std::endl;
-        std::cout << "Reloca Corriendo..." << std::endl;
-        pcl::copyPointCloud(*this->full_map_, *this->target_map_);
-        this->relocated = this->relocation();
-        if(this->relocated) this->transformFullMap();
-        else this->source_cloud_->clear();
-    }
+    std::cout << "Starting Relocating..." << std::endl;
 
+    // Copy full map to target map (and apply pass-through if mode is true)
+    pcl::copyPointCloud(*this->full_map_, *this->target_map_);
+    if(cfg_.mode) this->passThroughFilter(this->target_map_, 30.0f);
+
+    this->relocated = this->relocation(); // Apply KISSMatcher and GICP 
+    if(this->relocated) this->transformFullMap();
+    else this->reset();
 }
 
 void Relocator::updateState(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -94,9 +111,12 @@ void Relocator::updateState(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_x = msg->pose.pose.position.x;
     double current_y = msg->pose.pose.position.y;
     
-    static double last_x = current_x;
-    static double last_y = current_y;
-    
+    if(std::isnan(last_x)){
+        last_x = current_x;
+        last_y = current_y;
+        return;
+    } 
+        
     double dx = current_x - last_x;
     double dy = current_y - last_y;
     double delta_distance = std::sqrt(dx * dx + dy * dy);
@@ -185,20 +205,13 @@ bool Relocator::applyKissMatcher() {
     kiss_matcher::KISSMatcherScore score = matcher.getScore();        
     if (score.trans_inliers < this->cfg_.inliers_threshold) {
         std::cout << "KISSMatcher failed to converge" << std::endl;
-        std::cout << "Trans inliers: " << score.trans_inliers << "<" << this->cfg_.inliers_threshold << std::endl;
         return false;
-    } else {
-        std::cout << "KISSMatcher converged" << std::endl;
-        std::cout << "Trans inliers: " << score.trans_inliers << ">" << this->cfg_.inliers_threshold << std::endl;
-    }
+    } else std::cout << "KISSMatcher converged" << std::endl;
     
     // Compute and store the KISS transformation.
     this->kiss_transformation_ = Eigen::Matrix4f::Identity();
     this->kiss_transformation_.block<3, 3>(0, 0) = solution.rotation.cast<float>();
     this->kiss_transformation_.topRightCorner(3, 1) = solution.translation.cast<float>();
-    
-    std::cout << this->kiss_transformation_ << std::endl;
-    std::cout << "=====================================" << std::endl;
     
     // Transform the source cloud using the KISS transformation.
     pcl::transformPointCloud(*this->source_cloud_, *this->aligned_cloud_, this->kiss_transformation_);
@@ -218,37 +231,39 @@ bool Relocator::applyGICP(){
     pcl::PointCloud<pcl::PointXYZI>::Ptr src_(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZI>::Ptr dst_(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<PointTypeNano> dummy_;
-
+    
     this->voxelGridFilter(this->aligned_cloud_, 0.5);
     this->voxelGridFilter(this->target_map_, 0.5);
 
+    std::cout << "Aligned cloud size: " << this->aligned_cloud_->size() << std::endl;
+
+    // Filter the map around the pose found by KISSMatcher
+    init_state_[0] = p[0];
+    init_state_[1] = p[1];
+    this->passThroughFilter(this->target_map_, 20);
+    
     pcl::copyPointCloud(*this->aligned_cloud_, *src_);
     pcl::copyPointCloud(*this->target_map_, *dst_);
-
-    double icp_score_threshold = 1000;
-
+        
     auto start = std::chrono::high_resolution_clock::now();
-
+    
     m_nano_gicp.setInputSource(src_);
     m_nano_gicp.calculateSourceCovariances();
     m_nano_gicp.setInputTarget(dst_);
     m_nano_gicp.calculateTargetCovariances();
     m_nano_gicp.align(dummy_);
-
+    
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout << "=============== GICP ==================" << std::endl;
     std::cout << "Elapsed GICP time ms: " << elapsed_seconds.count()*1000 << std::endl;
 
     double score_ = m_nano_gicp.getFitnessScore();
     std::cout << "Score GICP: " << score_ << std::endl;
 
-    if (m_nano_gicp.hasConverged() && score_ < icp_score_threshold) {
+    if (m_nano_gicp.hasConverged() && score_ < cfg_.score) {
         Eigen::Matrix4f gicpTransformation = m_nano_gicp.getFinalTransformation();
-        std::cout << "=============== GICP ==================" << std::endl;
-        std::cout << gicpTransformation << std::endl;
-        std::cout << "=======================================" << std::endl;
-
-
+        
         // The overall transformation from the original source to the target map is:
         Eigen::Matrix4f mergedTransformation = gicpTransformation * this->kiss_transformation_;
         
@@ -266,4 +281,5 @@ bool Relocator::applyGICP(){
         std::cout << "GICP failed to converge or score too high" << std::endl;
         return false;
     }
+    std::cout << "=======================================" << std::endl;
 }
