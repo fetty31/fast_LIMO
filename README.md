@@ -27,9 +27,7 @@
     </ol>
 </details>
 
-<br>
-
-A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [IKFoM](https://github.com/hku-mars/IKFoM) and [ikd-Tree](https://github.com/hku-mars/ikd-Tree) _C++_ libraries. This project's implementation is based on the existing algorithms [FASTLIO2](https://github.com/hku-mars/FAST_LIO), [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry).
+A real-time, tightly coupled LiDAR-Inertial SLAM algorithm developed on top of [IKFoM](https://github.com/hku-mars/IKFoM) _C++_ library. This project's implementation is based on the existing algorithms [FASTLIO2](https://github.com/hku-mars/FAST_LIO), [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) and [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry).
 
 `Fast-LIMO` has been developed as a __thread-safe__ _C++_ library with [Eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page) and [PCL](https://pointclouds.org/) as its only dependencies. This way, it can be used outside the ROS framework __without any changes__, making it more portable. This project acts as a ROS wrapper of the self-developed [fast_limo](include/fast_limo/)'s library.
 
@@ -217,7 +215,7 @@ catkin_make
 ```
 
 ## Approach
-If you are interested in truly understanding the working principle of this SLAM algorithm, please read the [FASTLIO paper](https://doi.org/10.48550/arXiv.2010.08196). _This project is merely an alternative implementation of this outstanding work, still relying upon [IKFoM](include/IKFoM/) and [ikd-Tree](include/ikd-Tree/) open-source projects._
+If you are interested in truly understanding the working principle of this SLAM algorithm, please read the [FASTLIO paper](https://doi.org/10.48550/arXiv.2010.08196). _This project is merely an alternative implementation of this outstanding work, still relying upon [IKFoM](include/IKFoM/)._
 
 This project implements the same concept as [LIMO-Velo](https://github.com/Huguet57/LIMO-Velo) but without any accumulation procedure. Instead, `Fast-LIMO` operates with two concurrent threads. One thread handles the propagation of newly received IMU measurements through the iKFoM (prediction stage), while the other thread uses these propagated states to deskew the received point cloud, match the deskewed scan to the map, and update the iKFoM (measurement stage) by minimizing point-to-plane distances.
 
@@ -253,15 +251,11 @@ Here, the configuration file for `Fast-LIMO` is explained. _Note that some param
 | iKFoM/Mapping/NUM_MATCH_POINTS  | - | Number of points that constitute a match. |
 | iKFoM/Mapping/MAX_DIST_PLANE    | m | Max. distance between all points of a match. |
 | iKFoM/Mapping/PLANES_THRESHOLD  | m | Threshold to consider if a match point is part of a plane. |
-| iKFoM/Mapping/LocalMapping      | - | Whether to keep a fixed size map (_moving with the robot_) or a limitless map. Useful for limiting the memory used (_in long runs_). |
-| iKFoM/iKDTree/balance           | - | Incremental KD Tree balancing param. |
-| iKFoM/iKDTree/delete            | - | Incremental KD Tree deletion param. |
-| iKFoM/iKDTree/voxel             | - | Incremental KD Tree downsampling param. _Currently not used_ |
-| iKFoM/iKDTree/bb_size           | m | Local Map's bounding box dimension (actually a cube). _When LocalMapping is active, the local map won't include points outside this cube. Note that the local map is always defined relative to the robot's current position._ |
-| iKFoM/iKDTree/bb_range          | m | Local Map's bounding box moving range (if the robot is closer than _bb_range_ to any local map's edge, the map will "move"). |
+| iKFoM/Mapping/Octree/bucket_size      | - | Maximum number of points allowed in an octant before it gets subdivided. |
+| iKFoM/Mapping/Octree/min_extent           | m | Minimum extent of the octant (used to stop subdividing). |
+| iKFoM/Mapping/Octree/downsampling            | - | Whether to downsample the octree. |
 | iKFoM/covariance                | m^2 | Covariance of IMU measurements. |
 
 ## References
-This project relies upon [HKU-Mars](https://github.com/hku-mars)' open-source _C++_ libraries:
+This project relies upon [HKU-Mars](https://github.com/hku-mars)' open-source _C++_ library:
 - Iterative Kalman Filters on Manifolds ([IKFoM](include/IKFoM/)) 
-- Incremental KD-Tree ([ikd-Tree](include/ikd-Tree/)) 

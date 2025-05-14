@@ -58,16 +58,6 @@ endif()
 
 message("PCL version: ${PCL_VERSION}")
 
-# IKD_TREE
-add_library(ikd_tree 
-              include/ikd-Tree/ikd_Tree/ikd_Tree.cpp
-            )
-
-target_link_libraries(ikd_tree ${PCL_LIBRARIES} ${OpenMP_LIBS})
-target_include_directories(ikd_tree
-  PUBLIC include/ikd-Tree/ikd_Tree
-)
-
 # IKFOM
 add_library(ikfom
             include/IKFoM/IKFoM_toolkit
@@ -87,9 +77,10 @@ add_library(${PROJECT_NAME}
             include/fast_limo/Objects/State.cpp
             include/fast_limo/Objects/Plane.cpp
             include/fast_limo/Objects/Match.cpp
+            include/fast_limo/Objects/Octree.hpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom ikd_tree)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom)
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec

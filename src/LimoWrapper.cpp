@@ -91,7 +91,6 @@ namespace ros2wrap {
                     match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/match", 1);
                     finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/final_raw", 1);
                     body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body", 1);
-                    map_bb_pub   = this->create_publisher<visualization_msgs::msg::Marker>("/fast_limo/map/bb", 1);
                     match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
 
                     // Init TF broadcaster
@@ -152,12 +151,6 @@ namespace ros2wrap {
                 finalraw_msg.header.stamp = this->get_clock()->now();
                 finalraw_msg.header.frame_id = this->world_frame;
                 this->finalraw_pub->publish(finalraw_msg);
-
-                // Visualize current map size
-                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-                visualization_msgs::msg::Marker bb_marker = this->getLocalMapMarker(map.get_local_map());
-                bb_marker.header.frame_id = this->world_frame;
-                this->map_bb_pub->publish(bb_marker);
 
                 // Visualize current matches
                 visualization_msgs::msg::MarkerArray match_markers = this->getMatchesMarker(loc.get_matches(), 
@@ -303,29 +296,23 @@ namespace ros2wrap {
                 rclcpp::Parameter limits_p = this->get_parameter("iKFoM.LIMITS");
                 config->ikfom.LIMITS = std::vector<double>(23, limits_p.as_double());
 
-                    // Mapping
+                // Mapping
                 rclcpp::Parameter match_point_p = this->get_parameter("iKFoM.Mapping.NUM_MATCH_POINTS");
                 config->ikfom.mapping.NUM_MATCH_POINTS = match_point_p.as_int();
                 rclcpp::Parameter max_plane_dist_p = this->get_parameter("iKFoM.Mapping.MAX_DIST_PLANE");
                 config->ikfom.mapping.MAX_DIST_PLANE = max_plane_dist_p.as_double();
                 rclcpp::Parameter plane_thr_p = this->get_parameter("iKFoM.Mapping.PLANES_THRESHOLD");
                 config->ikfom.mapping.PLANE_THRESHOLD = plane_thr_p.as_double();
-                rclcpp::Parameter local_map_p = this->get_parameter("iKFoM.Mapping.LocalMapping");
-                config->ikfom.mapping.local_mapping = local_map_p.as_bool();
 
-                    // iKDTree
-                rclcpp::Parameter balance_p = this->get_parameter("iKFoM.iKDTree.balance");
-                config->ikfom.mapping.ikdtree.balance_param = static_cast<float>(balance_p.as_double());
-                rclcpp::Parameter del_p = this->get_parameter("iKFoM.iKDTree.delete");
-                config->ikfom.mapping.ikdtree.delete_param = static_cast<float>(del_p.as_double());
-                rclcpp::Parameter voxel_p = this->get_parameter("iKFoM.iKDTree.voxel");
-                config->ikfom.mapping.ikdtree.voxel_size = static_cast<float>(voxel_p.as_double());
-                rclcpp::Parameter bb_size_p = this->get_parameter("iKFoM.iKDTree.bb_size");
-                config->ikfom.mapping.ikdtree.cube_size = bb_size_p.as_double();
-                rclcpp::Parameter bb_range_p = this->get_parameter("iKFoM.iKDTree.bb_range");
-                config->ikfom.mapping.ikdtree.rm_range = bb_range_p.as_double();
+                // iOcTree 
+                rclcpp::Parameter bucket_size = this->get_parameter("iKFoM.Mapping.Octree.bucket_size");
+                config->ikfom.mapping.octree.bucket_size = bucket_size.as_int();
+                rclcpp::Parameter min_extent = this->get_parameter("iKFoM.Mapping.Octree.min_extent");
+                config->ikfom.mapping.octree.min_extent = static_cast<float>(min_extent.as_double());
+                rclcpp::Parameter downsampling = this->get_parameter("iKFoM.Mapping.Octree.downsampling");
+                config->ikfom.mapping.octree.downsampling = downsampling.as_bool();
 
-                    // covariance
+                // Covariance
                 rclcpp::Parameter gyro_p = this->get_parameter("iKFoM.covariance.gyro");
                 config->ikfom.cov_gyro = gyro_p.as_double();
                 rclcpp::Parameter accel_p = this->get_parameter("iKFoM.covariance.accel");
@@ -487,40 +474,6 @@ namespace ros2wrap {
                 }
                 
                 return false;
-            }
-
-            visualization_msgs::msg::Marker getLocalMapMarker(BoxPointType bb){
-                visualization_msgs::msg::Marker m;
-
-                m.ns = "fast_limo";
-                m.id = 0;
-                m.type = visualization_msgs::msg::Marker::CUBE;
-                m.action = visualization_msgs::msg::Marker::ADD;
-
-                m.color.r = 0.0f;
-                m.color.g = 0.0f;
-                m.color.b = 1.0f;
-                m.color.a = 0.5f;
-
-                m.lifetime = rclcpp::Duration::from_seconds(0.0);
-                m.header.frame_id = "map";
-                m.header.stamp = this->get_clock()->now();
-
-                m.pose.orientation.w = 1.0;
-
-                float x_edge = bb.vertex_max[0] - bb.vertex_min[0];
-                float y_edge = bb.vertex_max[1] - bb.vertex_min[1];
-                float z_edge = bb.vertex_max[2] - bb.vertex_min[2];
-
-                m.scale.x = x_edge;
-                m.scale.y = y_edge;
-                m.scale.z = z_edge;
-
-                m.pose.position.x = bb.vertex_min[0] + x_edge/2.0;
-                m.pose.position.y = bb.vertex_min[1] + y_edge/2.0;
-                m.pose.position.z = bb.vertex_min[2] + z_edge/2.0;
-
-                return m;
             }
 
             visualization_msgs::msg::MarkerArray getMatchesMarker(Matches& matches, std::string frame_id){

@@ -18,8 +18,6 @@ void IKFoM::h_share_model(state_ikfom &updated_state, esekfom::dyn_share_datastr
 	    LOC.pc2match
 	);
 
-	auto start_der = chrono::system_clock::now();
-
 	// // Calculate derivatives
 	LOC.calculate_H(
 	    // Inputs
