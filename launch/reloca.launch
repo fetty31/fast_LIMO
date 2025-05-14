@@ -4,11 +4,11 @@
 
     <node pkg="fast_limo" type="fast_limo_reloca_exec" 
             name="fast_limo_reloca" output="screen">
-        <param name="mode" value="false" />
+        <param name="mode" value="true" />
         <param name="map_path" value="$(find fast_limo)/maps/$(arg map_name).pcd" />
         <param name="distance_threshold" value="10.0" />
         <param name="inliers_threshold" value="10" />
-        <param name="score" value="10" />
+        <param name="score" value="100" />
     </node>
 
     <node pkg="rviz" name="rviz_limo" type="rviz" args="-d $(find fast_limo)/config/rviz/limo.rviz" if="$(arg rviz)"/>

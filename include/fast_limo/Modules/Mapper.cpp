@@ -63,12 +63,6 @@
         }
 
         bool Mapper::is_relocated(){
-            std::cout << "Mapper: Relocated: " << this->relocated_ << std::endl;
-            if (this->matches.size() < 300) { // use instead ratio of matches and scan size
-                this->relocated_ = false;
-                std::cout << "Mapper: Not enough matches to relocate the map!" << std::endl;
-                std::cout << "Changing relocated to false!" << std::endl;
-            }
             return this->relocated_;
         }
 
@@ -134,7 +128,7 @@
 
         void Mapper::load_map(pcl::PointCloud<PointType>::Ptr& full_map){
 
-            KD_TREE<MapPoint>::Ptr new_map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0.3, 0.6, 0.1));            
+            KD_TREE<MapPoint>::Ptr new_map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0.3, 0.6, 0.01));            
             MapPoints map_vec;
             map_vec.resize(full_map->points.size());
             
@@ -149,6 +143,14 @@
             this->map = new_map;
         }
 
+        bool Mapper::get_map(pcl::PointCloud<PointType>::Ptr& pc){
+            
+            if(not this->exists()) return false;
+            this->get_full_map(pc);
+            return pc->points.size() > 0;
+
+        }
+
     // private
 
         void Mapper::build(pcl::PointCloud<PointType>::Ptr& pc){
@@ -160,6 +162,24 @@
                 map_vec[i] = MapPoint( pc->points[i].x, pc->points[i].y, pc->points[i].z );
 
             this->map->Build(map_vec);
+        }
+
+        void Mapper::get_full_map(pcl::PointCloud<PointType>::Ptr& pc){
+            
+            MapPoints map_vec;
+            map_vec.reserve(this->map->size());
+            this->map->flatten(this->map->Root_Node, map_vec, NOT_RECORD);
+                        
+            pc->points.resize(map_vec.size());
+            for(int i = 0; i < map_vec.size(); i++){
+                pc->points[i].x = map_vec[i].x;
+                pc->points[i].y = map_vec[i].y;
+                pc->points[i].z = map_vec[i].z;
+            }
+            
+            pc->width = pc->points.size();
+            pc->height = 1;
+
         }
 
         void Mapper::add_pointcloud(pcl::PointCloud<PointType>::Ptr& pc, bool downsample){

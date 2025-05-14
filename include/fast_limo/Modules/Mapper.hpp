@@ -66,11 +66,14 @@ class fast_limo::Mapper {
         void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
 
         void load_map(pcl::PointCloud<PointType>::Ptr& full_map);
+        bool get_map(pcl::PointCloud<PointType>::Ptr& pc);
 
     private:
         void build(pcl::PointCloud<PointType>::Ptr&);
 
         void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
+
+        void get_full_map(pcl::PointCloud<PointType>::Ptr& pc);
 
         void fov_segment(State&);
         

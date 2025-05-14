@@ -49,6 +49,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   SendPointCloud.srv # Service to send map in relocation mode
+  SaveMap.srv        # Service to save the current map
 )
 
 generate_messages(

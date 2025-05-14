@@ -31,7 +31,7 @@
  #include <kiss_matcher/GncSolver.hpp>
  #include <kiss_matcher/KISSMatcher.hpp>
  
- #include <nano_gicp/point_type_nano_gicp.hpp> //change PointTypeNano in this headerfile, currently pcl::PointXYZI
+ #include <nano_gicp/point_type_nano_gicp.hpp> //changed from pcl::PointXYZI to PointTypeNano in this headerfile
  #include <nano_gicp/nano_gicp.hpp>
  
  #include <cmath>
@@ -46,7 +46,7 @@
     void init(const RelocaConfig& cfg);
     void updateCloud(pcl::PointCloud<PointType>::Ptr& pc);
     void updateState(const nav_msgs::Odometry::ConstPtr& msg);
-    void updateInitialPose(std::vector<float> init_state);
+    void updateInitialPose(std::vector<double> init_state);
 
     inline Eigen::Vector3f get_pose() { return this->p; }
     inline Eigen::Quaternionf get_orientation() { return this->q; }
@@ -71,8 +71,9 @@
     Eigen::Quaternionf q;
 
     double distance_traveled = 0;
+    double last_x = std::nan(""), last_y;
     bool relocated = false, recived_estimated_pose = false;
-    std::vector<float> init_state_;
+    std::array<double,3> init_state_{ 0.0, 0.0, 0.0};
 
     Eigen::Matrix4f kiss_transformation_;
 
@@ -88,6 +89,7 @@
     void load_map();
     void transformFullMap();
     bool enough_distance_traveled();
+    void reset();
     
     // SINGLETON 
 
