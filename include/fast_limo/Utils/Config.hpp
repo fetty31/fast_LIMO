@@ -61,14 +61,11 @@ struct fast_limo::Config{
             int MAX_NUM_PC2MATCH;   // max num of points to match (helps to reduce comp. load)
             double MAX_DIST_PLANE;  // max distance between points to be considered a plane
             double PLANE_THRESHOLD; // threshold to consider an estimated plane is actually a plane (also used for deciding if point belongs to plane )
-            bool local_mapping;     // whether to move the map with the robot's pose (fixed size map) or not (increasing size, limitless map) 
-            struct iKDTree{
-                float delete_param;
-                float balance_param;
-                float voxel_size;
-                double cube_size;
-                double rm_range;
-            } ikdtree;
+            struct Octree{
+                int bucket_size;    //  maximum number of points allowed in an octant before it gets subdivided
+                float min_extent;   //  minimum extent of the octant (used to stop subdividing)
+                bool downsampling;  //  whether to downsample the octree
+            } octree;
         } mapping;
 
         int MAX_NUM_ITERS;          // max num of iterations of the extended KF

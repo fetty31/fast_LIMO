@@ -19,6 +19,7 @@
 #define __FASTLIMO_MAPPER_HPP__
 
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Objects/Octree.hpp"
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Plane.hpp"
@@ -31,17 +32,13 @@ class fast_limo::Mapper {
     // Variables
 
     private:
-        KD_TREE<MapPoint>::Ptr map;
-        BoxPointType local_map_bb; // map's boundary box
-        std::mutex mtx_local_map;
+        octree::Octree octree_;
 
         Config::iKFoM::Mapping config;
 
         double last_map_time;
 
         int num_threads_;
-
-        bool bb_init;
 
     public:
         Matches matches;
@@ -58,22 +55,11 @@ class fast_limo::Mapper {
         int size();
         double last_time();
 
-        BoxPointType get_local_map();
-
         Matches match(State, pcl::PointCloud<PointType>::Ptr&);
 
-        void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
-        void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
+        void add(pcl::PointCloud<PointType>::Ptr&, double time);
 
     private:
-        void build(pcl::PointCloud<PointType>::Ptr&);
-
-        void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
-
-        void fov_segment(State&);
-        
-        void set_bb_dim(State&);
-
         Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
 
     // Singleton 

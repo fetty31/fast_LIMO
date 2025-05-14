@@ -1,11 +1,11 @@
-# CAT15 config
+# General config
 
 fast_limo:
   ros__parameters:
     topics:
       input:
-        lidar: /velodyne_points
-        imu: /EL/Sensors/vectornav/IMU
+        lidar: /kitti/velo/pointcloud
+        imu: /kitti/oxts/imu
       # output:
 
     frames: # output frames (the transform between frames will be broadcasted)
@@ -22,13 +22,13 @@ fast_limo:
 
     estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
     time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
-    end_of_sweep: false          # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
+    end_of_sweep: false         # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
     calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
-      gravity_align: true     # estimate gravity vector
-      accel: true             # estimate lin. accel. bias
-      gyro: true              # estimate ang. vel. bias
-      time: 3.0               # time to estimate (during this time, the robot must be at stand still)
+      gravity_align: false     # estimate gravity vector
+      accel: false             # estimate lin. accel. bias
+      gyro: false              # estimate ang. vel. bias
+      time: 3.0               # [s] time to estimate (during this time, the robot must be at stand still)
 
     extrinsics: # w.r.t baselink [SI]
       imu:
@@ -37,10 +37,10 @@ fast_limo:
               0.,  1.,  0.,
               0.,  0.,  1. ]
       lidar:
-        t: [ 1.25,  0.,  0. ]
-        R: [ 1.,  0.,  0.,
-              0.,  1.,  0.,
-              0.,  0.,  1. ]
+        t: [ 8.086759e-01, -3.195559e-01, 7.997231e-01 ] 
+        R: [ 9.999976e-01, -7.854027e-04, 2.024406e-03,
+            7.553071e-04, 9.998898e-01, 1.482454e-02,
+            -2.035826e-03, -1.482298e-02, 9.998881e-01 ]
 
     intrinsics:
       accel:
@@ -55,8 +55,8 @@ fast_limo:
       cropBox: # prism crop
         active: true
         box:
-          min: [ -2.0, -2.0, -1.0 ]  # [m]
-          max: [ 2.0, 2.0, 1.0 ]     # [m]
+          min: [ -1.0, -1.0, -1.0 ]  # [m]
+          max: [ 1.0, 1.0, 1.0 ]     # [m]
 
       voxelGrid:
         active: true
@@ -64,7 +64,7 @@ fast_limo:
 
       minDistance: # sphere crop
         active: true
-        value: 3.5  # [m]
+        value: 4.0  # [m]
 
       FoV: # crop field of view
         active: false
@@ -72,10 +72,10 @@ fast_limo:
       
       rateSampling: # quick downsample
         active: true
-        value: 2
+        value: 4
 
     iKFoM:  # Iterative Kalman Filter on Manifolds lib
-      MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)
+      MAX_NUM_ITERS: 3                # max num+1 of iterations of the KF (limits comp. load)
       MAX_NUM_MATCHES: 5000           # max num of matches to account for when computing Jacobians (limits comp. load)
       MAX_NUM_PC2MATCH: 10000         # max num of points to consider when matching with map (limits comp. load)
       LIMITS: 0.001                     
@@ -88,7 +88,7 @@ fast_limo:
           bucket_size: 2      # maximum number of points allowed in an octant before it gets subdivided
           min_extent: 0.2     # minimum extent of the octant (used to stop subdividing)
           downsampling: true  # whether to downsample the octree
-          
+
       covariance:
         gyro: 6.01e-4
         accel: 1.53e-2

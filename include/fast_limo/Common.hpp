@@ -22,7 +22,7 @@
 #include <cpuid.h>
 #endif
 
-#define FAST_LIMO_v "2.0.0"
+#define FAST_LIMO_v "2.1.0"
 
 // System
 #include <ctime>
@@ -61,7 +61,6 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 
 // FASTLIOv2
 #include "IKFoM/use-ikfom.hpp"
-#include "ikd-Tree/ikd_Tree/ikd_Tree.h"
 
 // Boost
 #include <boost/format.hpp>
@@ -90,6 +89,9 @@ namespace fast_limo {
   class State;
   class Plane;
   class Match;
+  namespace octree {
+    struct Octree;
+  }
 
     // UTILS
   struct Config;
