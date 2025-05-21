@@ -79,6 +79,29 @@ void fromROStoLimo(const sensor_msgs::Imu::ConstPtr& in, fast_limo::IMUmeas& out
     out.q = qd.cast<float>();
 }
 
+void fromROStoLimo(const nav_msgs::Odometry::ConstPtr& in, fast_limo::State& out){
+    out.time = in->header.stamp.toSec();
+
+    // Pose/Attitude
+    out.p(0) = in->pose.pose.position.x;
+    out.p(1) = in->pose.pose.position.y;
+    out.p(2) = in->pose.pose.position.z;
+
+    out.q = Eigen::Quaternionf(in->pose.pose.orientation.w, 
+                               in->pose.pose.orientation.x,
+                               in->pose.pose.orientation.y,
+                               in->pose.pose.orientation.z
+                              );
+    // Twist
+    out.v(0) = in->twist.twist.linear.x;
+    out.v(1) = in->twist.twist.linear.y;
+    out.v(2) = in->twist.twist.linear.z;
+
+    out.w(0) = in->twist.twist.angular.x;
+    out.w(1) = in->twist.twist.angular.y;
+    out.w(2) = in->twist.twist.angular.z;
+}
+
 void fromLimoToROS(const fast_limo::State& in, nav_msgs::Odometry& out){
     out.header.stamp = ros::Time::now();
     out.header.frame_id = "map";
@@ -220,40 +243,6 @@ bool checkPointcloudStructure(const sensor_msgs::PointCloud2::ConstPtr& msg, fas
 } // namespace debug_limo
 
 namespace visualize_limo {
-
-visualization_msgs::Marker getLocalMapMarker(BoxPointType bb){
-    visualization_msgs::Marker m;
-
-    m.ns = "fast_limo";
-    m.id = 0;
-    m.type = visualization_msgs::Marker::CUBE;
-    m.action = visualization_msgs::Marker::ADD;
-
-    m.color.r = 0.0f;
-    m.color.g = 0.0f;
-    m.color.b = 1.0f;
-    m.color.a = 0.5f;
-
-    m.lifetime = ros::Duration(0);
-    m.header.frame_id = "map";
-    m.header.stamp = ros::Time::now();
-
-    m.pose.orientation.w = 1.0;
-
-    float x_edge = bb.vertex_max[0] - bb.vertex_min[0];
-    float y_edge = bb.vertex_max[1] - bb.vertex_min[1];
-    float z_edge = bb.vertex_max[2] - bb.vertex_min[2];
-
-    m.scale.x = x_edge;
-    m.scale.y = y_edge;
-    m.scale.z = z_edge;
-
-    m.pose.position.x = bb.vertex_min[0] + x_edge/2.0;
-    m.pose.position.y = bb.vertex_min[1] + y_edge/2.0;
-    m.pose.position.z = bb.vertex_min[2] + z_edge/2.0;
-
-    return m;
-}
 
 visualization_msgs::MarkerArray getMatchesMarker(Matches& matches, std::string frame_id){
     visualization_msgs::MarkerArray m_array;

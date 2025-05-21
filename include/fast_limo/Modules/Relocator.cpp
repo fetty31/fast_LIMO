@@ -21,7 +21,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 // class fast_limo::Relocator
 // public
 
-std::vector<Eigen::Vector3f> convertCloudToVec(const pcl::PointCloud<fast_limo::Point>& cloud) {
+std::vector<Eigen::Vector3f> convertCloudToVec(const pcl::PointCloud<PointType>& cloud) {
     std::vector<Eigen::Vector3f> vec;
     vec.reserve(cloud.size());
     for (const auto& pt : cloud.points) {
@@ -73,7 +73,7 @@ void Relocator::updateInitialPose(std::vector<double> init_state){
 }
 
 void Relocator::reset() {
-    this->distance_traveled = 0;
+    this->distance_traveled = 0.0f;
     this->source_cloud_->clear();
     this->target_map_->clear();
     this->aligned_cloud_->clear();
@@ -106,10 +106,10 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
     else this->reset();
 }
 
-void Relocator::updateState(const nav_msgs::Odometry::ConstPtr& msg) {
+void Relocator::updateState(fast_limo::State& st) {
 
-    double current_x = msg->pose.pose.position.x;
-    double current_y = msg->pose.pose.position.y;
+    float current_x = msg->pose.pose.position.x;
+    float current_y = msg->pose.pose.position.y;
     
     if(std::isnan(last_x)){
         last_x = current_x;
@@ -117,11 +117,11 @@ void Relocator::updateState(const nav_msgs::Odometry::ConstPtr& msg) {
         return;
     } 
         
-    double dx = current_x - last_x;
-    double dy = current_y - last_y;
-    double delta_distance = std::sqrt(dx * dx + dy * dy);
+    float dx = current_x - last_x;
+    float dy = current_y - last_y;
+    float delta_distance = std::sqrt(dx * dx + dy * dy);
     
-    if(delta_distance > 0.1){
+    if(delta_distance > 0.1f){
         this->distance_traveled += delta_distance;
         last_x = current_x;
         last_y = current_y;    

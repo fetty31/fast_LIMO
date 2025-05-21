@@ -15,88 +15,77 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __FASTLIMO_MAPPER_HPP__
-#define __FASTLIMO_MAPPER_HPP__
+ #ifndef __FASTLIMO_MAPPER_HPP__
+ #define __FASTLIMO_MAPPER_HPP__
+ 
+ #include "fast_limo/Common.hpp"
+ #include "fast_limo/Objects/Octree.hpp"
+ #include "fast_limo/Objects/Match.hpp"
+ #include "fast_limo/Objects/State.hpp"
+ #include "fast_limo/Objects/Plane.hpp"
+ #include "fast_limo/Utils/Config.hpp"
+ 
+ using namespace fast_limo;
+ 
+ class fast_limo::Mapper {
+ 
+     // Variables
+ 
+     private:
+         octree::Octree octree_;
+ 
+         Config::iKFoM::Mapping config;
+ 
+         double last_map_time;
+ 
+         int num_threads_;
 
-#include "fast_limo/Common.hpp"
-#include "fast_limo/Objects/Match.hpp"
-#include "fast_limo/Objects/State.hpp"
-#include "fast_limo/Objects/Plane.hpp"
-#include "fast_limo/Utils/Config.hpp"
+         bool relocated_;
+ 
+     public:
+         Matches matches;
+ 
+     // Methods
+ 
+     public:
+         Mapper();
+ 
+         void set_num_threads(int n);
+         void set_config(const Config::iKFoM::Mapping& cfg);
+ 
+         bool exists();
+         int size();
+         double last_time();
+         bool is_relocated();
+ 
+         Matches match(State, pcl::PointCloud<PointType>::Ptr&);
+ 
+         void add(pcl::PointCloud<PointType>::Ptr&, double time);
 
-using namespace fast_limo;
-
-class fast_limo::Mapper {
-
-    // Variables
-
-    private:
-        KD_TREE<MapPoint>::Ptr map;
-        BoxPointType local_map_bb; // map's boundary box
-        std::mutex mtx_local_map;
-
-        Config::iKFoM::Mapping config;
-
-        double last_map_time;
-
-        int num_threads_;
-
-        bool bb_init;
-
-        bool relocated_{false};
-
-        Matches matches;
-
-    public:
-        Mapper();
-
-        void set_num_threads(int n);
-        void set_config(const Config::iKFoM::Mapping& cfg);
-
-        bool exists();
-        int size();
-        double last_time();
-        bool is_relocated();
-
-        BoxPointType get_local_map();
-
-        Matches match(State, pcl::PointCloud<PointType>::Ptr&);
-
-        void add(pcl::PointCloud<PointType>::Ptr&, double time, bool downsample=false);
-        void add(pcl::PointCloud<PointType>::Ptr&, State&, double time, bool downsample=false);
-
-        void load_map(pcl::PointCloud<PointType>::Ptr& full_map);
-        bool get_map(pcl::PointCloud<PointType>::Ptr& pc);
-
-    private:
-        void build(pcl::PointCloud<PointType>::Ptr&);
-
-        void add_pointcloud(pcl::PointCloud<PointType>::Ptr&, bool downsample=false);
-
-        void get_full_map(pcl::PointCloud<PointType>::Ptr& pc);
-
-        void fov_segment(State&);
-        
-        void set_bb_dim(State&);
-
-        Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
-
-    // Singleton 
-
-    public:
-        static Mapper& getInstance() {
-            static Mapper* mapper = new Mapper();
-            return *mapper;
-        }
-
-    private:
-        // Disable copy/move capabilities
-        Mapper(const Mapper&) = delete;
-        Mapper(Mapper&&) = delete;
-
-        Mapper& operator=(const Mapper&) = delete;
-        Mapper& operator=(Mapper&&) = delete;
-
-};
-
-#endif
+         void load_map(pcl::PointCloud<PointType>::Ptr& full_map);
+         bool get_map(pcl::PointCloud<PointType>::Ptr& pc);
+ 
+     private:
+         void get_full_map(pcl::PointCloud<PointType>::Ptr& pc);
+         
+         Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
+ 
+     // Singleton 
+ 
+     public:
+         static Mapper& getInstance() {
+             static Mapper* mapper = new Mapper();
+             return *mapper;
+         }
+ 
+     private:
+         // Disable copy/move capabilities
+         Mapper(const Mapper&) = delete;
+         Mapper(Mapper&&) = delete;
+ 
+         Mapper& operator=(const Mapper&) = delete;
+         Mapper& operator=(Mapper&&) = delete;
+ 
+ };
+ 
+ #endif

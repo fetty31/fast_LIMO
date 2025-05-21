@@ -1,9 +1,26 @@
 # Fast-LIMO Relocation Branch 🚀
+<details>
+    <summary>Table of Contents</summary>
+    <ol>
+        <li>
+        <a href="#introduction">Introduction</a>
+        </li>
+        <li><a href="#conecptyal-overview">Conceptual Overview</a>
+        </li>
+        <li><a href="#installation">Installation</a>
+        </li>
+        <li>
+        <a href="#configuration-parameters">Configuration Parameters</a>
+        </li>
+        <li>
+        <a href="#getting-started">Getting Started</a>
+        </li>
+    </ol>
+</details>
 
 ## Introduction 
 
 This branch adds a map-based relocalization module to the Fast-LIMO LiDAR-Inertial SLAM pipeline. By running two nodes in parallel—one for SLAM and one for relocalization—you can recover the robot’s pose in a previously built map (`.pcd`). Once the relocalizer finds a valid pose, it sends the fully transformed map to the SLAM node, which then loads the static map and stops incremental mapping.
-
 ---
 
 ## Conceptual Overview 🤖
@@ -27,7 +44,7 @@ This branch adds a map-based relocalization module to the Fast-LIMO LiDAR-Inerti
     3. **Nano-GICP** for pose refinement (fitness score)
     4. On success:
 
-       * Transform full map → call `SendPointCloud` service → publish on `full_map` topic
+       * Transform full map → call `/fast_limo/send_pointcloud` service → publish map on `/fast_limo_reloca/full_map` topic
 
 * **Node Interaction** 🔄
 
@@ -39,7 +56,9 @@ This branch adds a map-based relocalization module to the Fast-LIMO LiDAR-Inerti
   roslaunch fast_limo reloca.launch rviz:=true map_name:=campus_nord
   ```
 
-  When a valid pose is found, `fast_limo_reloca` calls `SendPointCloud` (in `odom` frame) and SLAM switches to the static map.
+  When a valid pose is found, `fast_limo_reloca` calls `/fast_limo/send_pointcloud` (in `world` frame) and SLAM switches to map-based localization. 
+  
+  _Note that the received map will be in `world` frame (instead of `map` frame) so there won't be any localization discontinuity._
 
 ---
 
@@ -102,7 +121,7 @@ All relocalizer parameters live in `RelocaConfig` (set via `reloca.launch`):
 | -------------------- | ------ | ------- | ------------------------------------------------------------------------ |
 | `mode`               | bool   | `true`  | `true` = local (requires an `/initialpose` in RViz) <br>`false` = global |
 | `map_path`           | string | —       | Filesystem path to the `.pcd` map                                        |
-| `distance_threshold` | double | `10.0`  | Travel distance (in meters) before triggering relocalization             |
+| `distance_threshold` | double | `10.0`  | Travel distance (in meters) before triggering relocalization (only valid if `mode`==true)             |
 | `inliers_threshold`  | int    | `10`    | Minimum KISS-Matcher inliers to accept a coarse solution                 |
 | `score`              | double | `100.0` | Maximum Nano-GICP fitness score to accept the refined solution           |
 
@@ -110,6 +129,23 @@ All relocalizer parameters live in `RelocaConfig` (set via `reloca.launch`):
 
 ## Getting Started 🚀
 
+Saving a map while doing SLAM:
+1. **Launch SLAM**
+
+   ```bash
+   roslaunch fast_limo fast_limo.launch
+   ```
+
+2. **Save a map manually**
+
+   ```bash
+   rosservice call /fast_limo/save_map \
+     "{ full_path: { data: '/path/fast_LIMO/maps/test.pcd' } }"
+   ```
+
+   Use that `.pcd` via `map_name`.
+
+Relocalizing in a previously saved map:
 1. **Launch SLAM**
 
    ```bash
@@ -119,16 +155,7 @@ All relocalizer parameters live in `RelocaConfig` (set via `reloca.launch`):
 2. **Launch Relocalization**
 
    ```bash
-   roslaunch fast_limo reloca.launch
+   roslaunch fast_limo reloca.launch map_name:=test
    ```
-
-3. **Save a map manually**
-
-   ```bash
-   rosservice call /fast_limo/save_map \
-     "{ full_path: { data: '/path/fast_LIMO/maps/test.pcd' } }"
-   ```
-
-   Use that `.pcd` via `map_name` or `map_path`.
 
 Happy relocalizing! 😊

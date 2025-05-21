@@ -5,7 +5,7 @@ ros::Publisher pc_pub;
 ros::Publisher state_pub;
 
 // debugging publishers
-ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, map_bb_pub, match_points_pub;
+ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, match_points_pub;
 
 // output frames
 std::string world_frame, body_frame;
@@ -56,12 +56,6 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
     finalraw_msg.header.frame_id = world_frame;
     finalraw_pub.publish(finalraw_msg);
 
-    // Visualize current map size
-    fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
-    visualization_msgs::Marker bb_marker = visualize_limo::getLocalMapMarker(map.get_local_map());
-    bb_marker.header.frame_id = world_frame;
-    map_bb_pub.publish(bb_marker);
-
     // Visualize current matches
     visualization_msgs::MarkerArray match_markers = visualize_limo::getMatchesMarker(loc.get_matches(), 
                                                                                     world_frame
@@ -107,7 +101,7 @@ bool receivePointCloud(fast_limo::SendPointCloud::Request &req,
     pcl::PointCloud<PointType>::Ptr pc_ (new pcl::PointCloud<PointType>);
     pcl::fromROSMsg(pc_ros, *pc_);
 
-    ROS_INFO("Map received with %ld points", pc_->points.size());
+    ROS_INFO("FAST_LIMO:: Map received with %ld points", pc_->points.size());
 
     fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
     map.load_map(pc_);
@@ -119,7 +113,7 @@ bool receivePointCloud(fast_limo::SendPointCloud::Request &req,
 bool saveMap(fast_limo::SaveMap::Request &req,
              fast_limo::SaveMap::Response &res) {
 
-    std::cout << "Saving map to " << req.full_path.data << std::endl;
+    ROS_INFO("FAST_LIMO:: Saving map to %s", req.full_path.data.c_str());
 
     std::string full_path = req.full_path.data;
 
@@ -127,19 +121,19 @@ bool saveMap(fast_limo::SaveMap::Request &req,
     pcl::PointCloud<PointType>::Ptr full_map(new pcl::PointCloud<PointType>);
     fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
     if(map.get_map(full_map)){
-        ROS_INFO("Map has %ld points", full_map->points.size());
+        ROS_INFO("FAST_LIMO:: Map has %ld points", full_map->points.size());
     } else {
-        ROS_ERROR("Map is empty or not initialized");
+        ROS_ERROR("FAST_LIMO:: Map is empty or not initialized");
         res.success = false;
         return false;
     }
 
     // Second: save the map
     if(pcl::io::savePCDFileBinary(full_path, *full_map)==0){
-        ROS_INFO("Map saved to %s", full_path.c_str());
+        ROS_INFO("FAST_LIMO:: Map saved to %s", full_path.c_str());
         res.success = true;
     } else {
-        ROS_ERROR("Failed to save the map to %s", full_path.c_str());
+        ROS_ERROR("FAST_LIMO:: Failed to save the map to %s", full_path.c_str());
         res.success = false;
     }
     
@@ -202,13 +196,10 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
     nh_ptr->param<int>("iKFoM/MAX_NUM_PC2MATCH",            config->ikfom.mapping.MAX_NUM_PC2MATCH, 1.e+4);
     nh_ptr->param<double>("iKFoM/Mapping/MAX_DIST_PLANE",   config->ikfom.mapping.MAX_DIST_PLANE,   2.0);
     nh_ptr->param<double>("iKFoM/Mapping/PLANES_THRESHOLD", config->ikfom.mapping.PLANE_THRESHOLD,  5.e-2);
-    nh_ptr->param<bool>("iKFoM/Mapping/LocalMapping",       config->ikfom.mapping.local_mapping,    false);
 
-    nh_ptr->param<float>("iKFoM/iKDTree/balance",   config->ikfom.mapping.ikdtree.balance_param,    0.6f);
-    nh_ptr->param<float>("iKFoM/iKDTree/delete",    config->ikfom.mapping.ikdtree.delete_param,     0.3f);
-    nh_ptr->param<float>("iKFoM/iKDTree/voxel",     config->ikfom.mapping.ikdtree.voxel_size,       0.2f);
-    nh_ptr->param<double>("iKFoM/iKDTree/bb_size",  config->ikfom.mapping.ikdtree.cube_size,        300.0);
-    nh_ptr->param<double>("iKFoM/iKDTree/bb_range", config->ikfom.mapping.ikdtree.rm_range,         200.0);
+    nh_ptr->param<int>("iKFoM/Mapping/Octree/bucket_size",   config->ikfom.mapping.octree.bucket_size,     2);
+    nh_ptr->param<float>("iKFoM/Mapping/Octree/min_extent",  config->ikfom.mapping.octree.min_extent,   0.2f);
+    nh_ptr->param<bool>("iKFoM/Mapping/Octree/downsampling", config->ikfom.mapping.octree.downsampling, true);
 
     nh_ptr->param<int>("iKFoM/MAX_NUM_ITERS",            config->ikfom.MAX_NUM_ITERS,   3);
     nh_ptr->param<double>("iKFoM/covariance/gyro",       config->ikfom.cov_gyro,        6.e-4);
@@ -255,12 +246,11 @@ int main(int argc, char** argv) {
     match_pub    = nh.advertise<sensor_msgs::PointCloud2>("match", 1);
     finalraw_pub = nh.advertise<sensor_msgs::PointCloud2>("final_raw", 1);
     body_pub     = nh.advertise<nav_msgs::Odometry>("body_state", 1);
-    map_bb_pub   = nh.advertise<visualization_msgs::Marker>("map/bb", 1);
     match_points_pub = nh.advertise<visualization_msgs::MarkerArray>("match_points", 1);
 
     // Define services
-    ros::ServiceServer service_recive_pc = nh.advertiseService("send_pointcloud", receivePointCloud);
-    ros::ServiceServer service_savemap   = nh.advertiseService("save_map", saveMap);
+    ros::ServiceServer service_recive_pc = nh.advertiseService("send_pointcloud", &receivePointCloud);
+    ros::ServiceServer service_savemap   = nh.advertiseService("save_map", &saveMap);
 
     // Set up fast_limo config
     loc.init(config);

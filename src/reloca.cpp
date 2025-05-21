@@ -21,12 +21,12 @@ void call_service(void){
     srv.request.pointcloud.header.stamp = ros::Time::now();
 
     if (pc_client.call(srv)) {
-        ROS_INFO("Map sent to the server.");
+        ROS_INFO("FAST_LIMO_RELOCA:: Map sent to the server.");
         if (srv.response.success) {
-            ROS_INFO("Relocation completed successfully. :)"); 
+            ROS_INFO("FAST_LIMO_RELOCA:: Relocation completed successfully. :)"); 
             not_relocated = false;
-        } else ROS_WARN("Failed to send the map to the server.");
-    } else ROS_ERROR("Failed to call service send_pointcloud");
+        } else ROS_WARN("FAST_LIMO_RELOCA:: Failed to send the map to the server.");
+    } else ROS_ERROR("FAST_LIMO_RELOCA:: Failed to call service send_pointcloud");
 
 }
 
@@ -44,7 +44,11 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
 
     fast_limo::Relocator& reloca = fast_limo::Relocator::getInstance();
-    reloca.updateState(msg);
+
+    static fast_limo::State current_state;
+    tf_limo::fromROStoLimo(msg, current_state);
+
+    reloca.updateState(current_state); // update distance travelled
 }
 
 void initialpose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg){
@@ -94,7 +98,7 @@ void load_config(ros::NodeHandle* nh_ptr, fast_limo::RelocaConfig* config) {
 
     nh_ptr->param<bool>("mode", config->mode, true);
     nh_ptr->param<std::string>("map_path", config->map_path, "map/map.pcd");
-    nh_ptr->param<double>("distance_threshold", config->distance_threshold, 0.3);
+    nh_ptr->param<float>("distance_threshold", config->distance_threshold, 0.3f);
     nh_ptr->param<int>("inliers_threshold", config->inliers_threshold, 10);
     nh_ptr->param<double>("score", config->score, 5.0);
 

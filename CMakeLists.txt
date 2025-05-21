@@ -81,16 +81,6 @@ if(HAS_CPUID)
   add_compile_definitions(HAS_CPUID)
 endif()
 
-# IKD_TREE
-add_library(ikd_tree 
-              include/ikd-Tree/ikd_Tree/ikd_Tree.cpp
-            )
-
-target_link_libraries(ikd_tree ${PCL_LIBRARIES} ${OpenMP_LIBS})
-target_include_directories(ikd_tree
-  PUBLIC include/ikd-Tree/ikd_Tree
-)
-
 # IKFOM
 add_library(ikfom
             include/IKFoM/IKFoM_toolkit
@@ -117,7 +107,6 @@ target_link_libraries(${PROJECT_NAME}
                       ${PCL_LIBRARIES} 
                       ${OpenMP_LIBS} 
                       ikfom 
-                      ikd_tree
                       TBB::tbb
                       kiss_matcher::kiss_matcher_core
                       robin::robin
