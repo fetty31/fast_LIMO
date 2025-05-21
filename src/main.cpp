@@ -8,7 +8,7 @@ ros::Publisher state_pub;
 ros::Publisher orig_pub, desk_pub, match_pub, finalraw_pub, body_pub, match_points_pub;
 
 // output frames
-std::string world_frame, body_frame;
+std::string world_frame, body_frame, nav_frame;
 bool publish_tf;
 
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg){
@@ -89,8 +89,22 @@ void imu_callback(const sensor_msgs::Imu::ConstPtr& msg){
     body_pub.publish(body_msg);
 
     // TF broadcasting
-    if(publish_tf)
-        tf_limo::broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+    if(publish_tf){
+
+        // Broadcast navigation tf (odom in 2D)
+        fast_limo::State state_3D = loc.getWorldState();
+        fast_limo::State state_2D = state_3D;
+        state_2D.p(2) = 0.0f; // remove z coordinate
+
+        tf_limo::broadcastTF(state_2D, nav_frame, body_frame, true); // body -> nav
+        
+        // Broadcast odom tf (keeping the TF tree intact)
+        fast_limo::State from2Dto3D;
+        from2Dto3D.time = state_3D.time; // share timestamp
+        from2Dto3D.p(2) = state_3D.p(2); // z coordinate
+
+        tf_limo::broadcastTF(from2Dto3D, world_frame, nav_frame, true); // nav -> world
+    }
 
 }
 
@@ -142,6 +156,26 @@ bool saveMap(fast_limo::SaveMap::Request &req,
 
 void mySIGhandler(int sig){
     ros::shutdown();
+}
+
+void cpu_spin(ros::NodeHandle* nh_ptr){
+
+    ros::Publisher cpu_pub   = nh_ptr->advertise<fast_limo::CPUload>("cpu_stats", 1);
+
+    fast_limo::Localizer& loc = fast_limo::Localizer::getInstance();
+
+    ros::Rate r(30);
+    while(ros::ok()){
+
+        fast_limo::CPUload cpu_msg;
+        cpu_msg.stamp = ros::Time::now();
+        loc.get_cpu_stats(cpu_msg.comput_time, cpu_msg.max_comput_time, cpu_msg.mean_comput_time,
+                            cpu_msg.cpu_cores, cpu_msg.cpu_load, cpu_msg.cpu_max_load, cpu_msg.ram_usage_mb);
+        cpu_pub.publish(cpu_msg);
+
+        r.sleep();
+    }
+
 }
 
 void load_config(ros::NodeHandle* nh_ptr, fast_limo::Config* config){
@@ -231,6 +265,7 @@ int main(int argc, char** argv) {
     // Read frames names
     nh.param<std::string>("frames/world", world_frame, "map");
     nh.param<std::string>("frames/body", body_frame, "base_link");
+    nh.param<std::string>("frames/nav", nav_frame, "nav");
     nh.param<bool>("frames/tf_pub", publish_tf, true);
 
     // Define subscribers & publishers
@@ -255,11 +290,15 @@ int main(int argc, char** argv) {
     // Set up fast_limo config
     loc.init(config);
 
+    // Start thread to publish CPU stats
+    std::thread cpu_th = std::thread( cpu_spin, &nh );
+
     // Start spinning (async)
     ros::AsyncSpinner spinner(0);
     spinner.start();
 
     ros::waitForShutdown();
+    cpu_th.join();
 
     return 0;
 }

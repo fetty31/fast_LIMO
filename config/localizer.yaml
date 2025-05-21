@@ -1,17 +1,18 @@
-# General config
+# Localizer config
 
 topics:
   input:
-    lidar: /lidar/points
-    imu: /sensors/imu
+    lidar: /ona2/sensors/pandar_front/cloud
+    imu: /ona2/sensors/imu_front/imu
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
-  world: odom
-  map: map
-  body: base_link
+  map: ona2/map         # saved map frame
+  world: ona2/odom      # 3D odometry frame (SLAM frame)
+  nav: ona2/odom_2D     # 2D odometry frame (navigation frame)
+  body: ona2/base_link  # robot local frame (baselink)
   tf_pub: true
-
+  
 num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)
 
 sensor_type: 2  # LiDAR type (0: OUSTER \ 1: VELODYNE \ 2: HESAI \ 3: LIVOX)
@@ -21,7 +22,6 @@ verbose: true   # print debug/performance board
 
 estimate_extrinsics: true   # continuous estimation of LiDAR-IMU extrinsics 
 time_offset: true           # whether to take into account a possible sync offset between IMU and LiDAR (set to true if they are not properly in sync)
-end_of_sweep: false         # whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
 calibration:  # automatic IMU calibration (if all set to false, no calibration will be done)
   gravity_align: true     # estimate gravity vector
@@ -31,12 +31,19 @@ calibration:  # automatic IMU calibration (if all set to false, no calibration w
 
 extrinsics: # w.r.t baselink [SI]
   imu:
-    t: [ 0., 0., 0. ]
+    t: [ 0.87, 0.44, 0.17 ]
     R: [ 1.,  0.,  0.,
           0.,  1.,  0.,
           0.,  0.,  1. ]
+
   lidar:
-    t: [ 0.,  0.,  0. ]
+    t: [ 0.87,  -0.44,  -0.201 ]
+    # R: [ 0.774, -0.633, 0.022,
+    #     0.633, 0.774,  -0.026,
+    #     -0.0005, 0.03,  0.999 ] # +40º
+    # R: [ 0.774, 0.633, -0.0005,
+    #     -0.633, 0.774,  0.03,
+    #     0.022, -0.026,  0.999 ] # -40º
     R: [ 1.,  0.,  0.,
           0.,  1.,  0.,
           0.,  0.,  1. ]
@@ -71,7 +78,7 @@ filters:
   
   rateSampling: # quick downsample
     active: true
-    value: 2
+    value: 4
 
 iKFoM:  # Iterative Kalman Filter on Manifolds lib
   MAX_NUM_ITERS: 2                # max num+1 of iterations of the KF (limits comp. load)

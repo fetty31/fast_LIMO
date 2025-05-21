@@ -45,6 +45,7 @@
 
 #include <fast_limo/SendPointCloud.h> // reloca service
 #include <fast_limo/SaveMap.h>        // save map service
+#include <fast_limo/CPUload.h>
 
 #include <tf2/convert.h>
 #include <tf2_ros/transform_broadcaster.h>

@@ -46,6 +46,11 @@ find_package(catkin REQUIRED COMPONENTS
   nano_gicp # Temporary dependency to perform GICP
 )
 
+add_message_files(
+  FILES
+  CPUload.msg
+)
+
 add_service_files(
   FILES
   SendPointCloud.srv # Service to send map in relocation mode

@@ -1,0 +1,8 @@
+# Relocator config
+
+mode: 0 # false: use full map (global relocalization)
+        # true: use partial map around 2D Pose Estimation RVIZ (local relocalization)
+map_path: $(find fast_limo)/maps/campus_nord.pcd
+score: 100.0                    # Maximum Nano-GICP fitness score to accept the refined solution 
+distance_threshold: 10.0        # Distance traveled to trigger relocalization
+inliers_threshold: 10            # Minimum number of inliers to consider a valid relocalization
