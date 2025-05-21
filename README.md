@@ -93,16 +93,6 @@ git checkout relocation/KISS-matcher
    git clone https://github.com/fetty31/nano_gicp.git
    ```
 
-   Then, to avoid header conflicts, edit:
-
-   ```diff
-   // nano_gicp/point_type_nano_gicp.hpp
-   - using PointType = pcl::PointXYZI;
-   + using PointTypeNano = pcl::PointXYZI;
-   ```
-
-   so downstream code uses `PointTypeNano` instead of `PointType`.
-
 ### 4. Build Fast-LIMO
 
 * **ROS Noetic (catkin)**
