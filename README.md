@@ -21,6 +21,7 @@
 ## Introduction 
 
 This branch adds a map-based relocalization module to the Fast-LIMO LiDAR-Inertial SLAM pipeline. By running two nodes in parallel—one for SLAM and one for relocalization—you can recover the robot’s pose in a previously built map (`.pcd`). Once the relocalizer finds a valid pose, it sends the fully transformed map to the SLAM node, which then loads the static map and stops incremental mapping.
+
 ---
 
 ## Conceptual Overview 🤖
