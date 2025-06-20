@@ -110,19 +110,13 @@
 
         void Mapper::load_map(pcl::PointCloud<PointType>::Ptr& full_map){
 
-            KD_TREE<MapPoint>::Ptr new_map = KD_TREE<MapPoint>::Ptr (new KD_TREE<MapPoint>(0.3, 0.6, 0.01));            
-            MapPoints map_vec;
-            map_vec.resize(full_map->points.size());
-            
-            #pragma omp parallel for num_threads(this->num_threads_)
-            for(int i = 0; i < full_map->points.size(); i++)
-                map_vec[i] = MapPoint(full_map->points[i].x, 
-                                    full_map->points[i].y, 
-                                    full_map->points[i].z);
-
-            new_map->Build(map_vec);
+            octree::Octree new_octree(this->config.octree.bucket_size,
+                                        this->config.octree.downsampling,
+                                        this->config.octree.min_extent
+                                    );
+            new_octree.initialize(full_map);
             this->relocated_ = true;
-            this->map = new_map;
+            this->octree_ = new_octree;
         }
 
         bool Mapper::get_map(pcl::PointCloud<PointType>::Ptr& pc){
@@ -137,9 +131,7 @@
 
         void Mapper::get_full_map(pcl::PointCloud<PointType>::Ptr& pc){
             
-            MapPoints map_vec;
-            map_vec.reserve(this->map->size());
-            this->map->flatten(this->map->Root_Node, map_vec, NOT_RECORD);
+            MapPoints map_vec = this->octree_.getData();
                         
             pc->points.resize(map_vec.size());
             for(int i = 0; i < map_vec.size(); i++){
@@ -150,7 +142,6 @@
             
             pc->width = pc->points.size();
             pc->height = 1;
-
         }
 
         Match Mapper::match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local) {
