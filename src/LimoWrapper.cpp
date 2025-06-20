@@ -446,7 +446,7 @@ namespace ros2wrap {
                                         << "                  x: FLOAT32 (x coordinate in meters)\n"
                                         << "                  y: FLOAT32 (y coordinate in meters)\n"
                                         << "                  z: FLOAT32 (z coordinate in meters)\n"
-                                        << "                  time: FLOAT32 (time since beginning of scan in nanoseconds)\n"
+                                        << "                  time: FLOAT32 (time since beginning of scan in seconds)\n"
                                         << "-------------------------------------------------------------------\n"
                                         );
             
@@ -462,7 +462,7 @@ namespace ros2wrap {
                                         << "                  x: FLOAT32 (x coordinate in meters)\n"
                                         << "                  y: FLOAT32 (y coordinate in meters)\n"
                                         << "                  z: FLOAT32 (z coordinate in meters)\n"
-                                        << "                  timestamp: FLOAT64 (time since beginning of scan in seconds/nanoseconds if HESAI/LIVOX)\n"
+                                        << "                  timestamp: FLOAT64 (global time in seconds/nanoseconds if HESAI/LIVOX)\n"
                                         << "-------------------------------------------------------------------\n"
                                         );
             
