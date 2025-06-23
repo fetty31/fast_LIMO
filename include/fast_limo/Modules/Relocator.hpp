@@ -27,7 +27,9 @@
  
  #include <nano_gicp/point_type_nano_gicp.hpp> //changed from pcl::PointXYZI to PointTypeNano in this headerfile
  #include <nano_gicp/nano_gicp.hpp>
- 
+
+ #include <nav_msgs/Odometry.h>
+
  using namespace fast_limo;
  
  class fast_limo::Relocator {
@@ -36,7 +38,7 @@
     Relocator();
     void init(const RelocaConfig& cfg);
     void updateCloud(pcl::PointCloud<PointType>::Ptr& pc);
-    void updateState(fast_limo::State& st);
+    void updateState(const nav_msgs::Odometry::ConstPtr& msg);
     void updateInitialPose(std::vector<double> init_state);
 
     inline Eigen::Vector3f get_pose() { return this->p; }

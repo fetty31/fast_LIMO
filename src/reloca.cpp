@@ -48,7 +48,7 @@ void state_callback(const nav_msgs::Odometry::ConstPtr& msg){
     static fast_limo::State current_state;
     tf_limo::fromROStoLimo(msg, current_state);
 
-    reloca.updateState(current_state); // update distance travelled
+    reloca.updateState(msg); // update distance travelled
 }
 
 void initialpose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg){

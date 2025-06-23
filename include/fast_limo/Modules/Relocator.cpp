@@ -106,7 +106,7 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
     else this->reset();
 }
 
-void Relocator::updateState(fast_limo::State& st) {
+void Relocator::updateState(const nav_msgs::Odometry::ConstPtr& msg) {
 
     float current_x = msg->pose.pose.position.x;
     float current_y = msg->pose.pose.position.y;
