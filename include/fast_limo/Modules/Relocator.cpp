@@ -108,8 +108,8 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
 
 void Relocator::updateState(fast_limo::State& st) {
 
-    float current_x = msg->pose.pose.position.x;
-    float current_y = msg->pose.pose.position.y;
+    float current_x = st.p(0);
+    float current_y = st.p(1);
     
     if(std::isnan(last_x)){
         last_x = current_x;

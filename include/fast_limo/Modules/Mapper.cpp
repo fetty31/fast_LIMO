@@ -98,7 +98,7 @@
             return chosen_matches;
         }
         
-        void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, double time, bool downsample){
+        void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, double time){
             if(pc->points.size() < 1) return;
 
             // If map doesn't exists, build one
@@ -131,7 +131,7 @@
 
         void Mapper::get_full_map(pcl::PointCloud<PointType>::Ptr& pc){
             
-            MapPoints map_vec = this->octree_.getData();
+            MapPoints map_vec = this->octree_.getData<MapPoint, MapPoints>();
                         
             pc->points.resize(map_vec.size());
             for(int i = 0; i < map_vec.size(); i++){
