@@ -803,6 +803,13 @@
  
              // Set scan_stamp for next iteration
              this->scan_stamp = extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) + offset;
+
+             // Check if motion compensation should be applied
+             auto mid_point_stamp = extract_point_time(deskewed_scan_->points[int(deskewed_scan_->points.size()/2)]);
+             if( this->imu_stamp < mid_point_stamp ){
+                std::cout << "FAST_LIMO::WARNING: No motion compensation applied!\n";
+                return pc;
+             }
  
              // IMU prior & deskewing 
              States frames = this->integrateImu(this->prev_scan_stamp, this->scan_stamp, this->state); // baselink/body frames
