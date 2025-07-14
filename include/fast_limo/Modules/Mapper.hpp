@@ -33,6 +33,7 @@
  
      private:
          octree::Octree octree_;
+         std::mutex map_mtx_;
  
          Config::iKFoM::Mapping config;
  

@@ -42,9 +42,11 @@
             this->config = cfg;
 
             // Init octree values
+            map_mtx_.lock();
             octree_.setBucketSize(this->config.octree.bucket_size);
             octree_.setDownsample(this->config.octree.downsampling);
             octree_.setMinExtent(this->config.octree.min_extent);
+            map_mtx_.unlock();
         }
                 
         bool Mapper::exists(){
@@ -101,22 +103,41 @@
         void Mapper::add(pcl::PointCloud<PointType>::Ptr& pc, double time){
             if(pc->points.size() < 1) return;
 
+            map_mtx_.lock();
+
             // If map doesn't exists, build one
             if(not this->exists()) this->octree_.initialize(pc); 
             else this->octree_.update(pc);
+
+            map_mtx_.unlock();
 
             this->last_map_time = time;
         }
 
         void Mapper::load_map(pcl::PointCloud<PointType>::Ptr& full_map){
 
-            octree::Octree new_octree(this->config.octree.bucket_size,
-                                        this->config.octree.downsampling,
-                                        this->config.octree.min_extent
-                                    );
-            new_octree.initialize(full_map);
+            // octree::Octree new_octree(this->config.octree.bucket_size,
+            //                             this->config.octree.downsampling,
+            //                             this->config.octree.min_extent
+            //                         );
+            // new_octree.initialize(full_map);
+            // this->relocated_ = true;
+
+            // std::cout << "FAST_LIMO::Mapper new octree created\n";
+
+            // map_mtx_.lock();
+            // this->octree_ = std::copy(new_octree);
+            // map_mtx_.unlock();
+
+            map_mtx_.lock();
+
+            octree_.initialize(full_map); // reset octree with received map
+
             this->relocated_ = true;
-            this->octree_ = new_octree;
+
+            std::cout << "FAST_LIMO::Mapper new octree created\n";
+
+            map_mtx_.unlock();
         }
 
         bool Mapper::get_map(pcl::PointCloud<PointType>::Ptr& pc){
@@ -150,10 +171,12 @@
             std::vector<float> pointSearchSqDis;
             std::vector<pcl::PointXYZ> neighbors;
 
+            map_mtx_.lock();
             this->octree_.knn(pcl::PointXYZ(p(0), p(1), p(2)),
                               this->config.NUM_MATCH_POINTS,
                               neighbors,
                               pointSearchSqDis);
+            map_mtx_.unlock();
 
             MapPoints near_points(neighbors.begin(), neighbors.end());
 

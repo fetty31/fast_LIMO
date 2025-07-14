@@ -85,6 +85,7 @@ git checkout relocation/KISS-matcher
    git clone https://github.com/fetty31/KISS-Matcher.git
    cd KISS-Matcher
    make cppinstall_matcher_only
+   sudo ldconfig # update dynamic linker run-time bindings
    ```
 
 3. **Nano-GICP**
