@@ -3,7 +3,7 @@
 topics:
   input:
     lidar: /ona2/sensors/pandar_front/cloud
-    imu: /ona2/sensors/imu_front/imu
+    imu: /ona2/sensors/imu_front/imu_uncalib
   # output:
 
 frames: # output frames (the transform between frames will be broadcasted)
