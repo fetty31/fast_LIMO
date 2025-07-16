@@ -20,6 +20,7 @@
  
  #include "fast_limo/Common.hpp"
  #include "fast_limo/Utils/Config.hpp"
+ #include "fast_limo/Objects/State.hpp"
  
  #include <kiss_matcher/FasterPFH.hpp>
  #include <kiss_matcher/GncSolver.hpp>
