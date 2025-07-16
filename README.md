@@ -76,8 +76,8 @@ git checkout relocation/KISS-matcher
 ### 2. Install ROBIN, KISS-Matcher & Nano-GICP
 
 1. **ROBIN**
-   Follow the official instructions on GitHub:
-   [https://github.com/MIT-SPARK/ROBIN](https://github.com/MIT-SPARK/ROBIN)
+   Follow the official instructions on Github (our fork):
+   [https://github.com/fetty31/ROBIN.git](https://github.com/fetty31/ROBIN.git)
 
 2. **KISS-Matcher**
 
