@@ -32,13 +32,6 @@ MTK_BUILD_MANIFOLD(process_noise_ikfom,
 ((vect3, nba))
 );
 
-namespace IKFoM {
-    Eigen::Matrix<double, 24, 1> get_f(state_ikfom &s, const input_ikfom &in);
-    Eigen::Matrix<double, 24, 23> df_dx(state_ikfom &s, const input_ikfom &in);
-    Eigen::Matrix<double, 24, 12> df_dw(state_ikfom &s, const input_ikfom &in);
-    void h_share_model(state_ikfom &, esekfom::dyn_share_datastruct<double> &);
-}
-
 MTK::get_cov<process_noise_ikfom>::type process_noise_cov();
 vect3 SO3ToEuler(const SO3 &orient);
 
