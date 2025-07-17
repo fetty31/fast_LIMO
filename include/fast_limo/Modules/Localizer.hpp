@@ -25,6 +25,7 @@
  #include "fast_limo/Objects/Plane.hpp"
  #include "fast_limo/Utils/Config.hpp"
  #include "fast_limo/Utils/Algorithms.hpp"
+ #include "fast_limo/Utils/customIKFOM.hpp"
  
  using namespace fast_limo;
  

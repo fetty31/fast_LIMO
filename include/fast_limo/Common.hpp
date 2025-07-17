@@ -86,7 +86,10 @@
      // MODULES
    class Localizer;
    class Mapper;
-   class Relocator;
+
+   #ifdef USE_RELOCATION
+    class Relocator;
+   #endif
  
      // OBJECTS
    class State;

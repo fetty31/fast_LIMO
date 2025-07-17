@@ -25,7 +25,10 @@
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
+
+#ifdef USE_RELOCATION
 #include "fast_limo/Modules/Relocator.hpp"
+#endif
 
 // ROS
 #include <ros/ros.h>
