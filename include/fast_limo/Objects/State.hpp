@@ -19,6 +19,7 @@
 #define __FASTLIMO_STATE_HPP__
 
 #include "fast_limo/Common.hpp"
+#include "fast_limo/Modules/iESEKF.hpp"
 
 class fast_limo::State{
 
@@ -46,9 +47,9 @@ class fast_limo::State{
         } b;                    // IMU bias in base_link/body frame 
 
         State();
-        State(const state_ikfom& s);
-        State(const state_ikfom& s, double t);
-        State(const state_ikfom& s, double t, Eigen::Vector3f a, Eigen::Vector3f w);
+        State(const iESEKF::Bundle& s);
+        State(const iESEKF::Bundle& s, double t);
+        State(const iESEKF::Bundle& s, double t, Eigen::Vector3f a, Eigen::Vector3f w);
         State(Eigen::Matrix4f& s);
 
         void operator+=(const State& s);

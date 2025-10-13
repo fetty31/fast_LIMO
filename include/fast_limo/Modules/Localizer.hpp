@@ -20,6 +20,7 @@
 
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
+#include "fast_limo/Modules/iESEKF.hpp"
 #include "fast_limo/Objects/State.hpp"
 #include "fast_limo/Objects/Match.hpp"
 #include "fast_limo/Objects/Plane.hpp"
@@ -37,7 +38,8 @@ class fast_limo::Localizer {
 
     private:
         // Iterated Kalman Filter on Manifolds (FASTLIOv2)
-        esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
+        // esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
+        std::unique_ptr<fast_limo::iESEKF::Filter> _iKFoM;
         std::mutex mtx_ikfom;
 
         State state, last_state;

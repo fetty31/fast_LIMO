@@ -160,7 +160,7 @@
             if(not this->is_calibrated())
                 return State();
 
-            State out = this->_iKFoM.get_x();
+            State out = this->_iKFoM->getState();
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
@@ -177,7 +177,7 @@
             if(not this->is_calibrated())
                 return State();
 
-            State out = this->_iKFoM.get_x();
+            State out = this->_iKFoM->getState();
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
@@ -329,16 +329,15 @@
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
 
                     // Update iKFoM measurements (after prediction)
-                double solve_time = 0.0;
-                this->_iKFoM.update_iterated_dyn_share_modified(0.001 /*LiDAR noise*/, 5.0/*Degeneracy threshold*/, 
-                                                                solve_time/*solving time elapsed*/, false/*print degeneracy values flag*/);
-                    /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "use-ikfom.cpp" )
-                    in order to update the measurement stage of the KF with the computed point-to-plane distances*/
-                
+                this->_iKFoM->update(0.001 /*LiDAR noise*/,
+                                    iESEKF::H_fun /*Measurement function*/);
+                /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "iESEKF.cpp" )
+                in order to update the measurement stage of the KF with the computed point-to-plane distances*/
+
                 map.matches.clear(); // clear matches vector for next iteration
 
                     // Get output state from iKFoM
-                fast_limo::State corrected_state = fast_limo::State(this->_iKFoM.get_x());
+                fast_limo::State corrected_state = fast_limo::State(this->_iKFoM->getState());
 
                 // Set estimated biases & gravity to constant
                 if(this->config.calibrate_gyro)  corrected_state.b.gyro  = this->state.b.gyro;
@@ -553,12 +552,12 @@
         /////////////////////////////////          KF measurement model        /////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Localizer::calculate_H(const state_ikfom& s, const Matches& matches, Eigen::MatrixXd& H, Eigen::VectorXd& h){
+        void Localizer::calculate_H(const state_ikfom& s, const Matches& matches, Eigen::MatrixXd& H, Eigen::VectorXd& z){
             
             int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
 
             H = Eigen::MatrixXd::Zero(N, 12);
-            h.resize(N);
+            z.resize(N);
             State S(s);
 
             // For each match, calculate its derivative and distance
@@ -588,7 +587,7 @@
                 if (config.ikfom.estimate_extrinsics) H.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
 
                 // Measurement: distance to the closest plane
-                h(i) = -match.dist;
+                z(i) = -match.dist;
             }
 
             if(this->config.debug) 
@@ -600,25 +599,19 @@
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         void Localizer::propagateImu(const IMUmeas& imu){
-            input_ikfom in;
-            in.acc = imu.lin_accel.cast<double>();
-            in.gyro = imu.ang_vel.cast<double>();
-
-            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
-            Q.block<3, 3>(0, 0) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(3, 3) = config.ikfom.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
+            lie_odyssey::IMUmeas input;
+            input.accel = imu.lin_accel.cast<double>();
+            input.gyro = imu.ang_vel.cast<double>();
+            input.dt = imu.dt;
 
             // Propagate IMU measurement
-            double dt = imu.dt;
             this->mtx_ikfom.lock();
-            this->_iKFoM.predict(dt, Q, in);
+            this->_iKFoM->predict(input);
             this->mtx_ikfom.unlock();
 
             // Save propagated state for motion compensation
             this->mtx_prop.lock();
-            this->propagated_buffer.push_front( fast_limo::State(this->_iKFoM.get_x(), 
+            this->propagated_buffer.push_front( fast_limo::State(this->_iKFoM->getState(), 
                                                                 imu.stamp, imu.lin_accel, imu.ang_vel)
                                                 );
             this->mtx_prop.unlock();
@@ -627,12 +620,6 @@
         }
 
         void Localizer::propagateImu(double t1, double t2){
-
-            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
-            Q.block<3, 3>(0, 0) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(3, 3) = config.ikfom.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
 
             boost::circular_buffer<IMUmeas>::reverse_iterator begin_imu_it;
             boost::circular_buffer<IMUmeas>::reverse_iterator end_imu_it;
@@ -649,17 +636,16 @@
             this->mtx_ikfom.lock();
             this->mtx_prop.lock();
 
-            input_ikfom input;
-            double dt;
+            lie_odyssey::IMUmeas input;
             for (; imu_it != end_imu_it; imu_it++) {
                 const IMUmeas& imu = *imu_it;
 
-                input.acc  = imu.lin_accel.cast<double>();
+                input.accel = imu.lin_accel.cast<double>();
                 input.gyro = imu.ang_vel.cast<double>();
-                dt = imu.dt;
+                input.dt = imu.dt;
 
-                this->_iKFoM.predict(dt, Q, input);
-                this->propagated_buffer.push_front( fast_limo::State(this->_iKFoM.get_x(), 
+                this->_iKFoM->predict(input);
+                this->propagated_buffer.push_front( fast_limo::State(this->_iKFoM->getState(), 
                                                                 imu.stamp, imu.lin_accel, imu.ang_vel)
                                                     );
             }
@@ -677,18 +663,33 @@
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         void Localizer::init_iKFoM() {
+
+            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
+            Q.block<3, 3>(0, 0) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(3, 3) = config.ikfom.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
+            Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
+
             // Initialize IKFoM
-            this->_iKFoM.init_dyn_share(
-                IKFoM::get_f,
-                IKFoM::df_dx,
-                IKFoM::df_dw,
-                IKFoM::h_share_model,
-                config.ikfom.MAX_NUM_ITERS,
-                config.ikfom.LIMITS
-            );
+            this->_iKFoM = std::make_unique<iESEKF::Filter>(
+                iESEKF::Filter::MatDoF::Identity()*Scalar(1e-3),
+                Q,
+                iESEKF::f,
+                iESEKF::df_dx,
+                iESEKF::df_dw
+            )
+            this->_iKFoM->setMaxIters(config.ikfom.MAX_NUM_ITERS);
+            this->_iKFoM->setTolerance(config.ikfom.LIMITS);
         }
 
         void Localizer::init_iKFoM_state() {
+
+            /*To-Do
+                - set initial extrinsics
+                - no need for initial pose + velocity (check)
+                - set initial covariance
+            */
+        
             state_ikfom init_state = this->_iKFoM.get_x();
             init_state.rot = this->state.q.cast<double> ();
             init_state.pos = this->state.p.cast<double> ();
@@ -837,7 +838,7 @@
             pcl::PointCloud<PointType>::Ptr deskewed_Xt2_scan_ (fast_limo::make_shared<pcl::PointCloud<PointType>>());
             deskewed_Xt2_scan_->points.resize(deskewed_scan_->points.size());
 
-            this->last_state = fast_limo::State(this->_iKFoM.get_x()); // baselink/body frame
+            this->last_state = fast_limo::State(this->_iKFoM->getState()); // baselink/body frame
 
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int k = 0; k < deskewed_scan_->points.size(); k++) {

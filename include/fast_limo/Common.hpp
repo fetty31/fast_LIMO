@@ -59,8 +59,8 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
     return out.str();
 }
 
-// FASTLIOv2
-#include "IKFoM/use-ikfom.hpp"
+// LieOdyssey
+#include <lie_odyssey/lie_odyssey.hpp>
 
 // Boost
 #include <boost/format.hpp>

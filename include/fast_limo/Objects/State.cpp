@@ -35,30 +35,38 @@
         }
 
 
-        fast_limo::State::State(const state_ikfom& s){
+        fast_limo::State::State(const iESEKF::Bundle& s){
+
+            // Here using Manif member functions (won't work for LiePlusPlus backend)
+
+            auto SGal3 = s.subgroup<0>();       // pose + velocity
+            auto SE3 = s.subgroup<1>();         // LiDAR extrinsics
+            auto bg = s.subgroup<2>();          // gyro bias
+            auto ba = s.subgroup<3>();          // accel bias
+            auto gravity = s.subgroup<4>();     // gravity
 
             // Odom
-            this->q = s.rot.cast<float>();
-            this->p = s.pos.cast<float>();
-            this->v = s.vel.cast<float>();
+            this->q = SGal3.quat();
+            this->p = SGal3.translation();
+            this->v = SGal3.linearVelocity();
 
             // Gravity
-            this->g = s.grav.get_vect().cast<float>();
+            this->g = gravity.coeffs();
 
             // IMU bias
-            this->b.gyro = s.bg.cast<float>();
-            this->b.accel = s.ba.cast<float>();
+            this->b.gyro = bg.coeffs();
+            this->b.accel = ba.coeffs();
 
             // Offset LiDAR-IMU
-            this->qLI = s.offset_R_L_I.cast<float>();
-            this->pLI = s.offset_T_L_I.cast<float>();
+            this->qLI = SE3.quat();
+            this->pLI = SE3.translation();
         }
 
-        fast_limo::State::State(const state_ikfom& s, double t) : fast_limo::State::State(s) { 
+        fast_limo::State::State(const iESEKF::Bundle& s, double t) : fast_limo::State::State(s) { 
             this->time = t;
         }
         
-        fast_limo::State::State(const state_ikfom& s, double t,
+        fast_limo::State::State(const iESEKF::Bundle& s, double t,
                                 Eigen::Vector3f a, Eigen::Vector3f w) : fast_limo::State::State(s, t) {
             this->a = a;
             this->w = w;
