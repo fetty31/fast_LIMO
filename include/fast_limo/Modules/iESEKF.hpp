@@ -29,19 +29,18 @@ using Bundle = lie_odyssey::BundleManif<float,
 
 using Filter = lie_odyssey::iESEKF<Bundle>;
 using Scalar = typename Filter::Scalar;
-static constexpr int DoF = Filter::DoF;
 
 using Measurement = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, DoF>; // Measurement Jacobian (N measurement x Group DoF)
+using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, Bundle::DoF>; // Measurement Jacobian (N measurement x Group DoF)
 
 // Propagation model (IMU dynamics)
-static typename Filter::Tangent f(const Filter& /*f*/, const IMUmeas& imu);
+static typename Filter::Tangent f(const Filter& /*kf*/, const IMUmeas& imu);
 
 // Jacobians of the dynamics
-static typename Filter::Jacobian df_dx(const Filter&, const IMUmeas&);
+static typename Filter::Jacobian df_dx(const Filter& /*kf*/, const IMUmeas& /*imu*/);
 
-static typename Filter::MappingMatrix df_dw(const Filter&, const IMUmeas&);
+static typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const IMUmeas& /*imu*/);
 
-void H_fun(const Filter& /*f*/, const Bundle& /*X_now*/, Measurement& /*z*/, HMat& /*H*/);
+void H_fun(const Filter& /*kf*/, const Bundle& /*X_now*/, Measurement& /*z*/, HMat& /*H*/);
 
 } // namespace fast_limo::iESEKF 

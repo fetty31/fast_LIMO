@@ -37,8 +37,7 @@ class fast_limo::Localizer {
         pcl::PointCloud<PointType>::Ptr pc2match; // pointcloud to match in Xt2 (last_state) frame
 
     private:
-        // Iterated Kalman Filter on Manifolds (FASTLIOv2)
-        // esekfom::esekf<state_ikfom, 12, input_ikfom> _iKFoM;
+        // Iterated Error State Kalman Filter on Manifolds
         std::unique_ptr<fast_limo::iESEKF::Filter> _iKFoM;
         std::mutex mtx_ikfom;
 

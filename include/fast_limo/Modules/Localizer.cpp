@@ -552,11 +552,11 @@
         /////////////////////////////////          KF measurement model        /////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Localizer::calculate_H(const state_ikfom& s, const Matches& matches, Eigen::MatrixXd& H, Eigen::VectorXd& z){
+        void Localizer::calculate_H(const iESEKF::Bundle& s, const Matches& matches, iESEKF::Measurement& z, iESEKF::HMat& H){
             
             int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
 
-            H = Eigen::MatrixXd::Zero(N, 12);
+            H = Eigen::MatrixXd::Zero(N, iESEKF::Bundle::DoF);
             z.resize(N);
             State S(s);
 
@@ -564,27 +564,31 @@
             #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
-                Eigen::Vector4f p4_imu   = S.get_RT_inv() /*world2baselink*/ * match.get_4Dglobal();
-                Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ * p4_imu;
+                Eigen::Vector4f p4_lidar = S.get_extr_RT_inv() /* baselink2lidar */ *  match.get_4Dlocal();
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
-                // Rotation matrices
-                Eigen::Matrix3f R_inv = s.rot.conjugate().toRotationMatrix().cast<float>();
-                Eigen::Matrix3f I_R_L_inv = s.offset_R_L_I.conjugate().toRotationMatrix().cast<float>();
-
                 // Set correct dimensions
-                Eigen::Vector3f p_lidar, p_imu, n;
-                p_lidar = p4_lidar.head(3);
-                p_imu   = p4_imu.head(3);
-                n       = normal.head(3);
+                Eigen::Vector3d p_lidar, n;
+                p_lidar = p4_lidar.head(3).cast<double>();
+                n       = normal.head(3).cast<double>();
 
-                // Calculate measurement Jacobian H (:= dh/dx)
-                Eigen::Vector3f C = R_inv * n;
-                Eigen::Vector3f B = p_lidar.cross(I_R_L_inv * C);
-                Eigen::Vector3f A = p_imu.cross(C);
-                
-                H.block<1, 6>(i,0) << n(0), n(1), n(2), A(0), A(1), A(2);
-                if (config.ikfom.estimate_extrinsics) H.block<1, 6>(i,6) << B(0), B(1), B(2), C(0), C(1), C(2);
+                // 1. Compute jacobian w.r.t. extrinsic
+                Eigen::Matrix<double, 3, manif::SE3<double>::DoF> J_dE; // jacobian SE3 action := J_dE ​= d(E * p_lidar)/dE (where E:=extrinsic SE3 group)
+                Eigen::Vector3d p_imu = s.subgroup<1>().act(p_lidar, J_dE);
+
+                // 2. Propagate through state (chain rule)
+                Eigen::Matrix<double, 3, manif::SE3<double>::DoF> J_extr;
+                Eigen::Vector3d g = s.subgroup<0>().act(p_imu, J_extr, J_dE);
+
+                // 3. Fill H with extrinsic part
+                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<double>::DoF>(i, manif::SGal3<double>::DoF) << n.transpose() * J_extr;
+
+                // 4. Compute jacobian w.r.t. state
+                Eigen::Matrix<double, 3, manif::SGal3<double>::DoF> J_dX; // jacobian SGal3 action := J_dX ​= d(G * p_imu)/dX​
+                s_state.subgroup<0>().act(p_imu, J_dX);
+
+                // 5. Fill H with state part
+                H.block<1, manif::SGal3<double>::DoF>(i, 0) = n.transpose() * J_dX;
 
                 // Measurement: distance to the closest plane
                 z(i) = -match.dist;

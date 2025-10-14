@@ -37,7 +37,7 @@
 
         fast_limo::State::State(const iESEKF::Bundle& s){
 
-            // Here using Manif member functions (won't work for LiePlusPlus backend)
+            // NOTE: Here we're using Manif member functions (won't work for LiePlusPlus backend)
 
             auto SGal3 = s.subgroup<0>();       // pose + velocity
             auto SE3 = s.subgroup<1>();         // LiDAR extrinsics
