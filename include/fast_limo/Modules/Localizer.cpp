@@ -501,11 +501,11 @@
 
                     this->state.q.normalize();
 
-                    // Set initial KF state
-                    this->init_iKFoM_state();
-
                     // Set calib flag
                     this->imu_calibrated_ = true;
+
+                    // Set initial KF state
+                    this->init_iKFoM_state();
 
                     // Initial attitude
                     auto euler = this->state.q.toRotationMatrix().eulerAngles(2, 1, 0);
@@ -676,7 +676,7 @@
 
             // Initialize IKFoM
             this->_iKFoM = std::make_unique<iESEKF::Filter>(
-                iESEKF::Filter::MatDoF::Identity()*Scalar(1e-3),
+                iESEKF::Filter::MatDoF::Identity()*1.0e-6,
                 Q,
                 iESEKF::f,
                 iESEKF::df_dx,
@@ -689,32 +689,33 @@
         void Localizer::init_iKFoM_state() {
 
             /*To-Do
-                - set initial extrinsics
-                - no need for initial pose + velocity (check)
                 - set initial covariance
             */
-        
-            state_ikfom init_state = this->_iKFoM.get_x();
-            init_state.rot = this->state.q.cast<double> ();
-            init_state.pos = this->state.p.cast<double> ();
-            init_state.grav = /*MTK::*/S2(Eigen::Vector3d(0., 0., -this->gravity_));
-            init_state.bg = this->state.b.gyro.cast<double>();
-            init_state.ba = this->state.b.accel.cast<double>();
 
-            // set up offsets (LiDAR -> BaseLink transform == LiDAR pose w.r.t. BaseLink)
-            init_state.offset_R_L_I = /*MTK::*/SO3(this->extr.lidar2baselink.R.cast<double>());
-            init_state.offset_T_L_I = this->extr.lidar2baselink.t.cast<double>();
-            this->_iKFoM.change_x(init_state); // set initial state
+            using NativeBundle = manif::Bundle<float, 
+                                            manif::SGal3,  // pose + velocity 
+                                            manif::SE3,    // LiDAR extrinsics
+                                            manif::R3,     // angular velocity bias
+                                            manif::R3,     // acceleration bias
+                                            manif::R3      // gravity 
+                                            >;
 
-            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = this->_iKFoM.get_P();
-            init_P.setIdentity();
-            init_P(6,6) = init_P(7,7) = init_P(8,8) = 0.000001;
-            init_P(9,9) = init_P(10,10) = init_P(11,11) = 0.000001;
-            init_P(15,15) = init_P(16,16) = init_P(17,17) = 0.00001;
-            init_P(18,18) = init_P(19,19) = init_P(20,20) = 0.0001;
-            init_P(21,21) = init_P(22,22) = 0.000001; 
-            
-            this->_iKFoM.change_P(init_P);
+            Eigen::Vector3f gravity = (this->imu_calibrated_) ? this->state.g : Eigen::Vector3d(0., 0., -this->gravity_);
+            Eigen::Vector3f lidar_p = this->extr.lidar2baselink.t;
+            Eigen::Quaternionf lidar_q(this->extr.lidar2baselink.R);
+
+            auto X0 = NativeBundle(manif::SGal3d(0., 0., 0.,                         // x y z                  0
+                                                0., 0., 0.,                          // roll pitch yaw         6
+                                                0., 0., 0.,                          // vx, vy, vz             3
+                                                0.),                                 // delta t                9
+                                    manif::SE3(lidar_p, lidar_q),                    // LiDAR extrinsics      10       
+                                    manif::R3d(this->state.b.gyro),                  // b_w                   16
+                                    manif::R3d(this->state.b.accel),                 // b_a                   19
+                                    manif::R3d(gravity)                              // gravity               22
+                                );  
+            auto X0_group = iESEKF::Bundle(X0); // cast to lie_odyssey type  
+
+            this->_iKFoM->setState(X0_group); // set initial state
         }
 
         IMUmeas Localizer::imu2baselink(IMUmeas& imu){

@@ -34,13 +34,13 @@ using Measurement = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, Bundle::DoF>; // Measurement Jacobian (N measurement x Group DoF)
 
 // Propagation model (IMU dynamics)
-static typename Filter::Tangent f(const Filter& /*kf*/, const IMUmeas& imu);
+static typename Filter::Tangent f(const Filter& kf, const IMUmeas& imu);
 
 // Jacobians of the dynamics
-static typename Filter::Jacobian df_dx(const Filter& /*kf*/, const IMUmeas& /*imu*/);
+static typename Filter::Jacobian df_dx(const Filter& kf, const IMUmeas& imu);
 
 static typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const IMUmeas& /*imu*/);
 
-void H_fun(const Filter& /*kf*/, const Bundle& /*X_now*/, Measurement& /*z*/, HMat& /*H*/);
+void H_fun(const Filter& /*kf*/, const Bundle& X_now, Measurement& z, HMat& H);
 
 } // namespace fast_limo::iESEKF 
