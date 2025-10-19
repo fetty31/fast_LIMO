@@ -15,11 +15,13 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <lie_odyssey.hpp>
+#include <lie_odyssey/lie_odyssey.hpp>
 
 namespace fast_limo::iESEKF {
 
-using Bundle = lie_odyssey::BundleManif<float, 
+using Scalar = float;
+
+using Bundle = lie_odyssey::BundleManif<Scalar, 
                                     manif::SGal3,  // pose + velocity 
                                     manif::SE3,    // LiDAR extrinsics
                                     manif::R3,     // angular velocity bias
@@ -27,8 +29,9 @@ using Bundle = lie_odyssey::BundleManif<float,
                                     manif::R3      // gravity (To-Do make it S2 group)
                                     >;
 
-using Filter = lie_odyssey::iESEKF<Bundle>;
-using Scalar = typename Filter::Scalar;
+using Group = lie_odyssey::LieGroup<Bundle>;
+
+using Filter = lie_odyssey::iESEKF<Group>;
 
 using Measurement = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, Bundle::DoF>; // Measurement Jacobian (N measurement x Group DoF)
@@ -41,6 +44,6 @@ static typename Filter::Jacobian df_dx(const Filter& kf, const IMUmeas& imu);
 
 static typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const IMUmeas& /*imu*/);
 
-void H_fun(const Filter& /*kf*/, const Bundle& X_now, Measurement& z, HMat& H);
+void H_fun(const Filter& /*kf*/, const Group& X_now, Measurement& z, HMat& H);
 
 } // namespace fast_limo::iESEKF 

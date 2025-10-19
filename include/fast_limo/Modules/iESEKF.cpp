@@ -74,7 +74,7 @@ static typename Filter::MappingMatrix fast_limo::iESEKF::df_dw(const Filter& /*k
     return Jw;
 }
 
-void fast_limo::iESEKF::H_fun(const Filter& /*kf*/, const Bundle& X_now, Measurement& z, HMat& H)
+void fast_limo::iESEKF::H_fun(const Filter& /*kf*/, const Group& X_now, Measurement& z, HMat& H)
 {
     fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
 	fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();

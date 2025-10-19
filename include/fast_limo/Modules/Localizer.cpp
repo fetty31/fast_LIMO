@@ -210,8 +210,8 @@
             if(not this->is_calibrated())
                 return std::vector<double>(36, 0);
 
-            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
-            Eigen::Matrix<double, 6, 6> P_pose;
+            auto P = this->_iKFoM->getCovariance();
+            Eigen::Matrix<iESEKF::Scalar, 6, 6> P_pose;
             P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3);
             P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0);
             P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3);
@@ -227,8 +227,8 @@
             if(not this->is_calibrated())
                 return std::vector<double>(36, 0);
 
-            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
-            Eigen::Matrix<double, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
+            auto P = this->_iKFoM->getCovariance();
+            Eigen::Matrix<iESEKF::Scalar, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
             P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6);
             P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
 
@@ -328,10 +328,12 @@
                 // Call Mapper obj
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
 
-                    // Update iKFoM measurements (after prediction)
-                this->_iKFoM->update(0.001 /*LiDAR noise*/,
-                                    iESEKF::H_fun /*Measurement function*/);
-                /*NOTE: update_iterated_dyn_share_modified() will trigger the matching procedure ( see "iESEKF.cpp" )
+                // Update iKFoM measurements 
+                this->_iKFoM->update
+                        <iESEKF::Measurement, 
+                        iESEKF::HMat> (0.001 /*LiDAR noise*/,
+                                        iESEKF::H_fun /*Measurement function*/);
+                /*NOTE: update() will trigger the matching procedure ( see "iESEKF.cpp" )
                 in order to update the measurement stage of the KF with the computed point-to-plane distances*/
 
                 map.matches.clear(); // clear matches vector for next iteration
@@ -552,13 +554,17 @@
         /////////////////////////////////          KF measurement model        /////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        void Localizer::calculate_H(const iESEKF::Bundle& s, const Matches& matches, iESEKF::Measurement& z, iESEKF::HMat& H){
+        void Localizer::calculate_H(const iESEKF::Group& group, const Matches& matches, iESEKF::Measurement& z, iESEKF::HMat& H){
             
             int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
 
             H = Eigen::MatrixXd::Zero(N, iESEKF::Bundle::DoF);
             z.resize(N);
-            State S(s);
+
+            iESEKF::Bundle s = group.impl(); // ManifBundle object
+            State S(group);
+
+            using Scalar = iESEKF::Scalar;
 
             // For each match, calculate its derivative and distance
             #pragma omp parallel for num_threads(this->num_threads_)
@@ -568,27 +574,29 @@
                 Eigen::Vector4f normal   = match.plane.get_normal();
 
                 // Set correct dimensions
-                Eigen::Vector3d p_lidar, n;
-                p_lidar = p4_lidar.head(3).cast<double>();
-                n       = normal.head(3).cast<double>();
+                Eigen::Vector3f p_lidar, n;
+                p_lidar = p4_lidar.head(3);
+                n       = normal.head(3);
 
                 // 1. Compute jacobian w.r.t. extrinsic
-                Eigen::Matrix<double, 3, manif::SE3<double>::DoF> J_dE; // jacobian SE3 action := J_dE ​= d(E * p_lidar)/dE (where E:=extrinsic SE3 group)
-                Eigen::Vector3d p_imu = s.subgroup<1>().act(p_lidar, J_dE);
+                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_dE; // jacobian SE3 action := J_dE ​= d(E * p_lidar)/dE (where E:=extrinsic SE3 group)
+                manif::SE3<Scalar> SE3_s = s.subgroup<1>();
+                Eigen::Vector3f p_imu = SE3_s.act(p_lidar, J_dE);
 
                 // 2. Propagate through state (chain rule)
-                Eigen::Matrix<double, 3, manif::SE3<double>::DoF> J_extr;
-                Eigen::Vector3d g = s.subgroup<0>().act(p_imu, J_extr, J_dE);
+                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr;
+                manif::SGal3<Scalar> SGal3_s = s.subgroup<0>();
+                Eigen::Vector3f g = SGal3_s.act(p_imu, J_extr, J_dE);
 
                 // 3. Fill H with extrinsic part
-                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<double>::DoF>(i, manif::SGal3<double>::DoF) << n.transpose() * J_extr;
+                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << n.transpose() * J_extr;
 
                 // 4. Compute jacobian w.r.t. state
-                Eigen::Matrix<double, 3, manif::SGal3<double>::DoF> J_dX; // jacobian SGal3 action := J_dX ​= d(G * p_imu)/dX​
-                s_state.subgroup<0>().act(p_imu, J_dX);
+                Eigen::Matrix<Scalar, 3, manif::SGal3<Scalar>::DoF> J_dX; // jacobian SGal3 action := J_dX ​= d(G * p_imu)/dX​
+                SGal3_s.act(p_imu, J_dX);
 
                 // 5. Fill H with state part
-                H.block<1, manif::SGal3<double>::DoF>(i, 0) = n.transpose() * J_dX;
+                H.block<1, manif::SGal3<Scalar>::DoF>(i, 0) = n.transpose() * J_dX;
 
                 // Measurement: distance to the closest plane
                 z(i) = -match.dist;
@@ -668,11 +676,11 @@
 
         void Localizer::init_iKFoM() {
 
-            Eigen::Matrix<double, 12, 12> Q = Eigen::Matrix<double, 12, 12>::Identity();
-            Q.block<3, 3>(0, 0) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(3, 3) = config.ikfom.cov_acc * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(6, 6) = config.ikfom.cov_bias_gyro * Eigen::Matrix<double, 3, 3>::Identity();
-            Q.block<3, 3>(9, 9) = config.ikfom.cov_bias_acc * Eigen::Matrix<double, 3, 3>::Identity();
+            iESEKF::Filter::NoiseMatrix Q = iESEKF::Filter::NoiseMatrix::Identity();
+            Q.block<3, 3>(0, 0) = static_cast<iESEKF::Scalar>(config.ikfom.cov_gyro) * Eigen::Matrix<iESEKF::Scalar, 3, 3>::Identity();
+            Q.block<3, 3>(3, 3) = static_cast<iESEKF::Scalar>(config.ikfom.cov_acc) * Eigen::Matrix<iESEKF::Scalar, 3, 3>::Identity();
+            Q.block<3, 3>(6, 6) = static_cast<iESEKF::Scalar>(config.ikfom.cov_bias_gyro) * Eigen::Matrix<iESEKF::Scalar, 3, 3>::Identity();
+            Q.block<3, 3>(9, 9) = static_cast<iESEKF::Scalar>(config.ikfom.cov_bias_acc) * Eigen::Matrix<iESEKF::Scalar, 3, 3>::Identity();
 
             // Initialize IKFoM
             this->_iKFoM = std::make_unique<iESEKF::Filter>(
@@ -681,9 +689,12 @@
                 iESEKF::f,
                 iESEKF::df_dx,
                 iESEKF::df_dw
-            )
+            );
             this->_iKFoM->setMaxIters(config.ikfom.MAX_NUM_ITERS);
-            this->_iKFoM->setTolerance(config.ikfom.LIMITS);
+
+            assert(config.ikfom.LIMITS.size() > 0);
+
+            this->_iKFoM->setTolerance(config.ikfom.LIMITS[0]);
         }
 
         void Localizer::init_iKFoM_state() {
@@ -700,20 +711,20 @@
                                             manif::R3      // gravity 
                                             >;
 
-            Eigen::Vector3f gravity = (this->imu_calibrated_) ? this->state.g : Eigen::Vector3d(0., 0., -this->gravity_);
+            Eigen::Vector3f gravity = (this->imu_calibrated_) ? this->state.g : Eigen::Vector3f(0., 0., -this->gravity_);
             Eigen::Vector3f lidar_p = this->extr.lidar2baselink.t;
             Eigen::Quaternionf lidar_q(this->extr.lidar2baselink.R);
 
-            auto X0 = NativeBundle(manif::SGal3d(0., 0., 0.,                         // x y z                  0
+            auto X0 = NativeBundle(manif::SGal3f(0., 0., 0.,                         // x y z                  0
                                                 0., 0., 0.,                          // roll pitch yaw         6
                                                 0., 0., 0.,                          // vx, vy, vz             3
                                                 0.),                                 // delta t                9
-                                    manif::SE3(lidar_p, lidar_q),                    // LiDAR extrinsics      10       
-                                    manif::R3d(this->state.b.gyro),                  // b_w                   16
-                                    manif::R3d(this->state.b.accel),                 // b_a                   19
-                                    manif::R3d(gravity)                              // gravity               22
+                                    manif::SE3f(lidar_p, lidar_q),                    // LiDAR extrinsics      10       
+                                    manif::R3f(this->state.b.gyro),                  // b_w                   16
+                                    manif::R3f(this->state.b.accel),                 // b_a                   19
+                                    manif::R3f(gravity)                              // gravity               22
                                 );  
-            auto X0_group = iESEKF::Bundle(X0); // cast to lie_odyssey type  
+            auto X0_group = iESEKF::Group(iESEKF::Bundle(X0)); // cast to lie_odyssey type  
 
             this->_iKFoM->setState(X0_group); // set initial state
         }

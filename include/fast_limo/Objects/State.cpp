@@ -35,9 +35,10 @@
         }
 
 
-        fast_limo::State::State(const iESEKF::Bundle& s){
+        fast_limo::State::State(const iESEKF::Group& g){
 
             // NOTE: Here we're using Manif member functions (won't work for LiePlusPlus backend)
+            iESEKF::Bundle s = g.impl(); // access backend group (BundleManif in this case)
 
             auto SGal3 = s.subgroup<0>();       // pose + velocity
             auto SE3 = s.subgroup<1>();         // LiDAR extrinsics
@@ -62,12 +63,12 @@
             this->pLI = SE3.translation();
         }
 
-        fast_limo::State::State(const iESEKF::Bundle& s, double t) : fast_limo::State::State(s) { 
+        fast_limo::State::State(const iESEKF::Group& g, double t) : fast_limo::State::State(g) { 
             this->time = t;
         }
         
-        fast_limo::State::State(const iESEKF::Bundle& s, double t,
-                                Eigen::Vector3f a, Eigen::Vector3f w) : fast_limo::State::State(s, t) {
+        fast_limo::State::State(const iESEKF::Group& g, double t,
+                                Eigen::Vector3f a, Eigen::Vector3f w) : fast_limo::State::State(g, t) {
             this->a = a;
             this->w = w;
         }

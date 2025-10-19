@@ -18,6 +18,9 @@ link_directories(${PCL_LIBRARY_DIRS})
 find_package( Eigen3 REQUIRED )
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+find_package( lie_odyssey REQUIRED )
+include_directories(${LIE_ODYSSEY_INCLUDE_DIRS})
+
 include(FindOpenMP)
 if(OPENMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -45,6 +48,7 @@ include_directories(
   include
   ${EIGEN3_INLCUDE_DIRS}
   ${PCL_INLCUDE_DIRS}
+  ${LIE_ODYSSEY_INCLUDE_DIRS}
 )
 
 # Not all machines have <cpuid.h> available
@@ -58,17 +62,6 @@ endif()
 
 message("PCL version: ${PCL_VERSION}")
 
-# IKFOM
-add_library(ikfom
-            include/IKFoM/IKFoM_toolkit
-            include/IKFoM/use-ikfom.cpp
-            )
-
-target_link_libraries(ikfom ${PCL_LIBRARIES} ${OpenMP_LIBS})
-target_include_directories(ikfom
-  PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit 
-)
-
 # Fast LIMO
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
@@ -80,7 +73,7 @@ add_library(${PROJECT_NAME}
             include/fast_limo/Objects/Octree.hpp
             )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} ikfom)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenMP_LIBS} lie_odyssey::lie_odyssey_cpp)
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec

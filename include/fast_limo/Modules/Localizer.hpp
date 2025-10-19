@@ -174,7 +174,7 @@ class fast_limo::Localizer {
         fast_limo::SensorType get_sensor_type();
 
         // iKFoM measurement model
-        void calculate_H(const state_ikfom&, const Matches&, Eigen::MatrixXd& H, Eigen::VectorXd& h);
+        void calculate_H(const iESEKF::Group&, const Matches&, iESEKF::Measurement&, iESEKF::HMat&);
 
         // Backpropagation
         void propagateImu(const IMUmeas& imu);

@@ -151,7 +151,7 @@ namespace fast_limo {
 	}
 #endif
 
-}
+} // namespace fast_limo
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(fast_limo::Point,
                                  (float, x, x)

@@ -47,9 +47,9 @@ class fast_limo::State{
         } b;                    // IMU bias in base_link/body frame 
 
         State();
-        State(const iESEKF::Bundle& s);
-        State(const iESEKF::Bundle& s, double t);
-        State(const iESEKF::Bundle& s, double t, Eigen::Vector3f a, Eigen::Vector3f w);
+        State(const iESEKF::Group& s);
+        State(const iESEKF::Group& s, double t);
+        State(const iESEKF::Group& s, double t, Eigen::Vector3f a, Eigen::Vector3f w);
         State(Eigen::Matrix4f& s);
 
         void operator+=(const State& s);
