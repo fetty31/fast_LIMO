@@ -66,6 +66,7 @@ message("PCL version: ${PCL_VERSION}")
 add_library(${PROJECT_NAME} 
             include/fast_limo/Modules/Localizer.cpp
             include/fast_limo/Modules/Mapper.cpp
+            include/fast_limo/Modules/iESEKF.cpp
 
             include/fast_limo/Objects/State.cpp
             include/fast_limo/Objects/Plane.cpp

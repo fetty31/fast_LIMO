@@ -211,11 +211,11 @@
                 return std::vector<double>(36, 0);
 
             auto P = this->_iKFoM->getCovariance();
-            Eigen::Matrix<iESEKF::Scalar, 6, 6> P_pose;
-            P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3);
-            P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0);
-            P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3);
-            P_pose.block<3, 3>(3, 3) = P.block<3, 3>(0, 0);
+            Eigen::Matrix<double, 6, 6> P_pose;
+            P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3).cast<double>();
+            P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0).cast<double>();
+            P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3).cast<double>();
+            P_pose.block<3, 3>(3, 3) = P.block<3, 3>(0, 0).cast<double>();
 
             std::vector<double> cov(P_pose.size());
             Eigen::Map<Eigen::MatrixXd>(cov.data(), P_pose.rows(), P_pose.cols()) = P_pose;
@@ -228,8 +228,8 @@
                 return std::vector<double>(36, 0);
 
             auto P = this->_iKFoM->getCovariance();
-            Eigen::Matrix<iESEKF::Scalar, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
-            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6);
+            Eigen::Matrix<double, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
+            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6).cast<double>();
             P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
 
             std::vector<double> cov(P_odom.size());
@@ -558,7 +558,7 @@
             
             int N = (matches.size() > config.ikfom.mapping.MAX_NUM_MATCHES) ? config.ikfom.mapping.MAX_NUM_MATCHES : matches.size();
 
-            H = Eigen::MatrixXd::Zero(N, iESEKF::Bundle::DoF);
+            H = iESEKF::HMat::Zero(N, iESEKF::Bundle::DoF);
             z.resize(N);
 
             iESEKF::Bundle s = group.impl(); // ManifBundle object
@@ -583,17 +583,19 @@
                 manif::SE3<Scalar> SE3_s = s.subgroup<1>();
                 Eigen::Vector3f p_imu = SE3_s.act(p_lidar, J_dE);
 
-                // 2. Propagate through state (chain rule)
-                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr;
-                manif::SGal3<Scalar> SGal3_s = s.subgroup<0>();
-                Eigen::Vector3f g = SGal3_s.act(p_imu, J_extr, J_dE);
-
-                // 3. Fill H with extrinsic part
-                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << n.transpose() * J_extr;
-
-                // 4. Compute jacobian w.r.t. state
+                // 2. Compute jacobian w.r.t. state
                 Eigen::Matrix<Scalar, 3, manif::SGal3<Scalar>::DoF> J_dX; // jacobian SGal3 action := J_dX ​= d(G * p_imu)/dX​
+                manif::SGal3<Scalar> SGal3_s = s.subgroup<0>();
                 SGal3_s.act(p_imu, J_dX);
+
+                // 3. Propagate through state (chain rule)
+                // Chain SE3->SGal3 manually (only translation + rotation affect position)
+                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr;
+                J_extr.block<3,3>(0,0) = J_dX.block<3,3>(0,0) * J_dE.block<3,3>(0,0);   // translation
+                J_extr.block<3,3>(0,3) = J_dX.block<3,3>(0,3) * J_dE.block<3,3>(0,3);   // rotation
+                
+                // 4. Fill H with extrinsic part
+                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << n.transpose() * J_extr;
 
                 // 5. Fill H with state part
                 H.block<1, manif::SGal3<Scalar>::DoF>(i, 0) = n.transpose() * J_dX;

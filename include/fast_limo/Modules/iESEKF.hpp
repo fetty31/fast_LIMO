@@ -14,6 +14,7 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+#pragma once
 
 #include <lie_odyssey/lie_odyssey.hpp>
 
@@ -37,12 +38,12 @@ using Measurement = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, Bundle::DoF>; // Measurement Jacobian (N measurement x Group DoF)
 
 // Propagation model (IMU dynamics)
-static typename Filter::Tangent f(const Filter& kf, const IMUmeas& imu);
+typename Filter::Tangent f(const Filter& kf, const lie_odyssey::IMUmeas& imu);
 
 // Jacobians of the dynamics
-static typename Filter::Jacobian df_dx(const Filter& kf, const IMUmeas& imu);
+typename Filter::Jacobian df_dx(const Filter& kf, const lie_odyssey::IMUmeas& imu);
 
-static typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const IMUmeas& /*imu*/);
+typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const lie_odyssey::IMUmeas& /*imu*/);
 
 void H_fun(const Filter& /*kf*/, const Group& X_now, Measurement& z, HMat& H);
 
