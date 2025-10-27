@@ -18,8 +18,15 @@ typename Filter::Tangent fast_limo::iESEKF::f(const Filter& kf, const lie_odysse
 	// xi = [ rho(3); nu(3); theta(3); s(1) ] 
     typename Filter::VecTangent t = Filter::VecTangent::Zero();
 
-	auto g = kf.getState().impl().subgroup<4>().coeffs(); 					// gravity vector estimate
-	auto R = kf.getState().impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
+	Group X = kf.getState(); 
+	auto g = X.impl().subgroup<4>().coeffs(); 					// gravity vector estimate
+	auto R = X.impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
+
+	std::cout
+                << "Gravity :: " << g(0) << " "
+                                << g(1) << " "
+                                << g(2)
+                << "|" << std::endl;
 
 	// rho (position): zero
 
@@ -30,7 +37,7 @@ typename Filter::Tangent fast_limo::iESEKF::f(const Filter& kf, const lie_odysse
 	t.template segment<3>(6) = (imu.gyro - imu.bias.gyro /* -n_w */).cast<Scalar>();
 
 	// s (time)
-	t(9) = 1;
+	t(9) = Scalar(1);
 
     return t; // cast to Tangent
 }
@@ -44,11 +51,18 @@ typename Filter::Jacobian fast_limo::iESEKF::df_dx(const Filter& kf, const lie_o
 
     Filter::Jacobian Jx = Filter::Jacobian::Zero();
 
-	auto g = kf.getState().impl().subgroup<4>().coeffs(); 					// gravity estimate
-	auto R = kf.getState().impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
+	Group X = kf.getState(); 
+	auto g = X.impl().subgroup<4>().coeffs(); 					// gravity estimate
+	auto R = X.impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
+
+	std::cout
+                << "Gravity :: " << g(0) << " "
+                                << g(1) << " "
+                                << g(2)
+                << "|" << std::endl;
 
 	// velocity 
-    Jx.block<3, 3>(3,  6) = -R.transpose()*manif::skew(g);	     		// w.r.t R := d(R^t*g)/dR 
+    Jx.block<3, 3>(3,  6) = -R.transpose() * manif::skew(g);	        // w.r.t R := d(R^t*g)/dR 
     Jx.block<3, 3>(3, 19) = -Eigen::Matrix<Scalar,3,3>::Identity();     // w.r.t b_a 
     Jx.block<3, 3>(3, 22) =  R.transpose(); 				 	 		// w.r.t g
 

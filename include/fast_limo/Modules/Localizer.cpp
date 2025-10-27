@@ -160,7 +160,7 @@
             if(not this->is_calibrated())
                 return State();
 
-            State out = this->_iKFoM->getState();
+            State out = fast_limo::State(this->_iKFoM->getState());
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
@@ -177,7 +177,7 @@
             if(not this->is_calibrated())
                 return State();
 
-            State out = this->_iKFoM->getState();
+            State out = fast_limo::State(this->_iKFoM->getState());
 
             out.w    = this->last_imu.ang_vel;                      // set last IMU meas
             out.a    = this->last_imu.lin_accel;                    // set last IMU meas
@@ -328,6 +328,12 @@
                 // Call Mapper obj
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
 
+                std::cout 
+                << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p(0), 4) + " "
+                                            + to_string_with_precision(this->state.p(1), 4) + " "
+                                            + to_string_with_precision(this->state.p(2), 4)
+                << "|" << std::endl;
+
                 // Update iKFoM measurements 
                 this->_iKFoM->update
                         <iESEKF::Measurement, 
@@ -340,6 +346,12 @@
 
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM->getState());
+
+                std::cout 
+                << "Position     {W}  [xyz] :: " + to_string_with_precision(corrected_state.p(0), 4) + " "
+                                            + to_string_with_precision(corrected_state.p(1), 4) + " "
+                                            + to_string_with_precision(corrected_state.p(2), 4)
+                << "|" << std::endl;
 
                 // Set estimated biases & gravity to constant
                 if(this->config.calibrate_gyro)  corrected_state.b.gyro  = this->state.b.gyro;
@@ -463,6 +475,7 @@
                     Eigen::Vector3f grav_vec (0., 0., this->gravity_);
 
                     this->state.q = imu.q;
+                    this->state.g = -grav_vec;
 
                     if (this->config.gravity_align) {
 
@@ -478,7 +491,7 @@
                         this->state.q = grav_q;
 
                         // set estimated gravity vector
-                        this->state.g = grav_vec;
+                        this->state.g = -grav_vec;
 
                     }
 
@@ -686,7 +699,7 @@
 
             // Initialize IKFoM
             this->_iKFoM = std::make_unique<iESEKF::Filter>(
-                iESEKF::Filter::MatDoF::Identity()*1.0e-6,
+                iESEKF::Filter::MatDoF::Identity()*1.0e-3f,
                 Q,
                 iESEKF::f,
                 iESEKF::df_dx,
@@ -729,6 +742,22 @@
             auto X0_group = iESEKF::Group(iESEKF::Bundle(X0)); // cast to lie_odyssey type  
 
             this->_iKFoM->setState(X0_group); // set initial state
+
+            iESEKF::Group X = this->_iKFoM->getState(); 
+            auto g = X.impl().subgroup<4>().coeffs(); 			
+            auto p = X.impl().subgroup<0>().translation();	           
+
+            std::cout
+                << "Gravity INIT :: " << g(0) << " "
+                                << g(1) << " "
+                                << g(2)
+                << "|" << std::endl;
+
+            std::cout
+                << "Position INIT :: " << p(0) << " "
+                                << p(1) << " "
+                                << p(2)
+                << "|" << std::endl;
         }
 
         IMUmeas Localizer::imu2baselink(IMUmeas& imu){
