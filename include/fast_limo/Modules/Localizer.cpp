@@ -337,7 +337,7 @@
                 // Update iKFoM measurements 
                 this->_iKFoM->update
                         <iESEKF::Measurement, 
-                        iESEKF::HMat> (0.001 /*LiDAR noise*/,
+                        iESEKF::HMat> (static_cast<iESEKF::Scalar>(config.ikfom.LIDAR_NOISE) /*LiDAR noise*/,
                                         iESEKF::H_fun /*Measurement function*/);
                 /*NOTE: update() will trigger the matching procedure ( see "iESEKF.cpp" )
                 in order to update the measurement stage of the KF with the computed point-to-plane distances*/
@@ -477,7 +477,7 @@
                     Eigen::Vector3f grav_vec (0., 0., this->gravity_);
 
                     this->state.q = imu.q;
-                    this->state.g = -grav_vec;
+                    this->state.g = grav_vec;
 
                     if (this->config.gravity_align) {
 
@@ -493,7 +493,7 @@
                         this->state.q = grav_q;
 
                         // set estimated gravity vector
-                        this->state.g = -grav_vec;
+                        this->state.g = grav_vec;
 
                     }
 
@@ -799,7 +799,7 @@
                                             manif::R3      // gravity 
                                             >;
 
-            Eigen::Vector3f gravity = (this->imu_calibrated_) ? this->state.g : Eigen::Vector3f(0., 0., -this->gravity_);
+            Eigen::Vector3f gravity = (this->imu_calibrated_) ? this->state.g : Eigen::Vector3f(0., 0., this->gravity_);
 
             Eigen::Vector3f lidar_p = this->extr.lidar2baselink.t;                  // position of LiDAR w.r.t baselink
             Eigen::Quaternionf lidar_q(this->extr.lidar2baselink.R.transpose());    // orientation of LiDAR w.r.t baselink

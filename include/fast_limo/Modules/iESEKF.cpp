@@ -22,16 +22,10 @@ typename Filter::Tangent fast_limo::iESEKF::f(const Filter& kf, const lie_odysse
 	auto g = X.impl().subgroup<4>().coeffs(); 					// gravity vector estimate
 	auto R = X.impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
 
-	std::cout
-                << "Gravity :: " << g(0) << " "
-                                << g(1) << " "
-                                << g(2)
-                << "|" << std::endl;
-
 	// rho (position): zero
 
 	// nu (linear acceleration contribution)
-	t.template segment<3>(3) = (imu.accel - imu.bias.accel /* -n_a */).cast<Scalar>() + R.transpose() * g;
+	t.template segment<3>(3) = (imu.accel - imu.bias.accel /* -n_a */).cast<Scalar>() - R.transpose() * g;
 
 	// theta (angular velocity contribution)
 	t.template segment<3>(6) = (imu.gyro - imu.bias.gyro /* -n_w */).cast<Scalar>();
@@ -55,16 +49,10 @@ typename Filter::Jacobian fast_limo::iESEKF::df_dx(const Filter& kf, const lie_o
 	auto g = X.impl().subgroup<4>().coeffs(); 					// gravity estimate
 	auto R = X.impl().subgroup<0>().quat().toRotationMatrix();	// orientation estimate
 
-	std::cout
-                << "Gravity :: " << g(0) << " "
-                                << g(1) << " "
-                                << g(2)
-                << "|" << std::endl;
-
 	// velocity 
-    Jx.block<3, 3>(3,  6) = -R.transpose() * manif::skew(g);	        // w.r.t R := d(R^t*g)/dR 
+    Jx.block<3, 3>(3,  6) = -manif::skew(R.transpose() * g);	        // w.r.t R := d(R^t*g)/dR 
     Jx.block<3, 3>(3, 19) = -Eigen::Matrix<Scalar,3,3>::Identity();     // w.r.t b_a 
-    Jx.block<3, 3>(3, 22) =  R.transpose(); 				 	 		// w.r.t g
+    Jx.block<3, 3>(3, 22) = -R.transpose(); 				 	 		// w.r.t g
 
     // rotation
     Jx.block<3, 3>(6, 16) = -Eigen::Matrix<Scalar,3,3>::Identity();     // w.r.t b_w

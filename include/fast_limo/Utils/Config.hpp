@@ -69,6 +69,7 @@ struct fast_limo::Config{
         } mapping;
 
         int MAX_NUM_ITERS;          // max num of iterations of the extended KF
+        double LIDAR_NOISE;         // measurement noise
         std::vector<double> LIMITS;
         bool estimate_extrinsics;   // whether to estimate extrinsics or assume fixed
         double cov_gyro;            // covariance ang. velocity

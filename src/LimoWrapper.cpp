@@ -295,6 +295,8 @@ namespace ros2wrap {
                 config->ikfom.mapping.MAX_NUM_PC2MATCH = max_pc_p.as_int();
                 rclcpp::Parameter limits_p = this->get_parameter("iKFoM.LIMITS");
                 config->ikfom.LIMITS = std::vector<double>(1, limits_p.as_double());
+                rclcpp::Parameter lidar_n_p = this->get_parameter("iKFoM.LIDAR_NOISE");
+                config->ikfom.LIDAR_NOISE = lidar_n_p.as_double();
 
                 // Mapping
                 rclcpp::Parameter match_point_p = this->get_parameter("iKFoM.Mapping.NUM_MATCH_POINTS");
