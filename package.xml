@@ -9,8 +9,12 @@
 
   <license>Apache License 3.0</license>
 
+  <!-- Build tools -->
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <!-- Mejor como buildtool_depend (recomendado por ROS2) -->
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
+  <!-- Dependencias del nodo / runtime -->
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
@@ -19,14 +23,22 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>pcl_conversions</depend>
+  <depend>std_msgs</depend>
+  <depend>nano_gicp</depend>
+  <depend>kiss_matcher</depend>
+
+  <!-- Runtime para las interfaces generadas -->
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
   <exec_depend>ros2launch</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
+  <!-- IMPORTANTE: nivel superior, fuera de <export> -->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
-
 </package>

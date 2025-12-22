@@ -48,6 +48,10 @@ namespace ros2wrap {
             rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr map_bb_pub;
             rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr match_points_pub;
 
+                // services
+            rclcpp::Service<fast_limo::srv::SendPointCloud>::SharedPtr send_pc_srv_;
+            rclcpp::Service<fast_limo::srv::SaveMap>::SharedPtr save_map_srv_;
+
                 // TF 
             std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -64,43 +68,56 @@ namespace ros2wrap {
                     fast_limo::Localizer& LOC = fast_limo::Localizer::getInstance();
                     fast_limo::Mapper& MAP = fast_limo::Mapper::getInstance();
 
-                    // Load config
-                    fast_limo::Config config;
-                    this->loadConfig(&config);
+                // Load config
+                fast_limo::Config config;
+                this->loadConfig(&config);
 
-                    rclcpp::Parameter tf_pub = this->get_parameter("frames.tf_pub");
-                    this->publish_tf = tf_pub.as_bool();
+                rclcpp::Parameter tf_pub = this->get_parameter("frames.tf_pub");
+                this->publish_tf = tf_pub.as_bool();
 
-                    // Define two callback groups (ensure parallel execution of lidar_callback & imu_callback)
-                    rclcpp::SubscriptionOptions lidar_opt, imu_opt;
-                    lidar_opt.callback_group = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-                    imu_opt.callback_group = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+                // Define two callback groups (ensure parallel execution of lidar_callback & imu_callback)
+                rclcpp::SubscriptionOptions lidar_opt, imu_opt;
+                lidar_opt.callback_group = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+                imu_opt.callback_group   = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-                    // Set up subscribers
-                    lidar_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-                                    config.topics.lidar, 1, std::bind(&LimoWrapper::lidar_callback, this, std::placeholders::_1), lidar_opt);
-                    imu_sub_   = this->create_subscription<sensor_msgs::msg::Imu>(
-                                    config.topics.imu, 1000, std::bind(&LimoWrapper::imu_callback, this, std::placeholders::_1), imu_opt);
-                    
-                    // Set up publishers
-                    pc_pub      = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/pointcloud", 1);
-                    state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/state", 1);
+                // Set up subscribers
+                lidar_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+                    config.topics.lidar, 1,
+                    std::bind(&LimoWrapper::lidar_callback, this, std::placeholders::_1),
+                    lidar_opt);
 
-                    orig_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/original", 1);
-                    desk_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/deskewed", 1);
-                    match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/match", 1);
-                    finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/final_raw", 1);
-                    body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body", 1);
-                    match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
+                imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+                    config.topics.imu, 1000,
+                    std::bind(&LimoWrapper::imu_callback, this, std::placeholders::_1),
+                    imu_opt);
+                
+                // Set up publishers
+                pc_pub      = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/pointcloud", 1);
+                state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/state", 1);
 
-                    // Init TF broadcaster
-                    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+                orig_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/original", 1);
+                desk_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/deskewed", 1);
+                match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/match", 1);
+                finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/final_raw", 1);
+                body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body_state", 1);
+                match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
 
-                    // Initialize Localizer
-                    LOC.init(config);
-                }
+                // Init TF broadcaster
+                tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+                // Services (ROS1: send_pointcloud, save_map)
+                using std::placeholders::_1;
+                using std::placeholders::_2;
+                using std::placeholders::_3;
+
+                send_pc_srv_ = this->create_service<fast_limo::srv::SendPointCloud>("/fast_limo/send_pointcloud", std::bind(&LimoWrapper::receivePointCloud, this, _1, _2, _3));
+                save_map_srv_ = this->create_service<fast_limo::srv::SaveMap>("/fast_limo/save_map", std::bind(&LimoWrapper::saveMap, this, _1, _2, _3));
+
+                // Initialize Localizer
+                LOC.init(config);
+            }
             
-            private:
+        private:
             
             /* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
                ///////////////////////////////////////             Callbacks            ///////////////////////////////////////////////////////////// 
@@ -180,6 +197,67 @@ namespace ros2wrap {
                 // TF broadcasting
                 if(this->publish_tf)
                     this->broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+            }
+
+            /* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+               ///////////////////////////////////////             Services            ///////////////////////////////////////////////////////////// 
+               ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */
+
+            void receivePointCloud(const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                                   const std::shared_ptr<fast_limo::srv::SendPointCloud::Request> req,
+                                   std::shared_ptr<fast_limo::srv::SendPointCloud::Response> res) {
+
+                const sensor_msgs::msg::PointCloud2 & pc_ros = req->pointcloud;
+
+                pcl::PointCloud<PointType>::Ptr pc_(new pcl::PointCloud<PointType>());
+                pcl::fromROSMsg(pc_ros, *pc_);
+
+                RCLCPP_INFO(this->get_logger(), "FAST_LIMO:: Map received with %zu points", pc_->points.size());
+
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+                map.load_map(pc_);
+
+                res->success = true;
+            }
+
+            void saveMap(
+                const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                const std::shared_ptr<fast_limo::srv::SaveMap::Request> req,
+                std::shared_ptr<fast_limo::srv::SaveMap::Response> res)
+            {
+                std::string full_path = req->full_path.data;
+
+                RCLCPP_INFO(this->get_logger(),
+                            "FAST_LIMO:: Saving map to %s",
+                            full_path.c_str());
+
+                // First: get the full map
+                pcl::PointCloud<PointType>::Ptr full_map(new pcl::PointCloud<PointType>());
+                fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
+
+                if (map.get_map(full_map)) {
+                    RCLCPP_INFO(this->get_logger(),
+                                "FAST_LIMO:: Map has %zu points",
+                                full_map->points.size());
+                } else {
+                    RCLCPP_ERROR(this->get_logger(),
+                                 "FAST_LIMO:: Map is empty or not initialized");
+                    res->success = false;
+                    return;
+                }
+
+                // Second: save the map
+                if (pcl::io::savePCDFileBinary(full_path, *full_map) == 0) {
+                    RCLCPP_INFO(this->get_logger(),
+                                "FAST_LIMO:: Map saved to %s",
+                                full_path.c_str());
+                    res->success = true;
+                } else {
+                    RCLCPP_ERROR(this->get_logger(),
+                                 "FAST_LIMO:: Failed to save the map to %s",
+                                 full_path.c_str());
+                    res->success = false;
+                }
             }
 
         /* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 

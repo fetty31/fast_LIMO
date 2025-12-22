@@ -394,7 +394,7 @@
                 }
 
                 // Add scan to map
-                map.add(mapped_scan, this->scan_stamp);
+                if(!map.is_relocated()) map.add(mapped_scan, this->scan_stamp);
 
             }else
                 std::cout << "-------------- FAST_LIMO::NULL ITERATION --------------\n";

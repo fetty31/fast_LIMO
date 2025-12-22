@@ -40,6 +40,10 @@ class fast_limo::Mapper {
 
         int num_threads_;
 
+        bool relocated_;
+
+        std::mutex map_mtx_;
+
     public:
         Matches matches;
 
@@ -54,13 +58,19 @@ class fast_limo::Mapper {
         bool exists();
         int size();
         double last_time();
+        bool is_relocated();
 
         Matches match(State, pcl::PointCloud<PointType>::Ptr&);
 
         void add(pcl::PointCloud<PointType>::Ptr&, double time);
 
+        void load_map(pcl::PointCloud<PointType>::Ptr& full_map);
+        bool get_map(pcl::PointCloud<PointType>::Ptr& pc);
+
     private:
         Match match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local);
+
+        void get_full_map(pcl::PointCloud<PointType>::Ptr& pc);
 
     // Singleton 
 

@@ -20,7 +20,7 @@
 // class fast_limo::Mapper
     // public
 
-        Mapper::Mapper() : last_map_time(-1.), num_threads_(1){
+        Mapper::Mapper() : last_map_time(-1.), num_threads_(1), relocated_(false) {
 
             // Init cfg values
             this->config.NUM_MATCH_POINTS = 5;
@@ -39,9 +39,11 @@
             this->config = cfg;
 
             // Init octree values
+            map_mtx_.lock();
             octree_.setBucketSize(this->config.octree.bucket_size);
             octree_.setDownsample(this->config.octree.downsampling);
             octree_.setMinExtent(this->config.octree.min_extent);
+            map_mtx_.unlock();
         }
                 
         bool Mapper::exists(){
@@ -54,6 +56,10 @@
 
         double Mapper::last_time(){
             return this->last_map_time;
+        }
+
+        bool Mapper::is_relocated(){
+            return this->relocated_;
         }
 
         Matches Mapper::match(State s, pcl::PointCloud<PointType>::Ptr& pc){
@@ -95,6 +101,24 @@
             this->last_map_time = time;
         }
 
+        void Mapper::load_map(pcl::PointCloud<PointType>::Ptr& full_map){
+
+            map_mtx_.lock();
+            octree_.initialize(full_map); // reset octree with received map
+            this->relocated_ = true;
+            std::cout << "FAST_LIMO::Mapper new octree created\n";
+            map_mtx_.unlock();
+        }
+
+        bool Mapper::get_map(pcl::PointCloud<PointType>::Ptr& pc){
+            
+            if(not this->exists()) return false;
+            this->get_full_map(pc);
+            return pc->points.size() > 0;
+
+        }
+
+
     // private
 
         Match Mapper::match_plane(Eigen::Vector4f& p, Eigen::Vector4f& p_local) {
@@ -111,4 +135,19 @@
             MapPoints near_points(neighbors.begin(), neighbors.end());
             // Construct a plane fitting between them
             return Match( p.head(3), p_local.head(3), Plane (near_points, pointSearchSqDis, &config) );
+        }
+
+        void Mapper::get_full_map(pcl::PointCloud<PointType>::Ptr& pc){
+            
+            MapPoints map_vec = this->octree_.getData<MapPoint, MapPoints>();
+                        
+            pc->points.resize(map_vec.size());
+            for(int i = 0; i < map_vec.size(); i++){
+                pc->points[i].x = map_vec[i].x;
+                pc->points[i].y = map_vec[i].y;
+                pc->points[i].z = map_vec[i].z;
+            }
+            
+            pc->width = pc->points.size();
+            pc->height = 1;
         }

@@ -24,12 +24,17 @@
 #include "fast_limo/Common.hpp"
 #include "fast_limo/Modules/Localizer.hpp"
 #include "fast_limo/Modules/Mapper.hpp"
+#include "fast_limo/Modules/Relocator.hpp"
+
+#include <fast_limo/srv/send_point_cloud.hpp>
+#include <fast_limo/srv/save_map.hpp>
 
 // ROS
 #include "rclcpp/rclcpp.hpp"
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp> 
 
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>

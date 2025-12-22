@@ -77,6 +77,7 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/pcl_config.h>
+#include <pcl/filters/passthrough.h>
 
 namespace fast_limo {
   enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };
@@ -84,6 +85,7 @@ namespace fast_limo {
     // MODULES
   class Localizer;
   class Mapper;
+  class Relocator;
 
     // OBJECTS
   class State;
@@ -95,6 +97,7 @@ namespace fast_limo {
 
     // UTILS
   struct Config;
+  struct RelocaConfig;
 
     // STRUCTURES
   struct Point {
