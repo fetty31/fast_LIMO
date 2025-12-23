@@ -132,7 +132,7 @@ namespace ros2wrap {
                     throw std::runtime_error("FAST_LIMO::FATAL ERROR: invalid pointcloud structure\n\n");
                 }
 
-                pcl::PointCloud<PointType>::Ptr pc_ (std::make_shared<pcl::PointCloud<PointType>>());
+                pcl::PointCloud<PointType>::Ptr pc_ (fast_limo::make_shared<pcl::PointCloud<PointType>>());
                 pcl::fromROSMsg(msg, *pc_);
 
                 loc.updatePointCloud(pc_, rclcpp::Time(msg.header.stamp).seconds());

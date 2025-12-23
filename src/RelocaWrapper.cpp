@@ -66,7 +66,7 @@ private:
   {
     if(map_sent_) return; 
 
-    pcl::PointCloud<PointType>::Ptr pc (std::make_shared<pcl::PointCloud<PointType>>());
+    pcl::PointCloud<PointType>::Ptr pc (fast_limo::make_shared<pcl::PointCloud<PointType>>());
     pcl::fromROSMsg(msg, *pc);
 
     auto& reloca = Relocator::getInstance();
