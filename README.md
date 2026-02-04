@@ -92,8 +92,10 @@ git checkout ros2-humble-relocation
 
    ```bash
    # In the same workspace where you build fast_limo:
-   git clone https://github.com/fetty31/nano_gicp.git
+   git clone --branch ros2-colcon https://github.com/fetty31/nano_gicp.git
    ```
+
+_NOTE: If the above dependencies are not properly installed, Fast-LIMO will still compile but without the relocation feature._
 
 ### 4. Build Fast-LIMO
 

@@ -10,6 +10,8 @@ endif()
 
 set(CMAKE_BUILD_TYPE "Release")
 
+option(ENABLE_RELOCATION "Enable relocation module if dependencies are available" ON)
+
 find_package( PCL 1.12 REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -49,7 +51,7 @@ find_package(kiss_matcher QUIET)
 find_package(TBB QUIET)
 
 set(USE_RELOCATION FALSE)
-if(robin_FOUND AND kiss_matcher_FOUND AND TBB_FOUND)
+if(ENABLE_RELOCATION AND robin_FOUND AND kiss_matcher_FOUND AND TBB_FOUND)
   message(STATUS "ROBIN, KISS-Matcher and TBB found: enabling relocation features.")
   set(USE_RELOCATION TRUE)
   add_compile_definitions(USE_RELOCATION)
@@ -86,29 +88,42 @@ target_include_directories(ikfom
   PUBLIC include/IKFoM/ include/IKFoM/IKFoM_toolkit 
 )
 
+set(FAST_LIMO_CORE_SOURCES
+  include/fast_limo/Modules/Localizer.cpp
+  include/fast_limo/Modules/Mapper.cpp
+
+  include/fast_limo/Objects/State.cpp
+  include/fast_limo/Objects/Plane.cpp
+  include/fast_limo/Objects/Match.cpp
+  include/fast_limo/Objects/Octree.hpp
+)
+
+if(USE_RELOCATION)
+  list(APPEND FAST_LIMO_CORE_SOURCES
+    include/fast_limo/Modules/Relocator.cpp
+  )
+endif()
+
 # Fast LIMO
-add_library(${PROJECT_NAME}_core
-            include/fast_limo/Modules/Localizer.cpp
-            include/fast_limo/Modules/Mapper.cpp
-            include/fast_limo/Modules/Relocator.cpp
+add_library(${PROJECT_NAME}_core ${FAST_LIMO_CORE_SOURCES})
 
-            include/fast_limo/Objects/State.cpp
-            include/fast_limo/Objects/Plane.cpp
-            include/fast_limo/Objects/Match.cpp
-            include/fast_limo/Objects/Octree.hpp
-            )
-
-ament_target_dependencies(${PROJECT_NAME}_core nano_gicp)
-
-target_compile_options(${PROJECT_NAME}_core PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME}_core
   ${PCL_LIBRARIES}
   ${OpenMP_LIBS}
   ikfom
-  TBB::tbb
-  kiss_matcher::kiss_matcher_core
-  robin::robin
 )
+
+target_compile_options(${PROJECT_NAME}_core PRIVATE ${OpenMP_FLAGS})
+
+if(USE_RELOCATION)
+  target_link_libraries(${PROJECT_NAME}_core
+    TBB::tbb
+    kiss_matcher::kiss_matcher_core
+    robin::robin
+  )
+  ament_target_dependencies(${PROJECT_NAME}_core nano_gicp)
+endif()
+
 
 # ROS execs
 add_executable(${PROJECT_NAME}_multi_exec
@@ -117,20 +132,24 @@ add_executable(${PROJECT_NAME}_multi_exec
 ament_target_dependencies(${PROJECT_NAME}_multi_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros pcl_conversions)
 target_link_libraries(${PROJECT_NAME}_multi_exec ${PROJECT_NAME}_core ${PCL_LIBRARIES})
 
-add_executable(${PROJECT_NAME}_reloca_exec
-              src/RelocaWrapper.cpp
-              )
-ament_target_dependencies(${PROJECT_NAME}_reloca_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros pcl_conversions)
-target_link_libraries(${PROJECT_NAME}_reloca_exec ${PROJECT_NAME}_core ${PCL_LIBRARIES})
+if(USE_RELOCATION)
+  add_executable(${PROJECT_NAME}_reloca_exec
+                src/RelocaWrapper.cpp
+                )
+  ament_target_dependencies(${PROJECT_NAME}_reloca_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros pcl_conversions)
+  target_link_libraries(${PROJECT_NAME}_reloca_exec ${PROJECT_NAME}_core ${PCL_LIBRARIES})
+endif()
 
 # Binaries
 install( TARGETS 
   ${PROJECT_NAME}_multi_exec
   DESTINATION lib/${PROJECT_NAME} )
 
-install( TARGETS
-  ${PROJECT_NAME}_reloca_exec
-  DESTINATION lib/${PROJECT_NAME} )
+if(USE_RELOCATION)
+  install( TARGETS
+    ${PROJECT_NAME}_reloca_exec
+    DESTINATION lib/${PROJECT_NAME} )
+endif()
 
 # Install launch files.
 install(DIRECTORY
@@ -146,9 +165,21 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES std_msgs sensor_msgs
 )
 
-rosidl_target_interfaces(${PROJECT_NAME}_multi_exec ${PROJECT_NAME} "rosidl_typesupport_cpp")
+rosidl_get_typesupport_target(
+  cpp_typesupport_target
+  ${PROJECT_NAME}
+  "rosidl_typesupport_cpp"
+)
 
-rosidl_target_interfaces(${PROJECT_NAME}_reloca_exec ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(${PROJECT_NAME}_multi_exec
+  ${cpp_typesupport_target}
+)
+
+if(USE_RELOCATION)
+target_link_libraries(${PROJECT_NAME}_reloca_exec
+  ${cpp_typesupport_target}
+)
+endif()
 
 ament_export_dependencies(rosidl_default_runtime)
 
