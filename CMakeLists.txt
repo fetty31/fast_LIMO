@@ -12,7 +12,7 @@ set(CMAKE_BUILD_TYPE "Release")
 
 option(ENABLE_RELOCATION "Enable relocation module if dependencies are available" ON)
 
-find_package( PCL 1.12 REQUIRED )
+find_package( PCL 1.10 REQUIRED )
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_directories(${PCL_LIBRARY_DIRS})
