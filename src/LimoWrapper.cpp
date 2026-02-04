@@ -26,6 +26,7 @@ namespace ros2wrap {
 
         public:
             std::string world_frame;
+            std::string nav_frame;
             std::string body_frame;
 
             bool publish_tf;
@@ -191,12 +192,31 @@ namespace ros2wrap {
                 this->fromLimoToROS(loc.getWorldState(), loc.getPoseCovariance(), loc.getTwistCovariance(), state_msg);
                 this->fromLimoToROS(loc.getBodyState(), loc.getPoseCovariance(), loc.getTwistCovariance(), body_msg);
 
+                // Fill frame id's
+                state_msg.header.frame_id = world_frame;
+                state_msg.child_frame_id  = body_frame;
+                body_msg.header.frame_id  = world_frame;
+                body_msg.child_frame_id   = body_frame;
+
                 this->state_pub->publish(state_msg);
                 this->body_pub->publish(body_msg);
 
                 // TF broadcasting
-                if(this->publish_tf)
-                    this->broadcastTF(loc.getWorldState(), world_frame, body_frame, true);
+                if(this->publish_tf){
+                    // Broadcast navigation tf (odom in 2D)
+                    fast_limo::State state_3D = loc.getWorldState();
+                    fast_limo::State state_2D = state_3D;
+                    state_2D.p(2) = 0.0f; // remove z coordinate
+
+                    this->broadcastTF(state_2D, nav_frame, body_frame, true); // body -> nav
+                    
+                    // Broadcast odom tf (keeping the TF tree intact)
+                    fast_limo::State from2Dto3D;
+                    from2Dto3D.time = state_3D.time; // share timestamp
+                    from2Dto3D.p(2) = state_3D.p(2); // z coordinate
+
+                    this->broadcastTF(from2Dto3D, world_frame, nav_frame, true); // nav -> world
+                }
             }
 
             /* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
@@ -275,8 +295,10 @@ namespace ros2wrap {
                 // Frames
                 rclcpp::Parameter world_p = this->get_parameter("frames.world");
                 rclcpp::Parameter body_p = this->get_parameter("frames.body");
+                rclcpp::Parameter nav_p = this->get_parameter("frames.nav");
                 this->world_frame = world_p.as_string();
                 this->body_frame = body_p.as_string();
+                this->nav_frame = nav_p.as_string();
 
                 // General
                 rclcpp::Parameter n_thread_p = this->get_parameter("num_threads");

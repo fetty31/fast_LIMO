@@ -8,8 +8,10 @@ fast_limo:
         imu: /ona2/sensors/imu_front/imu_uncalib
 
     frames: # output frames (the transform between frames will be broadcasted)
-      world: map
-      body: base_link
+      map: ona2/map         # saved map frame
+      world: ona2/odom      # 3D odometry frame (SLAM frame)
+      nav: ona2/odom_2D     # 2D odometry frame (navigation frame)
+      body: ona2/base_footprint  # robot local frame (baselink)
       tf_pub: true
       
     num_threads: 20 # OpenMP threads (will be equal to $(nproc) if it is set higher)

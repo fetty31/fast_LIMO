@@ -52,6 +52,8 @@ def generate_launch_description():
             'distance_threshold': 10.0,
             'inliers_threshold': 5,
             'score': 10000.0,
+            'frames.map': "ona2/map",
+            'frames.world': "ona2/odom"
         }]
     )
 

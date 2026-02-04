@@ -234,8 +234,16 @@ private:
     send_pc_srv_name_ = declare_parameter<std::string>("services.send_pointcloud", "/fast_limo/send_pointcloud");
 
     // Frames
-    map_frame_   = declare_parameter<std::string>("frames.map",   "ona2/map");
-    world_frame_ = declare_parameter<std::string>("frames.world", "ona2/odom");
+    map_frame_   = declare_parameter<std::string>("frames.map",   "map");
+    world_frame_ = declare_parameter<std::string>("frames.world", "odom");
+
+    if (!this->get_parameter("frames.map", map_frame_)) {
+      RCLCPP_WARN(this->get_logger(), "frames.map not set, using default /map");
+    }
+
+    if (!this->get_parameter("frames.world", world_frame_)) {
+      RCLCPP_WARN(this->get_logger(), "frames.world not set, using default /odom");
+    }
   }
 
   // ============================ Members ============================
