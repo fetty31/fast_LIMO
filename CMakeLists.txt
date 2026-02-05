@@ -145,6 +145,11 @@ install( TARGETS
   ${PROJECT_NAME}_multi_exec
   DESTINATION lib/${PROJECT_NAME} )
 
+install(TARGETS ikfom
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
+
 if(USE_RELOCATION)
   install( TARGETS
     ${PROJECT_NAME}_reloca_exec
