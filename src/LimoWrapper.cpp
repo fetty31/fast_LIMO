@@ -81,26 +81,47 @@ namespace ros2wrap {
                 lidar_opt.callback_group = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
                 imu_opt.callback_group   = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
+                // ---------------- QoS PROFILES ----------------
+
+                // IMU: realtime stream (do NOT retry old messages)
+                rclcpp::QoS qos_imu(rclcpp::KeepLast(50));
+                qos_imu.best_effort();
+                qos_imu.durability_volatile();
+
+                // LiDAR: only newest scan matters
+                rclcpp::QoS qos_lidar(rclcpp::KeepLast(1));
+                qos_lidar.best_effort();
+                qos_lidar.durability_volatile();
+
+                // State estimation output
+                rclcpp::QoS qos_odom(rclcpp::KeepLast(10));
+                qos_odom.reliable();
+                qos_odom.durability_volatile();
+
+                // ----------------------------------------------
+
                 // Set up subscribers
                 lidar_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-                    config.topics.lidar, 1,
+                    config.topics.lidar,
+                    qos_lidar,
                     std::bind(&LimoWrapper::lidar_callback, this, std::placeholders::_1),
                     lidar_opt);
 
                 imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-                    config.topics.imu, 1000,
+                    config.topics.imu,
+                    qos_imu,
                     std::bind(&LimoWrapper::imu_callback, this, std::placeholders::_1),
                     imu_opt);
                 
                 // Set up publishers
                 pc_pub      = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/pointcloud", 1);
-                state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/state", 1);
+                state_pub   = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/state", qos_odom);
 
                 orig_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/original", 1);
                 desk_pub     = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/deskewed", 1);
                 match_pub    = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/match", 1);
                 finalraw_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/final_raw", 1);
-                body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body_state", 1);
+                body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body_state", qos_odom);
                 match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
 
                 // Init TF broadcaster
