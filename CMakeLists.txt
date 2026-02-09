@@ -44,6 +44,7 @@ find_package(tf2_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 find_package(nano_gicp REQUIRED)
 
 find_package(robin QUIET)
@@ -167,7 +168,8 @@ install(DIRECTORY
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveMap.srv"
   "srv/SendPointCloud.srv"
-  DEPENDENCIES std_msgs sensor_msgs
+  "msg/ComputeStats.msg"
+  DEPENDENCIES std_msgs sensor_msgs builtin_interfaces
 )
 
 rosidl_get_typesupport_target(

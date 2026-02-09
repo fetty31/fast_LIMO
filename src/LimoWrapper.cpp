@@ -48,6 +48,7 @@ namespace ros2wrap {
             rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr body_pub;
             rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr map_bb_pub;
             rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr match_points_pub;
+            rclcpp::Publisher<fast_limo::msg::ComputeStats>::SharedPtr cpu_pub;
 
                 // services
             rclcpp::Service<fast_limo::srv::SendPointCloud>::SharedPtr send_pc_srv_;
@@ -124,6 +125,8 @@ namespace ros2wrap {
                 body_pub     = this->create_publisher<nav_msgs::msg::Odometry>("/fast_limo/body_state", qos_odom);
                 match_points_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/fast_limo/match_points", 1);
 
+                cpu_pub = this->create_publisher<fast_limo::msg::ComputeStats>("/fast_limo/cpu_stats", 1);
+
                 // Init TF broadcaster
                 tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
@@ -196,6 +199,13 @@ namespace ros2wrap {
                                                                                         this->world_frame
                                                                                         );
                 this->match_points_pub->publish(match_markers);
+
+                // Publish Compute stats
+                fast_limo::msg::ComputeStats cpu_msg;
+                cpu_msg.stamp = this->get_clock()->now();
+                loc.get_cpu_stats(cpu_msg.comput_time, cpu_msg.max_comput_time, cpu_msg.mean_comput_time,
+                                    cpu_msg.cpu_cores, cpu_msg.cpu_load, cpu_msg.cpu_max_load, cpu_msg.ram_usage_mb);
+                this->cpu_pub->publish(cpu_msg);
             }
 
             void imu_callback(const sensor_msgs::msg::Imu & msg) {

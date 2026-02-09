@@ -53,3 +53,5 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 #include <pcl_conversions/pcl_conversions.h>
+
+#include "fast_limo/msg/compute_stats.hpp"
