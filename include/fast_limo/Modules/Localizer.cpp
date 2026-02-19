@@ -328,12 +328,6 @@
                 // Call Mapper obj
                 fast_limo::Mapper& map = fast_limo::Mapper::getInstance();
 
-                std::cout 
-                << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p(0), 4) + " "
-                                            + to_string_with_precision(this->state.p(1), 4) + " "
-                                            + to_string_with_precision(this->state.p(2), 4)
-                << "|" << std::endl;
-
                 // Update iKFoM measurements 
                 this->_iKFoM->update
                         <iESEKF::Measurement, 
@@ -346,12 +340,6 @@
 
                     // Get output state from iKFoM
                 fast_limo::State corrected_state = fast_limo::State(this->_iKFoM->getState());
-
-                std::cout 
-                << "Position     {W}  [xyz] :: " + to_string_with_precision(corrected_state.p(0), 4) + " "
-                                            + to_string_with_precision(corrected_state.p(1), 4) + " "
-                                            + to_string_with_precision(corrected_state.p(2), 4)
-                << "|" << std::endl;
 
                 // Set estimated biases & gravity to constant
                 if(this->config.calibrate_gyro)  corrected_state.b.gyro  = this->state.b.gyro;
@@ -584,12 +572,6 @@
 
             State S(group); // transform to fast_limo::State obj
 
-            Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr_print;
-            Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr2_print;
-            Eigen::Matrix<Scalar, 3, manif::SGal3<Scalar>::DoF> J_dX_print;
-            Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_dE_print;
-            Eigen::Vector3f lidar_p_print, n_print, match_point, p_imu_print;
-
             // For each match, calculate its derivative and distance
             // #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
@@ -602,22 +584,9 @@
                 p_lidar = p4_lidar.head(3);
                 n       = normal.head(3);
 
-                // --------------- OLD JACOB EXTRINSICS ------------------
-                    // Rotation matrices
-                    Eigen::Matrix3f R_inv = S.q.toRotationMatrix().transpose().cast<Scalar>();
-                    Eigen::Matrix3f I_R_L_inv = S.qLI.toRotationMatrix().transpose().cast<Scalar>();
-                // ------------------------------------------------------
-
                 // 1. Compute jacobian w.r.t. extrinsic
                 Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_dE; // jacobian SE3 action := J_dE ​= d(E * p_lidar)/dE (where E:=extrinsic SE3 group)
                 Eigen::Vector3f p_imu = SE3_s.act(p_lidar, J_dE);
-
-                // --------------- OLD JACOB EXTRINSICS ------------------
-                    // Calculate measurement Jacobian H (:= dh/dx)
-                    Eigen::Vector3f C = R_inv * n;
-                    Eigen::Vector3f B = p_lidar.cross(I_R_L_inv * C);
-                    Eigen::Vector3f A = p_imu.cross(C);
-                // ------------------------------------------------------
 
                 // 2. Compute jacobian w.r.t. state
                 Eigen::Matrix<Scalar, 3, manif::SGal3<Scalar>::DoF> J_dX; // jacobian SGal3 action := J_dX ​= d(G * p_imu)/dX​
@@ -626,12 +595,7 @@
                 // 3. Fill H with state part
                 H.block<1, manif::SGal3<Scalar>::DoF>(i, 0) = n.transpose() * J_dX;
 
-                // 4. Propagate through state (chain rule)
-                // Chain SE3->SGal3 manually (only translation + rotation affect position)
-                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr;
-                J_extr.block<3,3>(0,0) = J_dX.block<3,3>(0,0) * J_dE.block<3,3>(0,0);   // translation
-                J_extr.block<3,3>(0,3) = J_dX.block<3,3>(0,6) * J_dE.block<3,3>(0,3);   // rotation
-
+                // 4. Extrinsics
                 Eigen::Isometry3f T;
                 T.linear() = S.q.toRotationMatrix();
                 T.translation() = S.p;
@@ -640,47 +604,15 @@
                 Textr.linear() = S.qLI.toRotationMatrix();
                 Textr.translation() = S.pLI;
 
-                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr2;
-                manif::SE3f(T * Textr).act(p_lidar, J_extr2);
+                Eigen::Matrix<Scalar, 3, manif::SE3<Scalar>::DoF> J_extr;
+                manif::SE3f(T * Textr).act(p_lidar, J_extr);
 
                 // 5. Fill H with extrinsic part
-                // if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << n.transpose() * J_dE;
-                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << C(0), C(1), C(2), B(0), B(1), B(2);
+                if (config.ikfom.estimate_extrinsics) H.block<1, manif::SE3<Scalar>::DoF>(i, manif::SGal3<Scalar>::DoF) << n.transpose() * J_extr;
                 
                 // Measurement: distance to the closest plane
                 z(i) = -match.dist;
 
-                if(i == 10){
-                    J_extr_print = J_extr;
-                    J_extr2_print = J_extr2;
-                    J_dX_print = J_dX;
-                    J_dE_print = J_dE;
-                    lidar_p_print = p_lidar;
-                    p_imu_print = p_imu;
-                    n_print = n;
-                    match_point = match.get_local_point();
-                }
-            }
-
-            if(N > 10){
-                std::cout << "MEASUREMENT MATRIX: \n";
-                std::cout << H.row(10) << std::endl;
-                std::cout << "EXTRINSICS JACOBIAN: \n";
-                std::cout << J_extr_print << std::endl;
-                std::cout << "EXTRINSICS 2 JACOBIAN: \n";
-                std::cout << J_extr2_print << std::endl;
-                std::cout << "STATE JACOBIAN: \n";
-                std::cout << J_dX_print << std::endl;
-                std::cout << "SE JACOBIAN: \n";
-                std::cout << J_dE_print << std::endl;
-                std::cout << "LIDAR POINT: \n";
-                std::cout << lidar_p_print << std::endl;
-                std::cout << "IMU POINT: \n";
-                std::cout << p_imu_print << std::endl;
-                std::cout << "PLANE NORMAL: \n";
-                std::cout << n_print << std::endl;
-                std::cout << "MATCH POINT: \n";
-                std::cout << match_point << std::endl;
             }
 
             if(this->config.debug) 
@@ -787,10 +719,6 @@
 
         void Localizer::init_iKFoM_state() {
 
-            /*To-Do
-                - set initial covariance
-            */
-
             using NativeBundle = manif::Bundle<float, 
                                             manif::SGal3,  // pose + velocity 
                                             manif::SE3,    // LiDAR extrinsics
@@ -819,23 +747,6 @@
             auto X0_group = iESEKF::Group(iESEKF::Bundle(X0)); // cast to lie_odyssey type  
 
             this->_iKFoM->setState(X0_group); // set initial state
-
-            iESEKF::Group X = this->_iKFoM->getState(); 
-            auto g = X.impl().subgroup<4>().coeffs(); 			
-            auto p = X.impl().subgroup<0>().translation();	           
-            
-            // Debug
-            std::cout
-                << "Gravity INIT :: " << g(0) << " "
-                                << g(1) << " "
-                                << g(2)
-                << "|" << std::endl;
-
-            std::cout
-                << "Position INIT :: " << p(0) << " "
-                                << p(1) << " "
-                                << p(2)
-                << "|" << std::endl;
         }
 
         IMUmeas Localizer::imu2baselink(IMUmeas& imu){

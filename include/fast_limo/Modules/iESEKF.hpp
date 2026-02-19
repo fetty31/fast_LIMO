@@ -32,7 +32,10 @@ using Bundle = lie_odyssey::BundleManif<Scalar,
 
 using Group = lie_odyssey::LieGroup<Bundle>;
 
-using Filter = lie_odyssey::iESEKF<Group>;
+using Filter  = lie_odyssey::iESEKF<Group>;
+using Tangent = Filter::Tangent;
+using MatDoF  = Filter::MatDoF;
+
 
 using Measurement = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 using HMat = Eigen::Matrix<Scalar, Eigen::Dynamic, Bundle::DoF>; // Measurement Jacobian (N measurement x Group DoF)
@@ -45,6 +48,10 @@ typename Filter::Jacobian df_dx(const Filter& kf, const lie_odyssey::IMUmeas& im
 
 typename Filter::MappingMatrix df_dw(const Filter& /*kf*/, const lie_odyssey::IMUmeas& /*imu*/);
 
+// Measurement function
 void H_fun(const Filter& /*kf*/, const Group& X_now, Measurement& z, HMat& H);
+
+// Degeneracy handler
+void degeneracy_callback(const Filter& /*kf*/, Tangent& dx, const MatDoF& HRH);
 
 } // namespace fast_limo::iESEKF 
