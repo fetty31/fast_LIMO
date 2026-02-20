@@ -11,12 +11,15 @@
 namespace fast_limo {
 namespace gauss_ivox {
 
+using Point = Eigen::Vector3d;
+using CovMat = Eigen::Matrix3d;
+
 /**
  * @brief Point representation carrying measurement uncertainty from Kalman Filter
  */
 struct PointCov {
-    Eigen::Vector3d pos;
-    Eigen::Matrix3d cov; 
+    Point pos;
+    CovMat cov; 
     double time;
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -26,36 +29,52 @@ struct PointCov {
  * @brief 3D Gaussian distribution with Bayesian update logic
  */
 struct GaussianModel {
-    Eigen::Vector3d mean;
-    Eigen::Matrix3d cov;
-    Eigen::Matrix3d info; 
+    Point mean;
+    CovMat cov;
     int count = 0;
 
     GaussianModel(const PointCov& pt) {
         mean = pt.pos;
         cov = pt.cov;
         count = 1;
-        updateInverse();
     }
 
-    void updateInverse() {
-        // Pseudo-inverse for numerical stability
-        info = (cov + Eigen::Matrix3d::Identity() * 1e-6).inverse();
-    }
-
+    /**
+     * @brief Bayesian Fusion using Kalman Gain via LDLT
+     */
     void fuse(const PointCov& pt) {
-        // Kalman-style Bayesian fusion
-        Eigen::Matrix3d K = cov * (cov + pt.cov).inverse();
-        mean = mean + K * (pt.pos - mean);
-        cov = (Eigen::Matrix3d::Identity() - Eigen::Matrix3d(K)) * cov;
+        // S = Innovation Covariance
+        CovMat S = cov + pt.cov;
+        
+        // Calculate Kalman Gain: K = Sigma_m * S^-1
+        // We use LDLT to solve (S * K^T = Sigma_m^T)
+        CovMat K = (S.ldlt().solve(cov)).transpose();
+        
+        // Update State (Mean)
+        mean += K * (pt.pos - mean);
+        
+        // Update Covariance (Joseph Form is more stable but standard form is faster here)
+        cov = (CovMat::Identity() - K) * cov;
+        
+        // Ensure Symmetry (Floating point drift can make 'cov' non-symmetric)
+        cov = 0.5 * (cov + cov.transpose().eval());
+        
         count++;
-        updateInverse();
     }
 
+    /**
+     * @brief Mahalanobis distance using LDLT solver instead of Inverse
+     */
     bool checkFit(const PointCov& pt, double threshold) const {
-        Eigen::Vector3d diff = pt.pos - mean;
-        double dist_sq = diff.transpose() * info * diff;
-        return dist_sq < threshold;
+        Point diff = pt.pos - mean;
+        
+        // Combine map and measurement uncertainty
+        CovMat S = cov + pt.cov;
+        
+        // solve: d2 = diff^T * S^-1 * diff
+        double d2 = diff.transpose() * S.ldlt().solve(diff);
+        
+        return d2 < threshold;
     }
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -68,12 +87,12 @@ using GaussianVector = std::vector<GaussianModel, Eigen::aligned_allocator<Gauss
  * @brief Octant node for local voxel refinement
  */
 struct Octant {
-    Eigen::Vector3d centroid;
+    Point centroid;
     double extent;
     GaussianVector gaussians;
     std::unique_ptr<Octant[]> children; 
 
-    Octant(const Eigen::Vector3d& c, double e) : centroid(c), extent(e), children(nullptr) {}
+    Octant(const Point& c, double e) : centroid(c), extent(e), children(nullptr) {}
     
     bool isLeaf() const { return children == nullptr; }
     
@@ -85,9 +104,9 @@ struct Octant {
 
         for (int i = 0; i < 8; ++i) {
             children[i].extent = extent * 0.5;
-            children[i].centroid.x() += ((i & 1) ? 0.5 : -0.5) * extent;
-            children[i].centroid.y() += ((i & 2) ? 0.5 : -0.5) * extent;
-            children[i].centroid.z() += ((i & 4) ? 0.5 : -0.5) * extent;
+            children[i].centroid(0) += ((i & 1) ? 0.5 : -0.5) * extent;
+            children[i].centroid(1) += ((i & 2) ? 0.5 : -0.5) * extent;
+            children[i].centroid(2) += ((i & 4) ? 0.5 : -0.5) * extent;
         }
     }
 
@@ -107,13 +126,13 @@ public:
         inv_res_ = 1.0 / opt_.voxel_res;
     }
 
-    void AddPoints(const std::vector<PointCov>& points) {
+    void addPoints(const std::vector<PointCov>& points) {
         for (const auto& pt : points) {
             Eigen::Vector3i key = pos2Key(pt.pos);
             auto it = grids_.find(key);
             if (it == grids_.end()) {
-                Eigen::Vector3d center = key.cast<double>() * opt_.voxel_res + 
-                                        Eigen::Vector3d::Constant(opt_.voxel_res * 0.5);
+                Point center = key.cast<double>() * opt_.voxel_res + 
+                                        Point::Constant(opt_.voxel_res * 0.5);
                 auto root = std::make_shared<Octant>(center, opt_.voxel_res * 0.5);
                 grids_[key] = root;
                 updateRecursive(root.get(), pt);
@@ -123,7 +142,7 @@ public:
         }
     }
 
-    void RadiusSearch(const Eigen::Vector3d& query, double radius, GaussianVector& results) {
+    void radiusSearch(const Point& query, double radius, GaussianVector& results) {
         double r2 = radius * radius;
         int r_voxels = std::ceil(radius * inv_res_);
         Eigen::Vector3i center_key = pos2Key(query);
@@ -138,7 +157,7 @@ public:
         }
     }
 
-    void KNN(const Eigen::Vector3d& query, int k, GaussianVector& neighbors) {
+    void knn(const Point& query, int k, GaussianVector& neighbors) {
         auto cmp = [](const std::pair<double, GaussianModel>& a, const std::pair<double, GaussianModel>& b) {
             return a.first < b.first;
         };
@@ -162,7 +181,7 @@ public:
         std::reverse(neighbors.begin(), neighbors.end());
     }
 
-    void CleanMap(int min_observations = 5, double max_variance = 0.5) {
+    void cleanMap(int min_observations = 5, double max_variance = 0.5) {
         auto it = grids_.begin();
         while (it != grids_.end()) {
             cleanRecursive(it->second.get(), min_observations, max_variance);
@@ -178,7 +197,7 @@ private:
         }
     };
 
-    Eigen::Vector3i pos2Key(const Eigen::Vector3d& p) const {
+    Eigen::Vector3i pos2Key(const Point& p) const {
         return (p * inv_res_).array().floor().cast<int>();
     }
 
@@ -198,10 +217,7 @@ private:
                 split(node);
             }
         } else {
-            int idx = 0;
-            if (pt.pos.x() > node->centroid.x()) idx |= 1;
-            if (pt.pos.y() > node->centroid.y()) idx |= 2;
-            if (pt.pos.z() > node->centroid.z()) idx |= 4;
+            size_t idx = mortonCode(pt.pos, node->centroid);
             updateRecursive(&node->children[idx], pt);
         }
     }
@@ -218,7 +234,7 @@ private:
         }
     }
 
-    void searchRecursive(Octant* node, const Eigen::Vector3d& q, double r2, GaussianVector& res) {
+    void searchRecursive(Octant* node, const Point& q, double r2, GaussianVector& res) {
         if (node->isLeaf()) {
             for (const auto& g : node->gaussians) {
                 if ((g.mean - q).squaredNorm() < r2) res.push_back(g);
@@ -231,7 +247,7 @@ private:
         }
     }
 
-    void knnRecursive(Octant* node, const Eigen::Vector3d& q, int k, auto& pq) {
+    void knnRecursive(Octant* node, const Point& q, int k, auto& pq) {
         if (node->isLeaf()) {
             for (const auto& g : node->gaussians) {
                 double d2 = (g.mean - q).squaredNorm();
@@ -257,7 +273,7 @@ private:
         }
     }
 
-    bool overlaps(Octant* node, const Eigen::Vector3d& q, double r2) {
+    bool overlaps(Octant* node, const Point& q, double r2) {
         double dist_sq = 0.0;
         for (int i = 0; i < 3; ++i) {
             double min_b = node->centroid[i] - node->extent;
@@ -266,6 +282,14 @@ private:
             else if (q[i] > max_b) dist_sq += std::pow(q[i] - max_b, 2);
         }
         return dist_sq <= r2;
+    }
+
+    inline size_t mortonCode(const Point& p, const Point& centroid) {
+        size_t out(0);
+        if (p(0) > centroid(0)) out |= 1;
+        if (p(1) > centroid(1)) out |= 2;
+        if (p(2) > centroid(2)) out |= 4;
+        return out;
     }
 
     std::unordered_map<Eigen::Vector3i, std::shared_ptr<Octant>, ivec3_hash> grids_;

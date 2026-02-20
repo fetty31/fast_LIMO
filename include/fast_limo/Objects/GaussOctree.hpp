@@ -10,19 +10,19 @@
 namespace fast_limo {
 namespace gauss_octree {
 
-using Point = Eigen::Vector3f;
+using Point = Eigen::Vector3d;
 using Points = std::vector<Point, Eigen::aligned_allocator<Point>>;
 
 // Represents a single 3D Gaussian distribution
 struct Gaussian {
-    Eigen::Vector3d mean;
+    Point mean;
     Eigen::Matrix3d cov;
     Eigen::Matrix3d cov_inv;
     int count;
-    float chi_threshold = 7.815f; // p < 0.05 for 3 DOF
+    double chi_threshold = 7.815f; // p < 0.05 for 3 DOF
 
     Gaussian(const Point& p) {
-        mean = p.cast<double>();
+        mean = p;
         // Initialize with a small isotropic prior to prevent singularity
         cov = Eigen::Matrix3d::Identity() * 1e-4; 
         count = 1;
@@ -36,18 +36,18 @@ struct Gaussian {
 
     // Check if a point belongs to this distribution using Mahalanobis Distance
     bool checkFit(const Point& p) const {
-        Eigen::Vector3d diff = p.cast<double>() - mean;
+        Point diff = p - mean;
         double dist_sq = diff.transpose() * cov_inv * diff;
         return dist_sq < chi_threshold;
     }
 
     // Incremental update of Mean and Covariance
     void fuse(const Point& p) {
-        Eigen::Vector3d pt = p.cast<double>();
+        Point pt = p;
         count++;
-        Eigen::Vector3d delta = pt - mean;
+        Point delta = pt - mean;
         mean += delta / count;
-        Eigen::Vector3d delta2 = pt - mean;
+        Point delta2 = pt - mean;
         cov += delta * delta2.transpose();
         updateInverse();
     }
@@ -58,7 +58,7 @@ struct Gaussian {
         double n2 = static_cast<double>(other.count);
         double n_total = n1 + n2;
 
-        Eigen::Vector3d combined_mean = (n1 * this->mean + n2 * other.mean) / n_total;
+        Point combined_mean = (n1 * this->mean + n2 * other.mean) / n_total;
 
         Eigen::Matrix3d term1 = n1 * (this->cov + (this->mean - combined_mean) * (this->mean - combined_mean).transpose());
         Eigen::Matrix3d term2 = n2 * (other.cov + (other.mean - combined_mean) * (other.mean - combined_mean).transpose());
@@ -72,7 +72,7 @@ struct Gaussian {
 
 struct Octant {
     Point centroid;
-    float extent;
+    double extent;
     std::vector<Gaussian> gaussians;
     Octant** child;
 
@@ -96,9 +96,9 @@ class Octree {
 public:
     Octant* root_;
     size_t max_gaussians_per_leaf_;
-    float min_extent_;
+    double min_extent_;
 
-    Octree(size_t max_gaussians = 5, float min_extent = 0.2f)
+    Octree(size_t max_gaussians = 5, double min_extent = 0.2f)
         : root_(nullptr), max_gaussians_per_leaf_(max_gaussians), min_extent_(min_extent) {}
 
     ~Octree() { clear(); }
@@ -123,14 +123,14 @@ public:
 
 private:
     void initialize(const Points& pts) {
-        Point min = Point::Constant(std::numeric_limits<float>::max());
-        Point max = Point::Constant(std::numeric_limits<float>::lowest());
+        Point min = Point::Constant(std::numeric_limits<double>::max());
+        Point max = Point::Constant(std::numeric_limits<double>::lowest());
         for (const auto& p : pts) {
             min = min.cwiseMin(p);
             max = max.cwiseMax(p);
         }
         Point extent_vec = 0.5f * (max - min);
-        float max_extent = extent_vec.maxCoeff();
+        double max_extent = extent_vec.maxCoeff();
         Point centroid = min + Point::Constant(max_extent);
 
         root_ = new Octant();
@@ -140,10 +140,10 @@ private:
     }
 
     void expandRootIfNeeded(const Points& pts) {
-        static const float factor[] = {-1.0f, 1.0f};
+        static const double factor[] = {-1.0f, 1.0f};
         for (const auto& p : pts) {
             while ((p - root_->centroid).cwiseAbs().maxCoeff() > root_->extent) {
-                float parent_extent = 2.0f * root_->extent;
+                double parent_extent = 2.0f * root_->extent;
                 Point parent_centroid = root_->centroid;
                 for(int i=0; i<3; ++i) {
                     parent_centroid[i] += (p[i] > root_->centroid[i] ? 1.0f : -1.0f) * root_->extent;
@@ -204,7 +204,7 @@ private:
         if (octant->gaussians.size() < 2) return;
         for (size_t i = 0; i < octant->gaussians.size(); ++i) {
             for (size_t j = i + 1; j < octant->gaussians.size(); ) {
-                if (octant->gaussians[i].checkFit(octant->gaussians[j].mean.cast<float>())) {
+                if (octant->gaussians[i].checkFit(octant->gaussians[j].mean)) {
                     octant->gaussians[i].merge(octant->gaussians[j]);
                     octant->gaussians.erase(octant->gaussians.begin() + j);
                 } else {
@@ -217,7 +217,7 @@ private:
     void splitOctant(Octant* octant) {
         octant->init_child();
         for (auto& g : octant->gaussians) {
-            size_t idx = mortonCode(g.mean.cast<float>(), octant->centroid);
+            size_t idx = mortonCode(g.mean, octant->centroid);
             if (octant->child[idx] == nullptr) {
                 octant->child[idx] = createChildNode(octant, idx);
             }
@@ -227,22 +227,22 @@ private:
     }
 
     Octant* createChildNode(Octant* parent, int index) {
-        static const float f[] = {-0.5f, 0.5f};
+        static const double f[] = {-0.5f, 0.5f};
         Octant* child = new Octant();
         child->extent = parent->extent * 0.5f;
         child->centroid = Point(
-            parent->centroid.x() + f[(index & 1) > 0] * parent->extent,
-            parent->centroid.y() + f[(index & 2) > 0] * parent->extent,
-            parent->centroid.z() + f[(index & 4) > 0] * parent->extent
+            parent->centroid(0) + f[(index & 1) > 0] * parent->extent,
+            parent->centroid(1) + f[(index & 2) > 0] * parent->extent,
+            parent->centroid(2) + f[(index & 4) > 0] * parent->extent
         );
         return child;
     }
 
     inline size_t mortonCode(const Point& p, const Point& centroid) {
         size_t out(0);
-        if (p.x() > centroid.x()) out |= 1;
-        if (p.y() > centroid.y()) out |= 2;
-        if (p.z() > centroid.z()) out |= 4;
+        if (p(0) > centroid(0)) out |= 1;
+        if (p(1) > centroid(1)) out |= 2;
+        if (p(2) > centroid(2)) out |= 4;
         return out;
     }
 };
