@@ -573,7 +573,7 @@
             State S(group); // transform to fast_limo::State obj
 
             // For each match, calculate its derivative and distance
-            // #pragma omp parallel for num_threads(this->num_threads_)
+            #pragma omp parallel for num_threads(this->num_threads_)
             for (int i = 0; i < N; ++i) {
                 Match match = matches[i];
                 Eigen::Vector4f p4_lidar = S.get_extr_RT() /* baselink2lidar */ *  match.get_4Dlocal();
