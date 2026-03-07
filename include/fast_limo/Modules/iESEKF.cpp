@@ -105,26 +105,33 @@ void fast_limo::iESEKF::degeneracy_callback(const Filter& /*kf*/, Tangent& dx, c
 
 	// Compute pose information matrix
 	using Mat = Eigen::Matrix<Scalar,DoF,DoF>;
-    Mat H = HRH.template topLeftCorner<DoF,DoF>();
+	Mat H = HRH.template topLeftCorner<DoF,DoF>();
 
 	// Eigen decomposition
 	Eigen::SelfAdjointEigenSolver<Mat> es(H);
-    auto V = es.eigenvectors();
-    auto lambda = es.eigenvalues();
+	const Mat& V = es.eigenvectors();
+	const auto& lambda = es.eigenvalues();
 
 	// Adaptive threshold
-    Scalar max_lambda = lambda.maxCoeff();
-    Scalar threshold = Scalar(0.01) * max_lambda;
+	Scalar max_lambda = lambda.maxCoeff();
+	Scalar threshold = Scalar(1e-6) * max_lambda;
+
+	Scalar cond = lambda.maxCoeff() / lambda.minCoeff();
+	if(cond < Scalar(1e6))
+		return; // no degeneracy
 
 	// Build projection
-    Mat S = Mat::Identity();
-    for(int i=0; i<DoF; i++)
-        if(lambda(i) < threshold)
-            S.row(i).setZero();
+	Mat S = Mat::Zero();
+	for(int i=0;i<DoF;i++)
+	{
+		if(lambda(i) >= threshold)
+			S(i,i) = 1.0;
+	}
+
+	Mat P = V * S * V.transpose();
 
 	auto& dx_vec = dx.coeffs();
-    Eigen::Matrix<Scalar,DoF,1> 
-		corrected_dx = V.inverse() * S * V * dx_vec.template segment<DoF>(0);
+	dx_vec.template segment<DoF>(0) =
+		P * dx_vec.template segment<DoF>(0); // update tangent vector
 
-	dx_vec.template segment<DoF>(0) = corrected_dx; // update tangent vector
 }

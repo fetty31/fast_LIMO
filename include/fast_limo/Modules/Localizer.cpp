@@ -708,7 +708,8 @@
                 Q,
                 iESEKF::f,
                 iESEKF::df_dx,
-                iESEKF::df_dw
+                iESEKF::df_dw,
+                iESEKF::degeneracy_callback
             );
             this->_iKFoM->setMaxIters(config.ikfom.MAX_NUM_ITERS);
 
