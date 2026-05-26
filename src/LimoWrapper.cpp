@@ -346,6 +346,8 @@ namespace ros2wrap {
                 config->time_offset = offset_p.as_bool();
                 rclcpp::Parameter eos_p = this->get_parameter("end_of_sweep");
                 config->end_of_sweep = eos_p.as_bool();
+                rclcpp::Parameter motion_comp_p = this->get_parameter("motion_compensation");
+                config->motion_compensation = motion_comp_p.as_bool();
 
                 // Calibration
                 rclcpp::Parameter grav_p = this->get_parameter("calibration.gravity_align");

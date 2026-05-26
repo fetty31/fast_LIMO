@@ -824,6 +824,17 @@
             // Set scan_stamp for next iteration
             this->scan_stamp = extract_point_time(deskewed_scan_->points[deskewed_scan_->points.size()-1]) + offset;
 
+            // If motion compensation is disabled, return sorted pointcloud without deskewing
+            if(not this->config.motion_compensation){
+
+                #pragma omp parallel for num_threads(this->num_threads_)
+                for (std::size_t k = 0; k < deskewed_scan_->points.size(); k++) {
+                    auto &pt = deskewed_scan_->points[k];
+                    pt.getVector4fMap() = this->extr.lidar2baselink_T * pt.getVector4fMap(); // baselink/body frame
+                }
+                return deskewed_scan_; 
+            }
+
             // IMU prior & deskewing 
             States frames = this->integrateImu(this->prev_scan_stamp, this->scan_stamp, this->state); // baselink/body frames
 

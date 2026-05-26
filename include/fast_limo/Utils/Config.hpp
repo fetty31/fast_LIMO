@@ -84,6 +84,8 @@ struct fast_limo::Config{
     bool time_offset;           // whether to take into account the time offset
     bool end_of_sweep;          // whether the sweep reference time is w.r.t. the start or the end of the scan (only applies to VELODYNE/OUSTER)
 
+    bool motion_compensation;  // whether to perform motion compensation (deskewing) of the pointclouds (if false, the pointcloud with be processed as is, without deskewing)
+
     bool debug;         // whether to copy intermediate point clouds into aux variables (for visualization)
     bool verbose;       // whether to print debugging/performance board
 
