@@ -218,33 +218,64 @@ private:
     tf_broadcaster_->sendTransform(tf_msg);
   }
 
-  // ============================ Params ============================
+// ============================ Params ============================
+  template <typename T>
+  T get_or_declare_parameter(const std::string& name, const T& default_value)
+  {
+    if (!this->has_parameter(name)) {
+      this->declare_parameter<T>(name, default_value);
+    }
+
+    T value;
+    this->get_parameter(name, value);
+    return value;
+  }
+
   void loadConfig(fast_limo::RelocaConfig* cfg)
   {
     // Reloca-specific
-    cfg->mode               = get_parameter("mode").as_bool();
-    cfg->map_path           = get_parameter("map_path").as_string();
-    cfg->distance_threshold = static_cast<float>(get_parameter("distance_threshold").as_double());
-    cfg->inliers_threshold  = get_parameter("inliers_threshold").as_int();
-    cfg->score              = get_parameter("score").as_double();
+    cfg->mode = get_or_declare_parameter<bool>(
+      "mode",
+      false);
 
-    // Topics (all taken from fast_limo main namespace to keep compatibility)
-    lidar_topic_  = declare_parameter<std::string>("topics.input.lidar", "/fast_limo/final_raw");
-    state_topic_  = declare_parameter<std::string>("topics.state", "/fast_limo/state");
-    send_pc_srv_name_ = declare_parameter<std::string>("services.send_pointcloud", "/fast_limo/send_pointcloud");
+    cfg->map_path = get_or_declare_parameter<std::string>(
+      "map_path",
+      "");
+
+    cfg->distance_threshold = static_cast<float>(
+      get_or_declare_parameter<double>("distance_threshold", 10.0));
+
+    cfg->inliers_threshold = get_or_declare_parameter<int>(
+      "inliers_threshold",
+      5);
+
+    cfg->score = get_or_declare_parameter<double>(
+      "score",
+      10000.0);
+
+    // Topics
+    lidar_topic_ = get_or_declare_parameter<std::string>(
+      "topics.input.lidar",
+      "/fast_limo/final_raw");
+
+    state_topic_ = get_or_declare_parameter<std::string>(
+      "topics.state",
+      "/fast_limo/state");
+
+    send_pc_srv_name_ = get_or_declare_parameter<std::string>(
+      "services.send_pointcloud",
+      "/fast_limo/send_pointcloud");
 
     // Frames
-    map_frame_   = declare_parameter<std::string>("frames.map",   "map");
-    world_frame_ = declare_parameter<std::string>("frames.world", "odom");
+    map_frame_ = get_or_declare_parameter<std::string>(
+      "frames.map",
+      "map");
 
-    if (!this->get_parameter("frames.map", map_frame_)) {
-      RCLCPP_WARN(this->get_logger(), "frames.map not set, using default /map");
-    }
-
-    if (!this->get_parameter("frames.world", world_frame_)) {
-      RCLCPP_WARN(this->get_logger(), "frames.world not set, using default /odom");
-    }
+    world_frame_ = get_or_declare_parameter<std::string>(
+      "frames.world",
+      "odom");
   }
+  
 
   // ============================ Members ============================
   fast_limo::RelocaConfig cfg_;
