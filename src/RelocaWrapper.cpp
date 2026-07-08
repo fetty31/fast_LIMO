@@ -19,6 +19,9 @@ public:
     // Load params
     loadConfig(&cfg_);
 
+    // Downsample filter
+    voxel_filter.setLeafSize(cfg_.downsample_leaf, cfg_.downsample_leaf, cfg_.downsample_leaf);
+
     // Subscribers
     rclcpp::SubscriptionOptions lidar_opt, state_opt, init_opt;
     lidar_opt.callback_group = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -26,12 +29,12 @@ public:
     init_opt.callback_group  = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     lidar_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-      lidar_topic_, 1,
+      "/fast_limo/final_raw", 1,
       std::bind(&RelocaWrapper::lidar_callback, this, std::placeholders::_1),
       lidar_opt);
 
     state_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-      state_topic_, 10,
+      "/fast_limo/state", 10,
       std::bind(&RelocaWrapper::state_callback, this, std::placeholders::_1),
       state_opt);
 
@@ -41,21 +44,27 @@ public:
       init_opt);
 
     // Publishers
-    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("full_map", 1);
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(1));
+    qos.best_effort();
+    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("full_map", qos);
 
     // TF
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     // Service client -> send map to main node once relocated
-    pc_client_ = create_client<SendPointCloud>(send_pc_srv_name_);
+    pc_client_ = create_client<SendPointCloud>("/fast_limo/send_pointcloud");
 
     // Init RELOCA
     RELOCA.init(cfg_);
 
     // 10 Hz timer: broadcast TF + publish full map
-    timer_ = create_wall_timer(
+    tf_timer_ = create_wall_timer(
       std::chrono::milliseconds(100),
-      std::bind(&RelocaWrapper::tick, this));
+      std::bind(&RelocaWrapper::tf_broadcast, this));
+
+    map_timer_ = create_wall_timer(
+      std::chrono::milliseconds(5000),
+      std::bind(&RelocaWrapper::publish_map, this));
 
     map_sent_ = false;
   }
@@ -104,12 +113,6 @@ private:
     reloca.updateInitialPose(init_state);
   }
 
-  // ============================ Periodic ============================
-  void tick()
-  {
-    tf_broadcast_and_publish_full_map();
-  }
-
   // ============================ Service call ============================
   void call_send_pointcloud_service()
   {
@@ -143,7 +146,7 @@ private:
   }
 
   // ============================ TF + full map ============================
-  void tf_broadcast_and_publish_full_map()
+  void tf_broadcast()
   {
     auto& reloca = Relocator::getInstance();
 
@@ -158,10 +161,19 @@ private:
 
     // Broadcast TF (map_frame_ -> world_frame_)
     broadcastTF(state, map_frame_, world_frame_, true);
+  }
+
+  void publish_map()
+  {
+    auto& reloca = Relocator::getInstance();
 
     // Publish full map (untransformed)
     pcl::PointCloud<PointType>::Ptr full_map(new pcl::PointCloud<PointType>);
     reloca.get_full_map(full_map);
+
+    voxel_filter.setInputCloud(full_map);
+    voxel_filter.filter(*full_map);
+
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg(*full_map, msg);
     msg.header.frame_id = map_frame_;
@@ -245,6 +257,9 @@ private:
     cfg->distance_threshold = static_cast<float>(
       get_or_declare_parameter<double>("distance_threshold", 10.0));
 
+    cfg->downsample_leaf = static_cast<float>(
+      get_or_declare_parameter<double>("downsample_leaf", 0.5));
+
     cfg->inliers_threshold = get_or_declare_parameter<int>(
       "inliers_threshold",
       5);
@@ -252,19 +267,6 @@ private:
     cfg->score = get_or_declare_parameter<double>(
       "score",
       10000.0);
-
-    // Topics
-    lidar_topic_ = get_or_declare_parameter<std::string>(
-      "topics.input.lidar",
-      "/fast_limo/final_raw");
-
-    state_topic_ = get_or_declare_parameter<std::string>(
-      "topics.state",
-      "/fast_limo/state");
-
-    send_pc_srv_name_ = get_or_declare_parameter<std::string>(
-      "services.send_pointcloud",
-      "/fast_limo/send_pointcloud");
 
     // Frames
     map_frame_ = get_or_declare_parameter<std::string>(
@@ -289,10 +291,12 @@ private:
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   // Timer
-  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr tf_timer_, map_timer_;
+
+  // Downsampling
+  pcl::VoxelGrid<PointType> voxel_filter;
 
   // Params / names
-  std::string lidar_topic_, state_topic_, send_pc_srv_name_;
   std::string map_frame_, world_frame_;
 
   bool map_sent_;
