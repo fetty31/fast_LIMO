@@ -105,6 +105,22 @@ struct fast_limo::Config{
     int inliers_threshold;      // min inliers to consider a match valid
     double score;               // min score to consider a right relocation
 
+    // Local relocation (mode=true): GPS position + multi-yaw GICP.
+    float local_yaw_step_deg;
+    float local_crop_margin;
+    float local_coarse_voxel;
+    float local_fine_voxel;
+    float local_coarse_max_correspondence;
+    float local_fine_max_correspondence;
+    int local_refine_candidates;
+    int local_min_inliers;
+    float local_min_inlier_ratio;
+    float local_max_rmse;
+    float local_max_position_correction;
+    float local_max_z_correction;
+    float local_max_roll_pitch_deg;
+    float local_min_solution_separation;
+
 };
 
 
