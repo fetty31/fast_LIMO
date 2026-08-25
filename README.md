@@ -37,12 +37,12 @@ This branch adds a **map-based relocalization module** to the Fast-LIMO LiDAR-In
   * **Modes**:
 
     * **Global** (`mode=false`): search the entire map
-    * **Local** (`mode=true`): restrict search around `/initialpose` from RViz
+    * **Prior** (`mode=true`): run one Nano-GICP initialized from `/initialpose`
   * **Workflow**:
 
     1. `updateCloud()` ← accumulate scans
-    2. **KISS-Matcher** for coarse pose estimation
-    3. **Nano-GICP** for pose refinement (fitness score)
+    2. **Global mode:** KISS-Matcher for coarse pose estimation, followed by Nano-GICP
+    3. **Prior mode:** synchronize `/initialpose` with odometry and run one Nano-GICP using that full pose as the initial guess
     4. On success:
 
        * Transform full map → call `/fast_limo/send_pointcloud` service → publish map on `/fast_limo_reloca/full_map` topic
@@ -113,9 +113,15 @@ All relocalizer parameters live in `RelocaConfig` (set via `reloca.launch.py`):
 
 | Parameter            | Type   | Default | Description                                                              |
 | -------------------- | ------ | ------- | ------------------------------------------------------------------------ |
-| `mode`               | bool   | `true`  | `true` = local (requires an `/initialpose` in RViz) <br>`false` = global |
+| `mode`               | bool   | `false` | `true` = prior-guided GICP (requires `/initialpose`) <br>`false` = global |
 | `map_path`           | string | —       | Filesystem path to the `.pcd` map                                        |
-| `distance_threshold` | double | `10.0`  | Travel distance (in meters) before triggering relocalization (only valid if `mode`==true)             |
+| `distance_threshold` | double | `10.0`  | Travel distance before triggering global relocalization                  |
+| `prior.distance_threshold` | double | `2.5` | Travel distance before running prior-guided GICP                       |
+| `prior.crop_margin` | double | `6.0` | Extra map crop margin around the transformed source cloud                  |
+| `prior.voxel` | double | `0.3` | Voxel size used for the source and cropped target                           |
+| `prior.max_correspondence` | double | `1.0` | Maximum GICP correspondence distance                              |
+| `prior.max_iterations` | int | `64` | Maximum number of GICP iterations                                           |
+| `prior.max_fitness_score` | double | `1.0` | Maximum fitness score accepted after convergence                       |
 | `inliers_threshold`  | int    | `10`    | Minimum KISS-Matcher inliers to accept a coarse solution                 |
 | `score`              | double | `100.0` | Maximum Nano-GICP fitness score to accept the refined solution           |
 

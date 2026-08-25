@@ -132,11 +132,26 @@ private:
       static_cast<float>(msg.pose.pose.position.x),
       static_cast<float>(msg.pose.pose.position.y),
       static_cast<float>(msg.pose.pose.position.z));
-    reloca.updateInitialPose(map_position, odom_to_base);
+
+    Eigen::Quaternionf map_orientation(
+      static_cast<float>(msg.pose.pose.orientation.w),
+      static_cast<float>(msg.pose.pose.orientation.x),
+      static_cast<float>(msg.pose.pose.orientation.y),
+      static_cast<float>(msg.pose.pose.orientation.z));
+    if (map_orientation.norm() < 1.0e-6f) {
+      RCLCPP_ERROR(get_logger(), "Ignoring /initialpose: invalid zero-norm quaternion");
+      return;
+    }
+    map_orientation.normalize();
+
+    Eigen::Matrix4f map_to_base = Eigen::Matrix4f::Identity();
+    map_to_base.block<3, 3>(0, 0) = map_orientation.toRotationMatrix();
+    map_to_base.block<3, 1>(0, 3) = map_position;
+    reloca.updateInitialPose(map_to_base, odom_to_base);
 
     RCLCPP_INFO(
       get_logger(),
-      "Synchronized GPS prior received at map position [%.3f, %.3f, %.3f]",
+      "Synchronized pose prior received at map position [%.3f, %.3f, %.3f]",
       map_position.x(),
       map_position.y(),
       map_position.z());
@@ -394,36 +409,20 @@ private:
       "score",
       10000.0);
 
-    cfg->local_yaw_step_deg = static_cast<float>(
-      get_or_declare_parameter<double>("local.yaw_step_deg", 15.0));
-    cfg->local_crop_margin = static_cast<float>(
-      get_or_declare_parameter<double>("local.crop_margin", 6.0));
-    cfg->local_coarse_voxel = static_cast<float>(
-      get_or_declare_parameter<double>("local.coarse_voxel", 0.8));
-    cfg->local_fine_voxel = static_cast<float>(
-      get_or_declare_parameter<double>("local.fine_voxel", 0.3));
-    cfg->local_coarse_max_correspondence = static_cast<float>(
-      get_or_declare_parameter<double>("local.coarse_max_correspondence", 3.0));
-    cfg->local_fine_max_correspondence = static_cast<float>(
-      get_or_declare_parameter<double>("local.fine_max_correspondence", 1.0));
-    cfg->local_refine_candidates = get_or_declare_parameter<int>(
-      "local.refine_candidates",
-      4);
-    cfg->local_min_inliers = get_or_declare_parameter<int>(
-      "local.min_inliers",
-      300);
-    cfg->local_min_inlier_ratio = static_cast<float>(
-      get_or_declare_parameter<double>("local.min_inlier_ratio", 0.35));
-    cfg->local_max_rmse = static_cast<float>(
-      get_or_declare_parameter<double>("local.max_rmse", 0.5));
-    cfg->local_max_position_correction = static_cast<float>(
-      get_or_declare_parameter<double>("local.max_position_correction", 5.0));
-    cfg->local_max_z_correction = static_cast<float>(
-      get_or_declare_parameter<double>("local.max_z_correction", 1.5));
-    cfg->local_max_roll_pitch_deg = static_cast<float>(
-      get_or_declare_parameter<double>("local.max_roll_pitch_deg", 8.0));
-    cfg->local_min_solution_separation = static_cast<float>(
-      get_or_declare_parameter<double>("local.min_solution_separation", 0.10));
+    cfg->prior_distance_threshold = static_cast<float>(
+      get_or_declare_parameter<double>("prior.distance_threshold", 2.5));
+    cfg->prior_crop_margin = static_cast<float>(
+      get_or_declare_parameter<double>("prior.crop_margin", 6.0));
+    cfg->prior_voxel = static_cast<float>(
+      get_or_declare_parameter<double>("prior.voxel", 0.3));
+    cfg->prior_max_correspondence = static_cast<float>(
+      get_or_declare_parameter<double>("prior.max_correspondence", 1.0));
+    cfg->prior_max_iterations = get_or_declare_parameter<int>(
+      "prior.max_iterations",
+      64);
+    cfg->prior_max_fitness_score = get_or_declare_parameter<double>(
+      "prior.max_fitness_score",
+      1.0);
 
     initialpose_sync_tolerance_s_ = get_or_declare_parameter<double>(
       "initialpose_sync_tolerance",

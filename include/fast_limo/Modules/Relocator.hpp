@@ -38,7 +38,7 @@
     void init(const RelocaConfig& cfg);
     void updateCloud(pcl::PointCloud<PointType>::Ptr& pc);
     void updateState(fast_limo::State& st);
-    void updateInitialPose(const Eigen::Vector3f& map_position,
+    void updateInitialPose(const Eigen::Matrix4f& map_to_base,
                            const Eigen::Matrix4f& odom_to_base);
 
     Eigen::Vector3f get_pose();
@@ -70,7 +70,7 @@
     float last_x = std::nan(""), last_y;
     bool relocated = false, recived_estimated_pose = false;
     std::array<double,3> init_state_{ 0.0, 0.0, 0.0};
-    Eigen::Vector3f initial_map_position_ = Eigen::Vector3f::Zero();
+    Eigen::Matrix4f initial_map_to_base_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f initial_odom_to_base_ = Eigen::Matrix4f::Identity();
 
     Eigen::Matrix4f kiss_transformation_;
@@ -81,7 +81,7 @@
     nano_gicp::NanoGICP<PointTypeNano, PointTypeNano> m_nano_gicp;
 
     bool relocation();
-    bool applyLocalGICP();
+    bool applyPriorGICP();
     void passThroughFilter(pcl::PointCloud<PointType>::Ptr& cloud, float size);
     void voxelGridFilter(pcl::PointCloud<PointType>::Ptr& cloud, float voxel_size);
     bool applyGICP();
