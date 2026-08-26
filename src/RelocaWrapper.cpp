@@ -50,11 +50,15 @@ public:
     // Publishers
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1));
     qos.best_effort();
-    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("full_map", qos);
+    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/full_map", qos);
+    
+    // Dynamic TF for dummy (identity) map -> odom transform (published until Relocator is relocated)
+    dynamic_tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
 
     // The map -> odom transform is immutable after this one-shot relocation.
     static_tf_broadcaster_ =
       std::make_unique<tf2_ros::StaticTransformBroadcaster>(*this);
+    
 
     // Service client -> send map to main node once relocated
     pc_client_ = create_client<SendPointCloud>("/fast_limo/send_pointcloud");
@@ -87,6 +91,8 @@ private:
     if (!map_sent_ && reloca.is_relocated()) {
       publish_static_tf();
       call_send_pointcloud_service();
+    }else{
+      publish_dynamic_tf();
     }
 
   }
@@ -190,6 +196,29 @@ private:
   }
 
   // ============================ TF + full map ============================
+  void publish_dynamic_tf()
+  {
+    if (tf_sent_) {
+      return;  // Static TF has already been published
+    }
+
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header.stamp = now();
+    tf_msg.header.frame_id = map_frame_;
+    tf_msg.child_frame_id = world_frame_;
+
+    tf_msg.transform.translation.x = 0.0;
+    tf_msg.transform.translation.y = 0.0;
+    tf_msg.transform.translation.z = 0.0;
+
+    tf_msg.transform.rotation.x = 0.0;
+    tf_msg.transform.rotation.y = 0.0;
+    tf_msg.transform.rotation.z = 0.0;
+    tf_msg.transform.rotation.w = 1.0;
+
+    dynamic_tf_broadcaster_->sendTransform(tf_msg);
+  }
+
   void publish_static_tf()
   {
     if (tf_sent_) return;
@@ -452,6 +481,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    full_map_pub_;
   rclcpp::Client<SendPointCloud>::SharedPtr                      pc_client_;
   std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_tf_broadcaster_;
 
   // Timer
   rclcpp::TimerBase::SharedPtr map_timer_;

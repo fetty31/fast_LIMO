@@ -60,7 +60,7 @@ def generate_launch_description():
             'prior.voxel': 0.3,
             'prior.max_correspondence': 1.0,
             'prior.max_iterations': 64,
-            'prior.max_fitness_score': 1.0,
+            'prior.max_fitness_score': 10.0,
             'frames.map': "ona2/map",
             'frames.world': "ona2/odom"
         }]
