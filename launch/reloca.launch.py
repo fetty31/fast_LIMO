@@ -56,7 +56,7 @@ def generate_launch_description():
             'initialpose_sync_tolerance': 0.25,
             'odom_history_duration': 30.0,
             'prior.distance_threshold': 2.5,
-            'prior.crop_margin': 6.0,
+            'prior.crop_margin': 20.0,
             'prior.voxel': 0.3,
             'prior.max_correspondence': 1.0,
             'prior.max_iterations': 64,

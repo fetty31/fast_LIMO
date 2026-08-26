@@ -367,10 +367,14 @@ bool Relocator::applyPriorGICP() {
             source,
             map_to_odom_guess,
             cfg_.prior_crop_margin);
+    if (cropped_map->size() < 20) {
+        std::cout << "Prior GICP target map is too small after cropping" << std::endl;
+        return false;
+    }
     pcl::PointCloud<PointType>::Ptr target =
         downsampleCloud(cropped_map, cfg_.prior_voxel);
     if (target->size() < 20) {
-        std::cout << "Prior GICP target map is too small after cropping" << std::endl;
+        std::cout << "Prior GICP target map is too small after downsampling" << std::endl;
         return false;
     }
 
