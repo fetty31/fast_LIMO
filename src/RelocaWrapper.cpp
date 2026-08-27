@@ -55,6 +55,16 @@ public:
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1));
     qos.best_effort();
     full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/full_map", qos);
+
+    // The relocation is one-shot, so retain the last debug clouds for RViz
+    // subscribers that connect after the registration attempt.
+    auto debug_qos = rclcpp::QoS(rclcpp::KeepLast(1));
+    debug_qos.reliable();
+    debug_qos.transient_local();
+    prior_source_debug_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+      "/fast_limo/reloca/prior_source", debug_qos);
+    prior_target_debug_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+      "/fast_limo/reloca/prior_target", debug_qos);
     
     // TF buffer and listener
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -94,6 +104,7 @@ private:
     auto& reloca = Relocator::getInstance();
     if (!reloca.is_relocated()) {
       reloca.updateCloud(pc);
+      publish_prior_debug_clouds();
     }
 
     if (!map_sent_ && reloca.is_relocated()) {
@@ -103,6 +114,33 @@ private:
       publish_dynamic_tf();
     }
 
+  }
+
+  void publish_prior_debug_clouds()
+  {
+    auto& reloca = Relocator::getInstance();
+    pcl::PointCloud<PointType>::Ptr source_in_map;
+    pcl::PointCloud<PointType>::Ptr target_in_map;
+
+    if (!reloca.takePriorDebugClouds(source_in_map, target_in_map)) return;
+
+    sensor_msgs::msg::PointCloud2 source_msg;
+    pcl::toROSMsg(*source_in_map, source_msg);
+    source_msg.header.frame_id = map_frame_;
+    source_msg.header.stamp = now();
+    prior_source_debug_pub_->publish(source_msg);
+
+    sensor_msgs::msg::PointCloud2 target_msg;
+    pcl::toROSMsg(*target_in_map, target_msg);
+    target_msg.header.frame_id = map_frame_;
+    target_msg.header.stamp = source_msg.header.stamp;
+    prior_target_debug_pub_->publish(target_msg);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Published prior GICP debug clouds: source=%zu, target=%zu",
+      source_in_map->size(),
+      target_in_map->size());
   }
 
   void state_callback(const nav_msgs::msg::Odometry & msg)
@@ -480,8 +518,8 @@ private:
 
     cfg->prior_distance_threshold = static_cast<float>(
       get_or_declare_parameter<double>("prior.distance_threshold", 2.5));
-    cfg->prior_crop_margin = static_cast<float>(
-      get_or_declare_parameter<double>("prior.crop_margin", 6.0));
+    cfg->prior_crop_size = static_cast<float>(
+      get_or_declare_parameter<double>("prior.crop_size", 15.0));
     cfg->prior_voxel = static_cast<float>(
       get_or_declare_parameter<double>("prior.voxel", 0.3));
     cfg->prior_max_correspondence = static_cast<float>(
@@ -519,6 +557,8 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr       state_sub_;
   rclcpp::Subscription<PoseWithCovarianceStamped>::SharedPtr     initialpose_sub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    full_map_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    prior_source_debug_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    prior_target_debug_pub_;
   rclcpp::Client<SendPointCloud>::SharedPtr                      pc_client_;
 
   std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;

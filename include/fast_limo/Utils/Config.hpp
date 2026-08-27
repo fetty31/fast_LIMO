@@ -107,7 +107,7 @@ struct fast_limo::Config{
 
     // Prior relocation (mode=true): one GICP initialized from /initialpose.
     float prior_distance_threshold;
-    float prior_crop_margin;
+    float prior_crop_size;       // Half-size of source/target crop around /initialpose.
     float prior_voxel;
     float prior_max_correspondence;
     int prior_max_iterations;

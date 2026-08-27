@@ -117,7 +117,7 @@ All relocalizer parameters live in `RelocaConfig` (set via `reloca.launch.py`):
 | `map_path`           | string | —       | Filesystem path to the `.pcd` map                                        |
 | `distance_threshold` | double | `10.0`  | Travel distance before triggering global relocalization                  |
 | `prior.distance_threshold` | double | `2.5` | Travel distance before running prior-guided GICP                       |
-| `prior.crop_margin` | double | `6.0` | Extra map crop margin around the transformed source cloud                  |
+| `prior.crop_size` | double | `15.0` | Half-size of the cubic source and target crop centered at the `/initialpose` position |
 | `prior.voxel` | double | `0.3` | Voxel size used for the source and cropped target                           |
 | `prior.max_correspondence` | double | `1.0` | Maximum GICP correspondence distance                              |
 | `prior.max_iterations` | int | `64` | Maximum number of GICP iterations                                           |

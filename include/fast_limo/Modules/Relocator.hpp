@@ -40,6 +40,9 @@
     void updateState(fast_limo::State& st);
     void updateInitialPose(const Eigen::Matrix4f& map_to_base,
                            const Eigen::Matrix4f& odom_to_base);
+    bool takePriorDebugClouds(
+        pcl::PointCloud<PointType>::Ptr& source_in_map,
+        pcl::PointCloud<PointType>::Ptr& target_in_map);
 
     Eigen::Vector3f get_pose();
     Eigen::Quaternionf get_orientation();
@@ -62,6 +65,8 @@
     pcl::PointCloud<PointType>::Ptr target_map_, source_cloud_;
     pcl::PointCloud<PointType>::Ptr aligned_cloud_, aligned_cloud_gicp;
     pcl::PointCloud<PointType>::Ptr full_map_, full_map_ds, full_map_transformed_;
+    pcl::PointCloud<PointType>::Ptr prior_debug_source_map_;
+    pcl::PointCloud<PointType>::Ptr prior_debug_target_map_;
     
     Eigen::Vector3f p;
     Eigen::Quaternionf q;
@@ -69,6 +74,7 @@
     float distance_traveled = 0;
     float last_x = std::nan(""), last_y;
     bool relocated = false, recived_estimated_pose = false;
+    bool prior_debug_clouds_ready_ = false;
     std::array<double,3> init_state_{ 0.0, 0.0, 0.0};
     Eigen::Matrix4f initial_map_to_base_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f initial_odom_to_base_ = Eigen::Matrix4f::Identity();

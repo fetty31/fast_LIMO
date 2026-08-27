@@ -55,33 +55,25 @@ pcl::PointCloud<PointType>::Ptr downsampleCloud(
     return output;
 }
 
-pcl::PointCloud<PointType>::Ptr cropMapFromSourceBoundingBox(
-    const pcl::PointCloud<PointType>::Ptr& full_map,
-    const pcl::PointCloud<PointType>::Ptr& source,
-    const Eigen::Matrix4f& guess,
-    float margin)
+pcl::PointCloud<PointType>::Ptr cropCloudAroundPrior(
+    const pcl::PointCloud<PointType>::Ptr& cloud_in_map,
+    const Eigen::Vector3f& prior_position,
+    float crop_size)
 {
     pcl::PointCloud<PointType>::Ptr cropped(new pcl::PointCloud<PointType>);
-    if (!full_map || !source || full_map->empty() || source->empty()) return cropped;
-
-    pcl::PointCloud<PointType>::Ptr transformed_source(new pcl::PointCloud<PointType>);
-    pcl::transformPointCloud(*source, *transformed_source, guess);
-
-    PointType min_point;
-    PointType max_point;
-    pcl::getMinMax3D(*transformed_source, min_point, max_point);
+    if (!cloud_in_map || cloud_in_map->empty() || crop_size <= 0.0f) return cropped;
 
     pcl::CropBox<PointType> crop;
-    crop.setInputCloud(full_map);
+    crop.setInputCloud(cloud_in_map);
     crop.setMin(Eigen::Vector4f(
-        min_point.x - margin,
-        min_point.y - margin,
-        min_point.z - margin,
+        prior_position.x() - crop_size,
+        prior_position.y() - crop_size,
+        prior_position.z() - crop_size,
         1.0f));
     crop.setMax(Eigen::Vector4f(
-        max_point.x + margin,
-        max_point.y + margin,
-        max_point.z + margin,
+        prior_position.x() + crop_size,
+        prior_position.y() + crop_size,
+        prior_position.z() + crop_size,
         1.0f));
     crop.filter(*cropped);
     return cropped;
@@ -107,12 +99,12 @@ PriorGICPResult runGICP(
     nano_gicp::NanoGICP<PointTypeNano, PointTypeNano> registration;
     registration.setMaxCorrespondenceDistance(max_correspondence);
     registration.setNumThreads(10);
-    registration.setCorrespondenceRandomness(15);
+    registration.setCorrespondenceRandomness(20);
     registration.setMaximumIterations(maximum_iterations);
-    registration.setTransformationEpsilon(1.0e-4);
-    registration.setEuclideanFitnessEpsilon(1.0e-5);
+    registration.setTransformationEpsilon(0.01);
+    registration.setEuclideanFitnessEpsilon(0.01);
     registration.setRANSACIterations(5);
-    registration.setRANSACOutlierRejectionThreshold(max_correspondence);
+    registration.setRANSACOutlierRejectionThreshold(1.0);
 
     pcl::PointCloud<PointTypeNano> output;
     registration.setInputSource(source_xyz);
@@ -156,6 +148,8 @@ Relocator::Relocator() {
     full_map_transformed_.reset(new pcl::PointCloud<PointType>);
     full_map_ds.reset(new pcl::PointCloud<PointType>);
     aligned_cloud_gicp.reset(new pcl::PointCloud<PointType>);
+    prior_debug_source_map_.reset(new pcl::PointCloud<PointType>);
+    prior_debug_target_map_.reset(new pcl::PointCloud<PointType>);
 
     p = Eigen::Vector3f::Zero();
     q = Eigen::Quaternionf::Identity();
@@ -187,6 +181,19 @@ Eigen::Vector3f Relocator::get_pose() {
 Eigen::Quaternionf Relocator::get_orientation() {
     std::lock_guard<std::mutex> lock(mutex_);
     return q;
+}
+
+bool Relocator::takePriorDebugClouds(
+    pcl::PointCloud<PointType>::Ptr& source_in_map,
+    pcl::PointCloud<PointType>::Ptr& target_in_map)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!prior_debug_clouds_ready_) return false;
+
+    source_in_map.reset(new pcl::PointCloud<PointType>(*prior_debug_source_map_));
+    target_in_map.reset(new pcl::PointCloud<PointType>(*prior_debug_target_map_));
+    prior_debug_clouds_ready_ = false;
+    return true;
 }
 
 bool Relocator::enough_distance_traveled() {
@@ -244,8 +251,8 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
     
     std::cout << "Starting Relocating..." << std::endl;
 
-    // Global mode uses the full target map. Prior mode crops full_map_ around
-    // the source cloud transformed by the synchronized /initialpose guess.
+    // Global mode uses the full target map. Prior mode crops a fixed box
+    // centered at the synchronized /initialpose position.
     if (!cfg_.mode) {
         pcl::copyPointCloud(*this->full_map_, *this->target_map_);
     }
@@ -356,23 +363,68 @@ bool Relocator::applyPriorGICP() {
 
     pcl::PointCloud<PointType>::Ptr source =
         downsampleCloud(source_cloud_, cfg_.prior_voxel);
+
+    const Eigen::Vector3f prior_position =
+        initial_map_to_base_.block<3, 1>(0, 3);
+
+    std::cout
+        << "Prior crop box: center=["
+        << prior_position.x() << ", "
+        << prior_position.y() << ", "
+        << prior_position.z() << "], crop_size="
+        << cfg_.prior_crop_size
+        << std::endl;
+
+    // Transform the source provisionally to map, apply exactly the same crop
+    // box as the target, and transform it back to odom for GICP. This preserves
+    // the original registration convention: source=odom, target=map, guess=map<-odom.
+    pcl::PointCloud<PointType>::Ptr source_in_map(new pcl::PointCloud<PointType>);
+    pcl::transformPointCloud(
+        *source,
+        *source_in_map,
+        map_to_odom_guess);
+
+    const std::size_t source_size_before_crop = source_in_map->size();
+    pcl::PointCloud<PointType>::Ptr cropped_source_in_map =
+        cropCloudAroundPrior(
+            source_in_map,
+            prior_position,
+            cfg_.prior_crop_size);
+
+    pcl::copyPointCloud(*cropped_source_in_map, *prior_debug_source_map_);
+    prior_debug_target_map_->clear();
+    prior_debug_clouds_ready_ = true;
+
+    const Eigen::Matrix4f odom_to_map_guess = map_to_odom_guess.inverse();
+    pcl::transformPointCloud(
+        *cropped_source_in_map,
+        *source,
+        odom_to_map_guess);
+
+    std::cout
+        << "Prior source crop: before=" << source_size_before_crop
+        << ", after=" << source->size()
+        << std::endl;
+
     if (source->size() < 20) {
-        std::cout << "Prior GICP source cloud is too small after downsampling" << std::endl;
+        std::cout << "Prior GICP source cloud is too small after cropping" << std::endl;
         return false;
     }
 
     pcl::PointCloud<PointType>::Ptr cropped_map =
-        cropMapFromSourceBoundingBox(
+        cropCloudAroundPrior(
             full_map_,
-            source,
-            map_to_odom_guess,
-            cfg_.prior_crop_margin);
+            prior_position,
+            cfg_.prior_crop_size);
+
+    pcl::PointCloud<PointType>::Ptr target =
+        downsampleCloud(cropped_map, cfg_.prior_voxel);
+    pcl::copyPointCloud(*target, *prior_debug_target_map_);
+
     if (cropped_map->size() < 20) {
         std::cout << "Prior GICP target map is too small after cropping" << std::endl;
         return false;
     }
-    pcl::PointCloud<PointType>::Ptr target =
-        downsampleCloud(cropped_map, cfg_.prior_voxel);
     if (target->size() < 20) {
         std::cout << "Prior GICP target map is too small after downsampling" << std::endl;
         return false;
