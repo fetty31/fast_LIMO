@@ -1,5 +1,13 @@
 #include "ROSutils.hpp"
 
+#include <algorithm>
+#include <deque>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 namespace ros2wrap {
 
 using geometry_msgs::msg::PoseWithCovarianceStamped;
@@ -46,10 +54,29 @@ public:
     // Publishers
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1));
     qos.best_effort();
-    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("full_map", qos);
+    full_map_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/fast_limo/full_map", qos);
 
-    // TF
-    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+    // The relocation is one-shot, so retain the last debug clouds for RViz
+    // subscribers that connect after the registration attempt.
+    auto debug_qos = rclcpp::QoS(rclcpp::KeepLast(1));
+    debug_qos.reliable();
+    debug_qos.transient_local();
+    prior_source_debug_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+      "/fast_limo/reloca/prior_source", debug_qos);
+    prior_target_debug_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+      "/fast_limo/reloca/prior_target", debug_qos);
+    
+    // TF buffer and listener
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+    // Dynamic TF for dummy (identity) map -> odom transform (published until Relocator is relocated)
+    dynamic_tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
+
+    // The map -> odom transform is immutable after this one-shot relocation.
+    static_tf_broadcaster_ =
+      std::make_unique<tf2_ros::StaticTransformBroadcaster>(*this);
+    
 
     // Service client -> send map to main node once relocated
     pc_client_ = create_client<SendPointCloud>("/fast_limo/send_pointcloud");
@@ -57,16 +84,12 @@ public:
     // Init RELOCA
     RELOCA.init(cfg_);
 
-    // 10 Hz timer: broadcast TF + publish full map
-    tf_timer_ = create_wall_timer(
-      std::chrono::milliseconds(100),
-      std::bind(&RelocaWrapper::tf_broadcast, this));
-
     map_timer_ = create_wall_timer(
       std::chrono::milliseconds(5000),
       std::bind(&RelocaWrapper::publish_map, this));
 
     map_sent_ = false;
+    tf_sent_ = false;
   }
 
 private:
@@ -79,17 +102,52 @@ private:
     pcl::fromROSMsg(msg, *pc);
 
     auto& reloca = Relocator::getInstance();
-    reloca.updateCloud(pc);
-
-    if (!map_sent_ && reloca.is_relocated()) {
-      call_send_pointcloud_service();
+    if (!reloca.is_relocated()) {
+      reloca.updateCloud(pc);
+      publish_prior_debug_clouds();
     }
 
+    if (!map_sent_ && reloca.is_relocated()) {
+      publish_static_tf();
+      call_send_pointcloud_service();
+    }else{
+      publish_dynamic_tf();
+    }
+
+  }
+
+  void publish_prior_debug_clouds()
+  {
+    auto& reloca = Relocator::getInstance();
+    pcl::PointCloud<PointType>::Ptr source_in_map;
+    pcl::PointCloud<PointType>::Ptr target_in_map;
+
+    if (!reloca.takePriorDebugClouds(source_in_map, target_in_map)) return;
+
+    sensor_msgs::msg::PointCloud2 source_msg;
+    pcl::toROSMsg(*source_in_map, source_msg);
+    source_msg.header.frame_id = map_frame_;
+    source_msg.header.stamp = now();
+    prior_source_debug_pub_->publish(source_msg);
+
+    sensor_msgs::msg::PointCloud2 target_msg;
+    pcl::toROSMsg(*target_in_map, target_msg);
+    target_msg.header.frame_id = map_frame_;
+    target_msg.header.stamp = source_msg.header.stamp;
+    prior_target_debug_pub_->publish(target_msg);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Published prior GICP debug clouds: source=%zu, target=%zu",
+      source_in_map->size(),
+      target_in_map->size());
   }
 
   void state_callback(const nav_msgs::msg::Odometry & msg)
   {
     if(map_sent_) return; 
+
+    store_odom_pose(msg);
 
     fast_limo::State st;
     fromROStoLimo(msg, st);
@@ -100,17 +158,87 @@ private:
 
   void initialpose_callback(const PoseWithCovarianceStamped & msg)
   {
+    if (map_sent_) return;
 
-    if(map_sent_) return; 
+    // Convert the initial pose to the expected map frame if necessary.
+    PoseWithCovarianceStamped initial_pose = msg;
+
+    if (msg.header.frame_id.empty()) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Ignoring /initialpose: frame_id is empty");
+      return;
+    }
+
+    if (msg.header.frame_id != map_frame_) {
+      try {
+        initial_pose = tf_buffer_->transform(
+          msg,
+          map_frame_,
+          tf2::durationFromSec(initialpose_tf_timeout_s_));
+
+        RCLCPP_INFO(
+          get_logger(),
+          "Transformed /initialpose from '%s' to '%s'",
+          msg.header.frame_id.c_str(),
+          map_frame_.c_str());
+      } catch (const tf2::TransformException & ex) {
+        RCLCPP_ERROR(
+          get_logger(),
+          "Ignoring /initialpose: could not transform from '%s' to '%s': %s",
+          msg.header.frame_id.c_str(),
+          map_frame_.c_str(),
+          ex.what());
+        return;
+      }
+    }
+
+    Eigen::Matrix4f odom_to_base = Eigen::Matrix4f::Identity();
+
+    if (!interpolate_odom_pose(
+        rclcpp::Time(msg.header.stamp), odom_to_base))
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Ignoring /initialpose: no synchronized odometry pose within %.3f s",
+        initialpose_sync_tolerance_s_);
+      return;
+    }
 
     auto& reloca = Relocator::getInstance();
-    std::vector<double> init_state = {
-      msg.pose.pose.position.x,
-      msg.pose.pose.position.y,
-      msg.pose.pose.position.z,
-      0.0, 0.0, 0.0
-    };
-    reloca.updateInitialPose(init_state);
+
+    const Eigen::Vector3f map_position(
+      static_cast<float>(initial_pose.pose.pose.position.x),
+      static_cast<float>(initial_pose.pose.pose.position.y),
+      static_cast<float>(initial_pose.pose.pose.position.z));
+
+    Eigen::Quaternionf map_orientation(
+      static_cast<float>(initial_pose.pose.pose.orientation.w),
+      static_cast<float>(initial_pose.pose.pose.orientation.x),
+      static_cast<float>(initial_pose.pose.pose.orientation.y),
+      static_cast<float>(initial_pose.pose.pose.orientation.z));
+
+    if (map_orientation.norm() < 1.0e-6f) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "Ignoring /initialpose: invalid zero-norm quaternion");
+      return;
+    }
+
+    map_orientation.normalize();
+
+    Eigen::Matrix4f map_to_base = Eigen::Matrix4f::Identity();
+    map_to_base.block<3, 3>(0, 0) = map_orientation.toRotationMatrix();
+    map_to_base.block<3, 1>(0, 3) = map_position;
+
+    reloca.updateInitialPose(map_to_base, odom_to_base);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Synchronized pose prior received at map position [%.3f, %.3f, %.3f]",
+      map_position.x(),
+      map_position.y(),
+      map_position.z());
   }
 
   // ============================ Service call ============================
@@ -146,21 +274,57 @@ private:
   }
 
   // ============================ TF + full map ============================
-  void tf_broadcast()
+  void publish_dynamic_tf()
   {
+    if (tf_sent_) {
+      return;  // Static TF has already been published
+    }
+
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header.stamp = now();
+    tf_msg.header.frame_id = map_frame_;
+    tf_msg.child_frame_id = world_frame_;
+
+    tf_msg.transform.translation.x = 0.0;
+    tf_msg.transform.translation.y = 0.0;
+    tf_msg.transform.translation.z = 0.0;
+
+    tf_msg.transform.rotation.x = 0.0;
+    tf_msg.transform.rotation.y = 0.0;
+    tf_msg.transform.rotation.z = 0.0;
+    tf_msg.transform.rotation.w = 1.0;
+
+    dynamic_tf_broadcaster_->sendTransform(tf_msg);
+  }
+
+  void publish_static_tf()
+  {
+    if (tf_sent_) return;
+
     auto& reloca = Relocator::getInstance();
 
     Eigen::Vector3f p = reloca.get_pose();
     Eigen::Quaternionf q = reloca.get_orientation();
 
-    // Build fast_limo::State from pose (as in ROS1)
-    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
-    T.block<3,3>(0,0) = q.toRotationMatrix();
-    T.block<3,1>(0,3) = p;
-    fast_limo::State state(T);
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header.stamp = now();
+    tf_msg.header.frame_id = map_frame_;
+    tf_msg.child_frame_id = world_frame_;
+    tf_msg.transform.translation.x = p.x();
+    tf_msg.transform.translation.y = p.y();
+    tf_msg.transform.translation.z = p.z();
+    tf_msg.transform.rotation.x = q.x();
+    tf_msg.transform.rotation.y = q.y();
+    tf_msg.transform.rotation.z = q.z();
+    tf_msg.transform.rotation.w = q.w();
 
-    // Broadcast TF (map_frame_ -> world_frame_)
-    broadcastTF(state, map_frame_, world_frame_, true);
+    static_tf_broadcaster_->sendTransform(tf_msg);
+    tf_sent_ = true;
+    RCLCPP_INFO(
+      get_logger(),
+      "Published static TF %s -> %s after accepted relocation",
+      map_frame_.c_str(),
+      world_frame_.c_str());
   }
 
   void publish_map()
@@ -210,24 +374,108 @@ private:
       static_cast<float>(in.twist.twist.angular.z));
   }
 
-  void broadcastTF(const fast_limo::State& in, const std::string& parent, const std::string& child, bool use_now)
+  struct TimedOdomPose
   {
-    geometry_msgs::msg::TransformStamped tf_msg;
-    tf_msg.header.stamp    = use_now ? now() : rclcpp::Time(in.time);
-    tf_msg.header.frame_id = parent;
-    tf_msg.child_frame_id  = child;
+    int64_t stamp_ns = 0;
+    Eigen::Vector3f position = Eigen::Vector3f::Zero();
+    Eigen::Quaternionf orientation = Eigen::Quaternionf::Identity();
+  };
 
-    tf_msg.transform.translation.x = in.p.cast<double>()[0];
-    tf_msg.transform.translation.y = in.p.cast<double>()[1];
-    tf_msg.transform.translation.z = in.p.cast<double>()[2];
+  void store_odom_pose(const nav_msgs::msg::Odometry& msg)
+  {
+    TimedOdomPose pose;
+    pose.stamp_ns = rclcpp::Time(msg.header.stamp).nanoseconds();
+    if (pose.stamp_ns == 0) pose.stamp_ns = now().nanoseconds();
 
-    Eigen::Quaterniond qd = in.q.cast<double>();
-    tf_msg.transform.rotation.x = qd.x();
-    tf_msg.transform.rotation.y = qd.y();
-    tf_msg.transform.rotation.z = qd.z();
-    tf_msg.transform.rotation.w = qd.w();
+    pose.position = Eigen::Vector3f(
+      static_cast<float>(msg.pose.pose.position.x),
+      static_cast<float>(msg.pose.pose.position.y),
+      static_cast<float>(msg.pose.pose.position.z));
+    pose.orientation = Eigen::Quaternionf(
+      static_cast<float>(msg.pose.pose.orientation.w),
+      static_cast<float>(msg.pose.pose.orientation.x),
+      static_cast<float>(msg.pose.pose.orientation.y),
+      static_cast<float>(msg.pose.pose.orientation.z));
+    if (pose.orientation.norm() < 1.0e-6f) {
+      pose.orientation = Eigen::Quaternionf::Identity();
+    } else {
+      pose.orientation.normalize();
+    }
 
-    tf_broadcaster_->sendTransform(tf_msg);
+    std::lock_guard<std::mutex> lock(odom_history_mutex_);
+
+    auto insertion_point = std::upper_bound(
+      odom_history_.begin(),
+      odom_history_.end(),
+      pose.stamp_ns,
+      [](int64_t stamp, const TimedOdomPose& item) {
+        return stamp < item.stamp_ns;
+      });
+    odom_history_.insert(insertion_point, pose);
+
+    const int64_t oldest_allowed =
+      pose.stamp_ns - static_cast<int64_t>(odom_history_duration_s_ * 1.0e9);
+    while (!odom_history_.empty() &&
+           odom_history_.front().stamp_ns < oldest_allowed)
+    {
+      odom_history_.pop_front();
+    }
+  }
+
+  bool interpolate_odom_pose(
+    const rclcpp::Time& requested_stamp,
+    Eigen::Matrix4f& odom_to_base)
+  {
+    std::lock_guard<std::mutex> lock(odom_history_mutex_);
+    if (odom_history_.empty()) return false;
+
+    int64_t requested_ns = requested_stamp.nanoseconds();
+    if (requested_ns == 0) requested_ns = odom_history_.back().stamp_ns;
+
+    auto upper = std::lower_bound(
+      odom_history_.begin(),
+      odom_history_.end(),
+      requested_ns,
+      [](const TimedOdomPose& item, int64_t stamp) {
+        return item.stamp_ns < stamp;
+      });
+
+    TimedOdomPose synchronized;
+    const int64_t tolerance_ns =
+      static_cast<int64_t>(initialpose_sync_tolerance_s_ * 1.0e9);
+
+    if (upper == odom_history_.begin()) {
+      if (std::abs(upper->stamp_ns - requested_ns) > tolerance_ns) return false;
+      synchronized = *upper;
+    } else if (upper == odom_history_.end()) {
+      const TimedOdomPose& latest = odom_history_.back();
+      if (std::abs(latest.stamp_ns - requested_ns) > tolerance_ns) return false;
+      synchronized = latest;
+    } else {
+      const TimedOdomPose& after = *upper;
+      const TimedOdomPose& before = *(upper - 1);
+      const int64_t before_gap = requested_ns - before.stamp_ns;
+      const int64_t after_gap = after.stamp_ns - requested_ns;
+      if (before_gap > tolerance_ns || after_gap > tolerance_ns) return false;
+
+      const double interval =
+        static_cast<double>(after.stamp_ns - before.stamp_ns);
+      const float alpha = interval > 0.0
+        ? static_cast<float>(before_gap / interval)
+        : 0.0f;
+
+      synchronized.stamp_ns = requested_ns;
+      synchronized.position =
+        (1.0f - alpha) * before.position + alpha * after.position;
+      synchronized.orientation =
+        before.orientation.slerp(alpha, after.orientation).normalized();
+    }
+
+    odom_to_base = Eigen::Matrix4f::Identity();
+    odom_to_base.block<3, 3>(0, 0) =
+      synchronized.orientation.toRotationMatrix();
+    odom_to_base.block<3, 1>(0, 3) = synchronized.position;
+    return true;
   }
 
 // ============================ Params ============================
@@ -268,6 +516,28 @@ private:
       "score",
       10000.0);
 
+    cfg->prior_distance_threshold = static_cast<float>(
+      get_or_declare_parameter<double>("prior.distance_threshold", 2.5));
+    cfg->prior_crop_size = static_cast<float>(
+      get_or_declare_parameter<double>("prior.crop_size", 15.0));
+    cfg->prior_voxel = static_cast<float>(
+      get_or_declare_parameter<double>("prior.voxel", 0.3));
+    cfg->prior_max_correspondence = static_cast<float>(
+      get_or_declare_parameter<double>("prior.max_correspondence", 1.0));
+    cfg->prior_max_iterations = get_or_declare_parameter<int>(
+      "prior.max_iterations",
+      64);
+    cfg->prior_max_fitness_score = get_or_declare_parameter<double>(
+      "prior.max_fitness_score",
+      1.0);
+
+    initialpose_sync_tolerance_s_ = get_or_declare_parameter<double>(
+      "initialpose_sync_tolerance",
+      0.25);
+    odom_history_duration_s_ = get_or_declare_parameter<double>(
+      "odom_history_duration",
+      30.0);
+
     // Frames
     map_frame_ = get_or_declare_parameter<std::string>(
       "frames.map",
@@ -287,11 +557,18 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr       state_sub_;
   rclcpp::Subscription<PoseWithCovarianceStamped>::SharedPtr     initialpose_sub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    full_map_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    prior_source_debug_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr    prior_target_debug_pub_;
   rclcpp::Client<SendPointCloud>::SharedPtr                      pc_client_;
-  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+  std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_tf_broadcaster_;
+
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   // Timer
-  rclcpp::TimerBase::SharedPtr tf_timer_, map_timer_;
+  rclcpp::TimerBase::SharedPtr map_timer_;
 
   // Downsampling
   pcl::VoxelGrid<PointType> voxel_filter;
@@ -299,7 +576,15 @@ private:
   // Params / names
   std::string map_frame_, world_frame_;
 
+  std::deque<TimedOdomPose> odom_history_;
+  std::mutex odom_history_mutex_;
+  double initialpose_sync_tolerance_s_ = 0.25;
+  double odom_history_duration_s_ = 30.0;
+
+  double initialpose_tf_timeout_s_{2.0};
+
   bool map_sent_;
+  bool tf_sent_;
 };
 
 } // namespace ros2wrap
@@ -313,4 +598,3 @@ int main(int argc, char** argv) {
   rclcpp::shutdown(); 
   return 0;
 }
-

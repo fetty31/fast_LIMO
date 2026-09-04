@@ -25,7 +25,7 @@ def generate_launch_description():
     mode_arg = DeclareLaunchArgument(
         'mode',
         default_value='false',
-        description='Relocation mode flag'
+        description='false: global KISS+GICP, true: one GICP initialized from /initialpose'
     )
 
     rviz_cfg = PathJoinSubstitution([
@@ -53,6 +53,14 @@ def generate_launch_description():
             'inliers_threshold': 5,
             'score': 10000.0,
             'downsample_leaf': 3.0,
+            'initialpose_sync_tolerance': 0.25,
+            'odom_history_duration': 30.0,
+            'prior.distance_threshold': 5.0,
+            'prior.crop_size': 10.0,
+            'prior.voxel': 0.25,
+            'prior.max_correspondence': 3.0,
+            'prior.max_iterations': 64,
+            'prior.max_fitness_score': 0.15,
             'frames.map': "ona2/map",
             'frames.world': "ona2/odom"
         }]

@@ -18,6 +18,116 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "fast_limo/Modules/Relocator.hpp"
 
+#include <limits>
+#include <pcl/common/common.h>
+#include <pcl/common/transforms.h>
+
+namespace {
+
+struct PriorGICPResult {
+    Eigen::Matrix4f transformation = Eigen::Matrix4f::Identity();
+    bool converged = false;
+    double fitness_score = std::numeric_limits<double>::infinity();
+};
+
+bool validRigidTransform(const Eigen::Matrix4f& transformation) {
+    if (!transformation.allFinite()) return false;
+
+    const Eigen::Matrix3f rotation = transformation.block<3, 3>(0, 0);
+    const float determinant = rotation.determinant();
+    const float orthogonality_error =
+        (rotation.transpose() * rotation - Eigen::Matrix3f::Identity()).norm();
+
+    return std::abs(determinant - 1.0f) < 0.05f && orthogonality_error < 0.1f;
+}
+
+pcl::PointCloud<PointType>::Ptr downsampleCloud(
+    const pcl::PointCloud<PointType>::Ptr& input,
+    float voxel_size)
+{
+    pcl::PointCloud<PointType>::Ptr output(new pcl::PointCloud<PointType>);
+    if (!input || input->empty()) return output;
+
+    pcl::VoxelGrid<PointType> voxel;
+    voxel.setInputCloud(input);
+    voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
+    voxel.filter(*output);
+    return output;
+}
+
+pcl::PointCloud<PointType>::Ptr cropCloudAroundPrior(
+    const pcl::PointCloud<PointType>::Ptr& cloud_in_map,
+    const Eigen::Vector3f& prior_position,
+    float crop_size)
+{
+    pcl::PointCloud<PointType>::Ptr cropped(new pcl::PointCloud<PointType>);
+    if (!cloud_in_map || cloud_in_map->empty() || crop_size <= 0.0f) return cropped;
+
+    pcl::CropBox<PointType> crop;
+    crop.setInputCloud(cloud_in_map);
+    crop.setMin(Eigen::Vector4f(
+        prior_position.x() - crop_size,
+        prior_position.y() - crop_size,
+        prior_position.z() - crop_size,
+        1.0f));
+    crop.setMax(Eigen::Vector4f(
+        prior_position.x() + crop_size,
+        prior_position.y() + crop_size,
+        prior_position.z() + crop_size,
+        1.0f));
+    crop.filter(*cropped);
+    return cropped;
+}
+
+PriorGICPResult runGICP(
+    const pcl::PointCloud<PointType>::Ptr& source,
+    const pcl::PointCloud<PointType>::Ptr& target,
+    const Eigen::Matrix4f& guess,
+    float max_correspondence,
+    int maximum_iterations)
+{
+    PriorGICPResult result;
+    if (!source || !target || source->size() < 20 || target->size() < 20) {
+        return result;
+    }
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr source_xyz(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr target_xyz(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::copyPointCloud(*source, *source_xyz);
+    pcl::copyPointCloud(*target, *target_xyz);
+
+    nano_gicp::NanoGICP<PointTypeNano, PointTypeNano> registration;
+    registration.setMaxCorrespondenceDistance(max_correspondence);
+    registration.setNumThreads(10);
+    registration.setCorrespondenceRandomness(20);
+    registration.setMaximumIterations(maximum_iterations);
+    registration.setTransformationEpsilon(0.01);
+    registration.setEuclideanFitnessEpsilon(0.01);
+    registration.setRANSACIterations(5);
+    registration.setRANSACOutlierRejectionThreshold(1.0);
+
+    pcl::PointCloud<PointTypeNano> output;
+    registration.setInputSource(source_xyz);
+    registration.calculateSourceCovariances();
+    registration.setInputTarget(target_xyz);
+    registration.calculateTargetCovariances();
+    registration.align(output, guess);
+
+    result.converged = registration.hasConverged();
+    if (!result.converged) return result;
+
+    result.transformation = registration.getFinalTransformation();
+    if (!validRigidTransform(result.transformation)) {
+        result.converged = false;
+        return result;
+    }
+
+    result.fitness_score = registration.getFitnessScore();
+    return result;
+}
+
+}  // namespace
+
 // class fast_limo::Relocator
 // public
 
@@ -38,6 +148,8 @@ Relocator::Relocator() {
     full_map_transformed_.reset(new pcl::PointCloud<PointType>);
     full_map_ds.reset(new pcl::PointCloud<PointType>);
     aligned_cloud_gicp.reset(new pcl::PointCloud<PointType>);
+    prior_debug_source_map_.reset(new pcl::PointCloud<PointType>);
+    prior_debug_target_map_.reset(new pcl::PointCloud<PointType>);
 
     p = Eigen::Vector3f::Zero();
     q = Eigen::Quaternionf::Identity();
@@ -61,15 +173,55 @@ void Relocator::init(const RelocaConfig& cfg) {
     this->load_map(); // Import PCD map
 }
 
-bool Relocator::enough_distance_traveled() {
-    std::cout << "Distance traveled: " << this->distance_traveled << " / " << this->cfg_.distance_threshold << std::endl;
-    return this->distance_traveled > this->cfg_.distance_threshold;
+Eigen::Vector3f Relocator::get_pose() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return p;
 }
 
-void Relocator::updateInitialPose(std::vector<double> init_state){
-    this->init_state_[0] = init_state[0];
-    this->init_state_[1] = init_state[1];
-    this->init_state_[2] = init_state[2];
+Eigen::Quaternionf Relocator::get_orientation() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return q;
+}
+
+bool Relocator::takePriorDebugClouds(
+    pcl::PointCloud<PointType>::Ptr& source_in_map,
+    pcl::PointCloud<PointType>::Ptr& target_in_map)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!prior_debug_clouds_ready_) return false;
+
+    source_in_map.reset(new pcl::PointCloud<PointType>(*prior_debug_source_map_));
+    target_in_map.reset(new pcl::PointCloud<PointType>(*prior_debug_target_map_));
+    prior_debug_clouds_ready_ = false;
+    return true;
+}
+
+bool Relocator::enough_distance_traveled() {
+    const float threshold = cfg_.mode
+        ? cfg_.prior_distance_threshold
+        : cfg_.distance_threshold;
+    std::cout << "Distance traveled: " << this->distance_traveled << " / " << threshold << std::endl;
+    return this->distance_traveled > threshold;
+}
+
+void Relocator::updateInitialPose(const Eigen::Matrix4f& map_to_base,
+                                  const Eigen::Matrix4f& odom_to_base){
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Start the accumulation window when the first valid prior arrives.
+    // Later prior messages refresh the guess without discarding the submap.
+    if (!this->recived_estimated_pose) {
+        this->distance_traveled = 0.0f;
+        this->source_cloud_->clear();
+        this->last_x = odom_to_base(0, 3);
+        this->last_y = odom_to_base(1, 3);
+    }
+
+    this->initial_map_to_base_ = map_to_base;
+    this->initial_odom_to_base_ = odom_to_base;
+    this->init_state_[0] = map_to_base(0, 3);
+    this->init_state_[1] = map_to_base(1, 3);
+    this->init_state_[2] = map_to_base(2, 3);
     this->recived_estimated_pose = true; 
 }
 
@@ -86,6 +238,10 @@ void Relocator::reset() {
 }
 
 void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Prior mode only accumulates scans after a valid /initialpose.
+    if(cfg_.mode && !recived_estimated_pose) return;
 
     // Accumulate the point cloud
     *this->source_cloud_ += *pc;
@@ -93,21 +249,21 @@ void Relocator::updateCloud(pcl::PointCloud<PointType>::Ptr& pc) {
     // Check if has been traveled enough distance
     if(!enough_distance_traveled()) return;
     
-    // Check if we have received the initial pose (if mode is true)
-    if(cfg_.mode && !recived_estimated_pose) return;
-
     std::cout << "Starting Relocating..." << std::endl;
 
-    // Copy full map to target map (and apply pass-through if mode is true)
-    pcl::copyPointCloud(*this->full_map_, *this->target_map_);
-    if(cfg_.mode) this->passThroughFilter(this->target_map_, 30.0f);
+    // Global mode uses the full target map. Prior mode crops a fixed box
+    // centered at the synchronized /initialpose position.
+    if (!cfg_.mode) {
+        pcl::copyPointCloud(*this->full_map_, *this->target_map_);
+    }
 
-    this->relocated = this->relocation(); // Apply KISSMatcher and GICP 
+    this->relocated = this->relocation();
     if(this->relocated) this->transformFullMap();
     else this->reset();
 }
 
 void Relocator::updateState(fast_limo::State& st) {
+    std::lock_guard<std::mutex> lock(mutex_);
 
     float current_x = st.p(0);
     float current_y = st.p(1);
@@ -179,7 +335,9 @@ bool Relocator::relocation() {
     auto start = std::chrono::high_resolution_clock::now();
 
     bool valid = false;
-    if (applyKissMatcher()) {
+    if (cfg_.mode) {
+        valid = applyPriorGICP();
+    } else if (applyKissMatcher()) {
         valid = applyGICP();
     }
 
@@ -188,6 +346,123 @@ bool Relocator::relocation() {
     std::cout << "Full Elapsed time ms: " << elapsed_seconds.count()*1000 << std::endl;
 
     return valid;
+}
+
+bool Relocator::applyPriorGICP() {
+    if (!recived_estimated_pose || source_cloud_->empty() || full_map_->empty()) {
+        std::cout << "Prior GICP cannot start: missing prior, source cloud or map" << std::endl;
+        return false;
+    }
+
+    const Eigen::Matrix4f map_to_odom_guess =
+        initial_map_to_base_ * initial_odom_to_base_.inverse();
+    if (!validRigidTransform(map_to_odom_guess)) {
+        std::cout << "Prior GICP cannot start: invalid initial transform" << std::endl;
+        return false;
+    }
+
+    pcl::PointCloud<PointType>::Ptr source =
+        downsampleCloud(source_cloud_, cfg_.prior_voxel);
+
+    const Eigen::Vector3f prior_position =
+        initial_map_to_base_.block<3, 1>(0, 3);
+
+    std::cout
+        << "Prior crop box: center=["
+        << prior_position.x() << ", "
+        << prior_position.y() << ", "
+        << prior_position.z() << "], crop_size="
+        << cfg_.prior_crop_size
+        << std::endl;
+
+    // Transform the source provisionally to map, apply exactly the same crop
+    // box as the target, and transform it back to odom for GICP. This preserves
+    // the original registration convention: source=odom, target=map, guess=map<-odom.
+    pcl::PointCloud<PointType>::Ptr source_in_map(new pcl::PointCloud<PointType>);
+    pcl::transformPointCloud(
+        *source,
+        *source_in_map,
+        map_to_odom_guess);
+
+    const std::size_t source_size_before_crop = source_in_map->size();
+    pcl::PointCloud<PointType>::Ptr cropped_source_in_map =
+        cropCloudAroundPrior(
+            source_in_map,
+            prior_position,
+            cfg_.prior_crop_size);
+
+    pcl::copyPointCloud(*cropped_source_in_map, *prior_debug_source_map_);
+    prior_debug_target_map_->clear();
+    prior_debug_clouds_ready_ = true;
+
+    const Eigen::Matrix4f odom_to_map_guess = map_to_odom_guess.inverse();
+    pcl::transformPointCloud(
+        *cropped_source_in_map,
+        *source,
+        odom_to_map_guess);
+
+    std::cout
+        << "Prior source crop: before=" << source_size_before_crop
+        << ", after=" << source->size()
+        << std::endl;
+
+    if (source->size() < 20) {
+        std::cout << "Prior GICP source cloud is too small after cropping" << std::endl;
+        return false;
+    }
+
+    pcl::PointCloud<PointType>::Ptr cropped_map =
+        cropCloudAroundPrior(
+            full_map_,
+            prior_position,
+            cfg_.prior_crop_size);
+
+    pcl::PointCloud<PointType>::Ptr target =
+        downsampleCloud(cropped_map, cfg_.prior_voxel);
+    pcl::copyPointCloud(*target, *prior_debug_target_map_);
+
+    if (cropped_map->size() < 20) {
+        std::cout << "Prior GICP target map is too small after cropping" << std::endl;
+        return false;
+    }
+    if (target->size() < 20) {
+        std::cout << "Prior GICP target map is too small after downsampling" << std::endl;
+        return false;
+    }
+
+    const PriorGICPResult result = runGICP(
+        source,
+        target,
+        map_to_odom_guess,
+        cfg_.prior_max_correspondence,
+        cfg_.prior_max_iterations);
+
+    std::cout
+        << "Prior GICP: converged=" << result.converged
+        << ", fitness=" << result.fitness_score
+        << ", maximum_fitness=" << cfg_.prior_max_fitness_score
+        << std::endl;
+
+    if (!result.converged ||
+        !std::isfinite(result.fitness_score) ||
+        result.fitness_score > cfg_.prior_max_fitness_score)
+    {
+        std::cout << "Prior GICP rejected: not converged or fitness too high" << std::endl;
+        return false;
+    }
+
+    this->p = result.transformation.block<3, 1>(0, 3);
+    this->q = Eigen::Quaternionf(result.transformation.block<3, 3>(0, 0));
+    this->q.normalize();
+    pcl::transformPointCloud(
+        *this->source_cloud_,
+        *this->aligned_cloud_gicp,
+        result.transformation);
+
+    std::cout
+        << "Prior GICP accepted with fitness=" << result.fitness_score
+        << std::endl;
+    return true;
 }
 
 bool Relocator::applyKissMatcher() {

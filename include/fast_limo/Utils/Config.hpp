@@ -105,6 +105,14 @@ struct fast_limo::Config{
     int inliers_threshold;      // min inliers to consider a match valid
     double score;               // min score to consider a right relocation
 
+    // Prior relocation (mode=true): one GICP initialized from /initialpose.
+    float prior_distance_threshold;
+    float prior_crop_size;       // Half-size of source/target crop around /initialpose.
+    float prior_voxel;
+    float prior_max_correspondence;
+    int prior_max_iterations;
+    double prior_max_fitness_score;
+
 };
 
 

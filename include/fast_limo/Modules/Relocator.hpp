@@ -38,18 +38,25 @@
     void init(const RelocaConfig& cfg);
     void updateCloud(pcl::PointCloud<PointType>::Ptr& pc);
     void updateState(fast_limo::State& st);
-    void updateInitialPose(std::vector<double> init_state);
+    void updateInitialPose(const Eigen::Matrix4f& map_to_base,
+                           const Eigen::Matrix4f& odom_to_base);
+    bool takePriorDebugClouds(
+        pcl::PointCloud<PointType>::Ptr& source_in_map,
+        pcl::PointCloud<PointType>::Ptr& target_in_map);
 
-    inline Eigen::Vector3f get_pose() { return this->p; }
-    inline Eigen::Quaternionf get_orientation() { return this->q; }
+    Eigen::Vector3f get_pose();
+    Eigen::Quaternionf get_orientation();
 
     void get_full_map(pcl::PointCloud<PointType>::Ptr& full_map){
+        std::lock_guard<std::mutex> lock(mutex_);
         full_map = full_map_ds;
     }
     void get_full_map_transformed(pcl::PointCloud<PointType>::Ptr& full_map){
+        std::lock_guard<std::mutex> lock(mutex_);
         full_map = this->full_map_transformed_;
     }
     bool is_relocated(){
+        std::lock_guard<std::mutex> lock(mutex_);
         return relocated;
     }
 
@@ -58,6 +65,8 @@
     pcl::PointCloud<PointType>::Ptr target_map_, source_cloud_;
     pcl::PointCloud<PointType>::Ptr aligned_cloud_, aligned_cloud_gicp;
     pcl::PointCloud<PointType>::Ptr full_map_, full_map_ds, full_map_transformed_;
+    pcl::PointCloud<PointType>::Ptr prior_debug_source_map_;
+    pcl::PointCloud<PointType>::Ptr prior_debug_target_map_;
     
     Eigen::Vector3f p;
     Eigen::Quaternionf q;
@@ -65,15 +74,20 @@
     float distance_traveled = 0;
     float last_x = std::nan(""), last_y;
     bool relocated = false, recived_estimated_pose = false;
+    bool prior_debug_clouds_ready_ = false;
     std::array<double,3> init_state_{ 0.0, 0.0, 0.0};
+    Eigen::Matrix4f initial_map_to_base_ = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f initial_odom_to_base_ = Eigen::Matrix4f::Identity();
 
     Eigen::Matrix4f kiss_transformation_;
 
     RelocaConfig cfg_;
+    mutable std::mutex mutex_;
 
     nano_gicp::NanoGICP<PointTypeNano, PointTypeNano> m_nano_gicp;
 
     bool relocation();
+    bool applyPriorGICP();
     void passThroughFilter(pcl::PointCloud<PointType>::Ptr& cloud, float size);
     void voxelGridFilter(pcl::PointCloud<PointType>::Ptr& cloud, float voxel_size);
     bool applyGICP();

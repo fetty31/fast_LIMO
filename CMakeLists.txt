@@ -41,6 +41,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -137,7 +138,7 @@ if(USE_RELOCATION)
   add_executable(${PROJECT_NAME}_reloca_exec
                 src/RelocaWrapper.cpp
                 )
-  ament_target_dependencies(${PROJECT_NAME}_reloca_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros pcl_conversions)
+  ament_target_dependencies(${PROJECT_NAME}_reloca_exec rclcpp sensor_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs pcl_conversions)
   target_link_libraries(${PROJECT_NAME}_reloca_exec ${PROJECT_NAME}_core ${PCL_LIBRARIES})
 endif()
 
