@@ -230,6 +230,7 @@
             Eigen::Matrix<double, 6, 6> T =
                 Eigen::Matrix<double, 6, 6>::Zero();
 
+            T.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();  // position
             T.block<3, 3>(3, 3) = R;  // orientation
 
             const Eigen::Matrix<double, 6, 6> P_inertial =
