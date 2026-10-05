@@ -39,6 +39,7 @@
 
             // Odom
             this->q = s.rot.cast<float>();
+            this->q.normalize();
             this->p = s.pos.cast<float>();
             this->v = s.vel.cast<float>();
 
