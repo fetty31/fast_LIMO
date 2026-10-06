@@ -206,34 +206,68 @@
             this->mtx_cpu_stats.unlock();
         }
 
-        std::vector<double> Localizer::getPoseCovariance(){
-            if(not this->is_calibrated())
-                return std::vector<double>(36, 0);
+        std::vector<double> Localizer::getPoseCovariance()
+        {
+            if (not this->is_calibrated())
+                return std::vector<double>(36, 0.0);
 
-            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
-            Eigen::Matrix<double, 6, 6> P_pose;
-            P_pose.block<3, 3>(0, 0) = P.block<3, 3>(3, 3);
-            P_pose.block<3, 3>(0, 3) = P.block<3, 3>(3, 0);
-            P_pose.block<3, 3>(3, 0) = P.block<3, 3>(0, 3);
-            P_pose.block<3, 3>(3, 3) = P.block<3, 3>(0, 0);
+            const auto P = this->_iKFoM.get_P();
+            const State state = this->_iKFoM.get_x(); // cast to fast_limo::State
+
+            const Eigen::Matrix3d R =
+                state.q.toRotationMatrix().template cast<double>();
+
+            // Tangent covariance in [position, orientation] ordering.
+            Eigen::Matrix<double, 6, 6> P_tangent =
+                Eigen::Matrix<double, 6, 6>::Zero();
+
+            P_tangent.block<3, 3>(0, 0) = P.block<3, 3>(0, 0);  // pos-pos
+            P_tangent.block<3, 3>(0, 3) = P.block<3, 3>(0, 3);  // pos-rot
+            P_tangent.block<3, 3>(3, 0) = P.block<3, 3>(3, 0);  // rot-pos
+            P_tangent.block<3, 3>(3, 3) = P.block<3, 3>(3, 3);  // rot-rot
+
+            // Tangent -> inertial/world.
+            Eigen::Matrix<double, 6, 6> T =
+                Eigen::Matrix<double, 6, 6>::Zero();
+
+            T.block<3, 3>(3, 3) = R;  // orientation
+
+            const Eigen::Matrix<double, 6, 6> P_inertial =
+                T * P_tangent * T.transpose();
+
+            // ROS covariance ordering:
+            // [x, y, z, roll, pitch, yaw]
+            //
+            // P_inertial is already:
+            // [position, orientation]
+            const Eigen::Matrix<double, 6, 6> P_pose = P_inertial;
 
             std::vector<double> cov(P_pose.size());
-            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_pose.rows(), P_pose.cols()) = P_pose;
+
+            Eigen::Map<Eigen::Matrix<double, 6, 6>>(
+                cov.data()) = P_pose;
 
             return cov;
         }
 
-        std::vector<double> Localizer::getTwistCovariance(){
-            if(not this->is_calibrated())
-                return std::vector<double>(36, 0);
+        std::vector<double> Localizer::getTwistCovariance()
+        {
+            if (not this->is_calibrated())
+                return std::vector<double>(36, 0.0);
 
-            esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = this->_iKFoM.get_P();
-            Eigen::Matrix<double, 6, 6> P_odom = Eigen::Matrix<double, 6, 6>::Zero();
-            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(6, 6);
-            P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix<double, 3, 3>::Identity();
+            const auto P = this->_iKFoM.get_P();
+
+            Eigen::Matrix<double, 6, 6> P_odom =
+                Eigen::Matrix<double, 6, 6>::Zero();
+
+            // vel is already expressed in the inertial/world frame.
+            P_odom.block<3, 3>(0, 0) = P.block<3, 3>(12, 12).template cast<double>();
+
+            P_odom.block<3, 3>(3, 3) = config.ikfom.cov_gyro * Eigen::Matrix3d::Identity();
 
             std::vector<double> cov(P_odom.size());
-            Eigen::Map<Eigen::MatrixXd>(cov.data(), P_odom.rows(), P_odom.cols()) = P_odom;
+            Eigen::Map<Eigen::Matrix<double, 6, 6>>(
+                cov.data()) = P_odom;
 
             return cov;
         }
